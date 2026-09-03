@@ -12,6 +12,8 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
+	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/server"
 	"codeup.aliyun.com/qimao/leo/leo/transport/ginhttp"
 	"codeup.aliyun.com/qimao/leo/leo/transport/lgrpc"
@@ -44,7 +46,12 @@ func wireApp() (*ginhttp.Server, func(), error) {
 	helloworldService := book.NewHelloworld(hdRepo)
 	greeterHTTPServerController := service.NewBlogServer(helloworldService)
 	bookHTTPServerController := service.NewBookServer()
-	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController)
+	repository := repo2.NewUserRepository(mysqlClient)
+	passwordHasher := user.NewPBKDF2PasswordHasher()
+	userService := user.NewService(repository, passwordHasher)
+	userServiceHTTPServerController := service.NewUserServer(userService)
+	sessionRepository := repo2.NewSessionRepository(redisClient)
+	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, sessionRepository)
 	ginhttpServer := newApp(config, registerServer)
 	return ginhttpServer, func() {
 		cleanup3()

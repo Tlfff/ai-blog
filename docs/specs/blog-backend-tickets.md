@@ -31,6 +31,7 @@
 - [ ] Redis 保存 Token 会话和用户 Token 集合，Token 使用安全随机数生成。
 - [ ] 覆盖 Token 缺失、格式错误、过期、不存在、可选登录和管理员角色校验。
 - [ ] 退出只使当前 Token 失效，不影响其他设备会话。
+- [ ] 登录时记录最后登录 IP 和时间，资料响应通过 IP 地址库将 `last_login_ip` 转换为地区文案。
 
 ## T03 账号安全与头像上传（[#4](https://github.com/Tlfff/ai-blog/issues/4)）
 

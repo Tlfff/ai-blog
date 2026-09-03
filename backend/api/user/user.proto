@@ -1,0 +1,78 @@
+syntax = "proto3";
+
+package user.v1;
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/user;user";
+
+// UserService 提供用户注册和资料管理接口。
+service UserService {
+  // Register 注册普通用户。
+  rpc Register(RegisterRequest) returns (EmptyReply) {
+    option (google.api.http) = {
+      post: "/user/register"
+      body: "*"
+    };
+  }
+
+  // GetMyProfile 查询当前登录用户资料。
+  rpc GetMyProfile(GetMyProfileRequest) returns (ProfileReply) {
+    option (google.api.http) = {get: "/auth/my/profile"};
+  }
+
+  // GetPublicProfile 查询指定用户的公开资料。
+  rpc GetPublicProfile(GetPublicProfileRequest) returns (PublicProfileReply) {
+    option (google.api.http) = {get: "/user/profile"};
+  }
+
+  // UpdateMyProfile 修改当前登录用户资料。
+  rpc UpdateMyProfile(UpdateMyProfileRequest) returns (EmptyReply) {
+    option (google.api.http) = {
+      post: "/auth/my/profile/update"
+      body: "*"
+    };
+  }
+}
+
+// RegisterRequest 是用户注册请求。
+message RegisterRequest {
+  string nickname = 1 [(validate.rules).string = {min_len: 1, max_len: 50}];
+  string phone = 2 [(validate.rules).string = {min_len: 1, max_len: 50}];
+  string password = 3 [(validate.rules).string = {min_len: 6}];
+}
+
+// GetMyProfileRequest 是当前用户资料查询请求。
+message GetMyProfileRequest {}
+
+// GetPublicProfileRequest 是公开资料查询请求。
+message GetPublicProfileRequest {
+  uint64 user_id = 1 [(validate.rules).uint64 = {gt: 0}];
+}
+
+// UpdateMyProfileRequest 是当前用户资料修改请求。
+message UpdateMyProfileRequest {
+  string nickname = 1 [(validate.rules).string = {min_len: 1, max_len: 50}];
+  string avatar = 2 [(validate.rules).string = {max_len: 255}];
+}
+
+// EmptyReply 表示业务成功但不返回数据。
+message EmptyReply {}
+
+// ProfileReply 是当前用户可见的完整资料。
+message ProfileReply {
+  uint64 id = 1;
+  string nickname = 2;
+  string avatar = 3;
+  int32 role = 4;
+  int64 last_login_time = 5;
+  string last_login_ip = 6;
+}
+
+// PublicProfileReply 是游客可见的公开资料。
+message PublicProfileReply {
+  uint64 id = 1;
+  string nickname = 2;
+  string avatar = 3;
+}

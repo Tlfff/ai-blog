@@ -19,15 +19,18 @@ require (
 	codeup.aliyun.com/qimao/leo/leo/transport/lgrpc v0.4.0
 	codeup.aliyun.com/qimao/leo/lib v0.0.3
 	github.com/confluentinc/confluent-kafka-go/v2 v2.8.0
+	github.com/envoyproxy/protoc-gen-validate v1.2.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-sql-driver/mysql v1.9.1
 	github.com/google/wire v0.6.0
 	github.com/jinzhu/copier v0.4.0
+	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/nacos-group/nacos-sdk-go/v2 v2.2.9
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/samber/lo v1.49.1
 	github.com/spf13/cast v1.7.1
 	github.com/spf13/cobra v1.9.1
+	golang.org/x/crypto v0.36.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250324211829-b45e905df463
 	google.golang.org/grpc v1.71.0
 	google.golang.org/protobuf v1.36.6
@@ -112,7 +115,6 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	golang.org/x/arch v0.15.0 // indirect
-	golang.org/x/crypto v0.36.0 // indirect
 	golang.org/x/exp v0.0.0-20250305212735-054e65f0b394 // indirect
 	golang.org/x/net v0.38.0 // indirect
 	golang.org/x/sync v0.12.0 // indirect

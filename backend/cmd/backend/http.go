@@ -68,6 +68,8 @@ func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer) *ginhttp.Server
 	sentry.SentryInit(cfg.GetServer().GetSentry().ToSentryConfig())
 	ginEngine := gin.New()
 	ginEngine.Use(
+		// 将生成代码响应统一转换为博客对外协议
+		middleware.UnifiedResponseMiddleware(),
 		// 如果需重写返回结构体，请编写自定义rewrite中间件
 		//rewrite.Middleware(),
 		// 添加sentry中间件，用于捕获panic 默认false

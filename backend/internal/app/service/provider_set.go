@@ -8,6 +8,7 @@ import (
 var ServiceProviderAppSet = wire.NewSet(
 	NewBlogServer,
 	NewBookServer,
+	NewUserServer,
 )
 
 // ServiceGrpcProviderAppSet is service providers.

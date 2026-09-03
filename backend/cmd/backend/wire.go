@@ -25,6 +25,7 @@ func wireApp() (application *ginhttp.Server, cleanup func(), err error) {
 		clients.ProviderClientsSet,
 		// 领域层
 		domain.DomainProviderAppSet,
+		domain.UserProviderSet,
 		// 应用层
 		service.ServiceProviderAppSet,
 		// 驱动层
