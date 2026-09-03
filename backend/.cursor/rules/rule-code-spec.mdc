@@ -1,0 +1,229 @@
+---
+description: 
+globs: *.go
+alwaysApply: false
+---
+# Golang Cursor Rules
+
+你是一位遵循 Uber Go 编码规范的 Golang 专家。在生成和修改代码时必须遵循以下规范：
+
+### 代码格式
+
+1. 行长度控制
+```go
+// 不要超过 120 个字符
+// Bad
+func (r *SomeType) SomeLongFunctionName(someArg1 Type1, someArg2 Type2, someArg3 Type3, someArg4 Type4, someArg5 Type5) (Type6, error) {
+    // ...
+}
+
+// Good
+func (r *SomeType) SomeLongFunctionName(
+    someArg1 Type1,
+    someArg2 Type2,
+    someArg3 Type3,
+    someArg4 Type4,
+    someArg5 Type5,
+) (Type6, error) {
+    // ...
+}
+```
+
+2. 声明分组
+```go
+// Good
+const (
+    defaultPort = 8080
+    defaultUser = "user"
+)
+
+var (
+    errInvalidUser = errors.New("invalid user")
+    errInvalidPort = errors.New("invalid port")
+)
+```
+
+3. import 分组
+```go
+// Good
+import (
+    // 标准库
+    "fmt"
+    "net/http"
+    
+    // 外部库
+    "github.com/pkg/errors"
+    "go.uber.org/zap"
+    
+    // 内部包
+    "yourproject/internal/auth"
+)
+```
+
+### 命名规范
+
+1. 包名
+```go
+// Bad
+package authService
+
+// Good
+package auth
+```
+
+2. 接口命名
+```go
+// Good - 单方法接口以方法名+er结尾
+type Reader interface {
+    Read(p []byte) (n int, err error)
+}
+
+// Good - 双方法接口可以组合两个名词
+type ReadWriter interface {
+    Reader
+    Writer
+}
+```
+
+3. 变量命名
+```go
+// Bad
+var UserMap map[string]*User
+
+// Good
+var usersByID map[string]*User
+
+// Bad
+const TTL = 60
+
+// Good
+const timeToLive = 60
+```
+
+### 编程范式
+
+1. 接口处理
+```go
+// Bad - 指针接收器
+type Handler struct{}
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
+
+// Good - 值接收器
+type Handler struct{}
+func (h Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {}
+```
+
+2. 错误处理
+```go
+// Bad
+if err != nil {
+    log.Fatal(err)
+}
+
+// Good
+if err != nil {
+    return fmt.Errorf("failed to process request: %w", err)
+}
+```
+
+3. 避免使用 init()
+```go
+// Bad
+func init() {
+    db.Connect()
+}
+
+// Good
+func main() {
+    if err := db.Connect(); err != nil {
+        log.Fatal(err)
+    }
+}
+```
+
+### 并发处理
+
+1. goroutine 管理
+```go
+// Bad - fire and forget
+go process()
+
+// Good - 使用 WaitGroup
+var wg sync.WaitGroup
+wg.Add(1)
+go func() {
+    defer wg.Done()
+    process()
+}()
+wg.Wait()
+```
+
+2. channel 使用
+```go
+// Bad - 使用带缓冲的 channel
+ch := make(chan int, 10)
+
+// Good - 无缓冲 channel 或缓冲大小为 1
+ch := make(chan int)
+ch := make(chan int, 1)
+```
+
+### 性能优化
+
+1. 字符串转换
+```go
+// Bad
+s := fmt.Sprintf("%d", 10)
+
+// Good
+s := strconv.Itoa(10)
+```
+
+2. 预分配容器
+```go
+// Bad
+var s []string
+for i := 0; i < n; i++ {
+    s = append(s, "")
+}
+
+// Good
+s := make([]string, 0, n)
+for i := 0; i < n; i++ {
+    s = append(s, "")
+}
+```
+
+### 测试规范
+
+1. 表驱动测试
+```go
+// Good
+func TestAdd(t *testing.T) {
+    tests := []struct {
+        name     string
+        a, b     int
+        expected int
+    }{
+        {"positive", 2, 3, 5},
+        {"negative", -1, -2, -3},
+        {"zero", 0, 0, 0},
+    }
+    
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            got := Add(tt.a, tt.b)
+            if got != tt.expected {
+                t.Errorf("Add(%d, %d) = %d; want %d", tt.a, tt.b, got, tt.expected)
+            }
+        })
+    }
+}
+```
+
+### 工具链要求
+
+- 所有代码必须通过 `gofmt`
+- 使用 `golint` 和 `go vet` 进行代码检查
+- 使用 `goimports` 自动管理导入
+

@@ -1,0 +1,157 @@
+syntax = "proto3";
+
+// 该文件定义项目中用到的配置， 定义的结构体
+/* 优势： proto文件方便定义展示，拷贝，不用手动再copy golang的结构体了 */
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf;conf";
+// 配置根消息
+message Config {
+  Server server = 1;
+  Management management = 2;
+  Metrics metrics = 3;
+  Logger logger = 4;
+  Trace trace = 5;
+  Data data = 6;
+}
+
+// 服务器配置
+message Server {
+  Sentry sentry = 1;
+  Jaeger jaeger = 2;
+  HTTP http = 3;
+  GRPC grpc = 4;
+}
+
+message Sentry {
+  string dsn = 1;
+  double sample_rate = 2;
+  string environment = 3;
+}
+
+message Jaeger {
+  double sample_rate = 1;
+}
+
+message HTTP {
+  string network = 1;
+  int32 port = 2;
+  string timeout = 3;
+  string id = 4;
+}
+
+message GRPC {
+  string network = 1;
+  int32 port = 2;
+  string timeout = 3;
+  string id = 4;
+}
+
+// 管理配置
+message Management {
+  int32 port = 1;
+}
+
+// 指标配置
+message Metrics {
+  bool enabled = 1;
+  MetricsExporter exporter = 2;
+}
+
+message MetricsExporter {
+  Prometheus prometheus = 1;
+}
+
+message Prometheus {
+  bool enabled = 1;
+}
+
+// 日志配置
+message Logger {
+  string level = 1;
+}
+
+// 追踪配置
+message Trace {
+  bool enabled = 1;
+  JaegerTrace jaeger = 2;
+  Sampler sampler = 3;
+  string service_name = 4;
+  repeated string white_list = 5;
+}
+
+message JaegerTrace {
+  bool enabled = 1;
+  string url = 2;
+}
+
+message Sampler {
+  double rate = 1;
+}
+
+// 数据配置
+message Data {
+  map<string, MySQL> mysql = 1;
+  map<string, Redis> redis = 2;
+  SLSProducer sls_producer = 3;
+  KylinStorage kylin_storage = 4;
+  Kafka kafka = 5;
+}
+
+message MySQL {
+  string driver = 1;
+  string dsn = 2;
+  int32 max_idle = 3;
+  int32 max_open = 4;
+  int32 max_lifetime = 5;
+  bool is_debug = 6;
+}
+
+message Redis {
+  string dial_timeout = 1;
+  string addr = 2;
+  string password = 3;
+  int32 db = 4;
+  string read_timeout = 5;
+  string write_timeout = 6;
+}
+
+message SLSProducer {
+  string endpoint = 1;
+  string access_key_id = 2;
+  string access_key_secret = 3;
+}
+
+message KylinStorage {
+  string endpoint = 1;
+  string access_key = 2;
+}
+
+message Kafka {
+  KafkaProducer producer = 1;
+  KafkaConsumer consumer = 2;
+}
+
+message KafkaConsumer{
+  Config bid_result_report = 1;
+
+
+  message Config {
+    string bootstrap_servers = 1;
+    string topic = 2 ;
+    string group_id = 3;
+    int64 pool_size = 4; // 处理消息的goroutine数量，默认为不限
+    int64 message_buffer_size = 5; // 消息缓存数，默认为1
+    map<string, string> config_map = 6;
+  }
+}
+
+message KafkaProducer{
+  Config bid_result_report = 1;
+  Config adx_report = 2;
+  Config block_report = 3;
+
+  message Config {
+    string bootstrap_servers = 1;
+    string topic = 2;
+    map<string, string> config_map = 3;
+  }
+}

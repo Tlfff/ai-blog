@@ -1,0 +1,14 @@
+
+{{range .Files}}
+## {{.Name}}
+{{range .Enums}}
+### {{.LongName}}
+{{.Description}}
+
+|*Name* |*Number* |*Description* |
+| ----- | ---- | ----- |
+{{range .Values}}|{{.Name}} |{{.Number}} |{{.Description}}|
+{{end}}
+
+{{end}}
+{{end}}

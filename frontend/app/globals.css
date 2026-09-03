@@ -1,0 +1,610 @@
+@import 'tailwindcss';
+@import 'tw-animate-css';
+@import 'shadcn/tailwind.css';
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --font-sans: 'Noto Sans SC', ui-sans-serif, system-ui, sans-serif;
+  --font-title: 'Zen Kurenaido', 'Noto Sans SC', ui-sans-serif, sans-serif;
+  --font-playful: 'Arial Rounded MT Bold', 'PingFang SC', 'Noto Sans SC', ui-rounded, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-label: 'JetBrains Mono', ui-monospace, monospace;
+  --color-paper: var(--paper);
+  --color-paper-deep: var(--paper-deep);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-sakura: var(--sakura);
+  --color-sakura-deep: var(--sakura-deep);
+  --color-sakura-wash: var(--sakura-wash);
+  --color-kessoku-bocchi: var(--kessoku-bocchi);
+  --color-kessoku-nijika: var(--kessoku-nijika);
+  --color-kessoku-ryo: var(--kessoku-ryo);
+  --color-kessoku-kita: var(--kessoku-kita);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: 0.125rem;
+  --radius-md: 0.25rem;
+  --radius-lg: var(--radius);
+  --radius-xl: 0.75rem;
+  --radius-2xl: 1rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+}
+
+@font-face {
+  font-family: 'Zen Kurenaido';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/zenkurenaido/v15/NaPecZTRCLxvwo41b4gvzkXaRMHsDIRSfr2y.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/notosanssc/v37/k3kCo84MPvpLmixcA63oeALhLw.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/notosanssc/v37/k3kCo84MPvpLmixcA63oeALhLw.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/notosanssc/v37/k3kCo84MPvpLmixcA63oeALhLw.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'Noto Sans SC';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/notosanssc/v37/k3kCo84MPvpLmixcA63oeALhLw.woff2) format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url(https://fonts.gstatic.com/s/jetbrainsmono/v20/tDbY2o-flEEny0FZhsfKu5WU4zr3E_BX0PnT8RD8yKxjPVmUsaaDhw.woff2) format('woff2');
+}
+
+:root {
+  color-scheme: light;
+
+  /* --- 波奇酱色板：粉 + 米白 + 墨 --- */
+  --paper: oklch(0.976 0.008 85);
+  --paper-deep: oklch(0.945 0.014 80);
+  --paper-shadow: oklch(0.885 0.018 78);
+  --ink: oklch(0.235 0.018 285);
+  --ink-soft: oklch(0.455 0.016 285);
+  --ink-faint: oklch(0.58 0.012 285);
+  --sakura: oklch(0.735 0.152 5);
+  --sakura-deep: oklch(0.635 0.185 8);
+  --sakura-wash: oklch(0.935 0.032 6);
+
+  /* 结束乐队四人色，仅作小面积色点 */
+  --kessoku-bocchi: oklch(0.760 0.130 5);
+  --kessoku-nijika: oklch(0.820 0.140 85);
+  --kessoku-ryo: oklch(0.560 0.130 265);
+  --kessoku-kita: oklch(0.620 0.180 25);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: oklch(0.995 0.004 85);
+  --card-foreground: var(--ink);
+  --popover: oklch(0.995 0.004 85);
+  --popover-foreground: var(--ink);
+  --primary: var(--sakura-deep);
+  --primary-foreground: oklch(0.995 0.003 85);
+  --secondary: var(--paper-deep);
+  --secondary-foreground: var(--ink);
+  --muted: var(--paper-deep);
+  --muted-foreground: var(--ink-soft);
+  --accent: var(--sakura-wash);
+  --accent-foreground: var(--sakura-deep);
+  --destructive: oklch(0.585 0.205 25);
+  --destructive-foreground: oklch(0.995 0.003 85);
+  --border: oklch(0.878 0.012 80);
+  --border-strong: oklch(0.72 0.022 78);
+  --input: oklch(0.878 0.012 80);
+  --ring: var(--sakura-deep);
+  --chart-1: var(--kessoku-bocchi);
+  --chart-2: var(--kessoku-nijika);
+  --chart-3: var(--kessoku-ryo);
+  --chart-4: var(--kessoku-kita);
+  --chart-5: var(--ink-soft);
+  --radius: 0.5rem;
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--sakura-deep);
+  --sidebar-primary-foreground: oklch(0.995 0.003 85);
+  --sidebar-accent: var(--sakura-wash);
+  --sidebar-accent-foreground: var(--sakura-deep);
+  --sidebar-border: oklch(0.878 0.012 80);
+  --sidebar-ring: var(--sakura-deep);
+
+  /* --- 动效常量 --- */
+  --ease-in-expo: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-expo: cubic-bezier(0.7, 0, 0.84, 0);
+  --dur-micro: 120ms;
+  --dur-base: 220ms;
+  --dur-slow: 420ms;
+  --focus-ring: 0 0 0 3px color-mix(in oklch, var(--sakura) 28%, transparent);
+  --shadow-paper: 4px 4px 0 var(--paper-shadow);
+  --shadow-paper-hover: 7px 7px 0 var(--sakura-wash);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-weight: 400;
+  background-color: var(--background);
+  background-image:
+    radial-gradient(color-mix(in oklch, var(--paper-deep) 64%, transparent) 0.7px, transparent 0.9px),
+    linear-gradient(90deg, color-mix(in oklch, var(--paper-deep) 22%, transparent) 1px, transparent 1px);
+  background-size: 14px 14px, 5rem 5rem;
+  color: var(--foreground);
+  line-height: 1.75;
+  -webkit-font-smoothing: antialiased;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: var(--ring);
+    outline-offset: 2px;
+  }
+
+  :focus-visible {
+    outline: none;
+    box-shadow: var(--focus-ring);
+  }
+}
+
+/* =========================================================
+   纹理层：网点 + 纸张噪点。去「AI 味」的关键。
+   ========================================================= */
+
+.texture-halftone {
+  background-image: radial-gradient(var(--sakura) 1px, transparent 1.6px);
+  background-size: 10px 10px;
+  background-position: 0 0;
+}
+
+.texture-halftone-lg {
+  background-image: radial-gradient(var(--sakura) 1.6px, transparent 2.4px);
+  background-size: 18px 18px;
+}
+
+.texture-paper::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.surface-paper {
+  position: relative;
+  isolation: isolate;
+  background: var(--card);
+  border: 1px solid var(--border);
+}
+
+.section-rule {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: var(--ink-soft);
+  font-family: var(--font-label);
+  font-size: 0.6875rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.section-rule::after {
+  content: '';
+  height: 1px;
+  flex: 1;
+  background: var(--border-strong);
+}
+
+.surface-paper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.42;
+  background-image: radial-gradient(var(--sakura) 0.7px, transparent 0.9px);
+  background-size: 14px 14px;
+  mask-image: linear-gradient(135deg, black, transparent 46%);
+}
+
+.paper-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.038;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* =========================================================
+   排版件
+   ========================================================= */
+
+.label-meta {
+  font-family: var(--font-label);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+}
+
+.title-display {
+  font-family: var(--font-title);
+  font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+}
+
+.font-playful {
+  font-family: var(--font-playful);
+}
+
+/* 手绘感下划线：hover 由左扫出 */
+.underline-sweep {
+  position: relative;
+}
+
+.underline-sweep::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 2px;
+  width: 100%;
+  background: var(--sakura-deep);
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dur-base) var(--ease-in-expo);
+}
+
+.group:hover .underline-sweep::after,
+.underline-sweep:hover::after {
+  transform: scaleX(1);
+}
+
+/* 斜切色条，用于眉题与分节 */
+.slash-accent {
+  position: relative;
+  padding-left: 1rem;
+}
+
+.slash-accent::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.15em;
+  bottom: 0.15em;
+  width: 4px;
+  background: var(--sakura-deep);
+  transform: skewX(-12deg);
+}
+
+/* =========================================================
+   动效：只服务状态变化
+   ========================================================= */
+
+@keyframes cut-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    clip-path: inset(0 0 0 0);
+  }
+}
+
+@keyframes wipe-in-left {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes number-scroll {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.animate-cut-in-up {
+  animation: cut-in-up var(--dur-base) var(--ease-in-expo) forwards;
+}
+
+.animate-wipe-in-left {
+  animation: wipe-in-left 420ms var(--ease-in-expo) forwards;
+}
+
+/* 卡片：hover 靠位移与裁切，不靠发光 */
+.card-paper {
+  background: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-paper);
+  transition:
+    transform var(--dur-base) var(--ease-in-expo),
+    box-shadow var(--dur-base) var(--ease-in-expo),
+    border-color var(--dur-micro) linear;
+}
+
+.card-paper:hover {
+  transform: translate(-3px, -3px);
+  border-color: var(--sakura-deep);
+  box-shadow: var(--shadow-paper-hover);
+}
+
+.pressable {
+  transition: transform var(--dur-micro) var(--ease-in-expo),
+    background-color var(--dur-micro) linear,
+    border-color var(--dur-micro) linear;
+}
+
+.pressable:active {
+  transform: translateY(1px);
+}
+
+.safe-area-inset {
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.focus-paper:focus-visible {
+  outline: 2px solid var(--sakura-deep);
+  outline-offset: 4px;
+  box-shadow: var(--focus-ring);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* =========================================================
+   文章正文。原先用的 :deep() 是 Vue scoped 语法，
+   在标准 CSS 中非法，导致整段规则被浏览器丢弃、正文无样式。
+   ========================================================= */
+
+.prose-container {
+  font-size: 1rem;
+  line-height: 1.85;
+  color: var(--foreground);
+  max-width: 72ch;
+}
+
+.prose-container h1,
+.prose-container h2,
+.prose-container h3 {
+  font-family: var(--font-title);
+  color: var(--ink);
+  letter-spacing: -0.015em;
+  line-height: 1.25;
+}
+
+.prose-container h1 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 2.5rem 0 1.25rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid var(--sakura);
+}
+
+.prose-container h2 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  margin: 2rem 0 1rem;
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--sakura-deep);
+}
+
+.prose-container h3 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.75rem;
+}
+
+.prose-container h4,
+.prose-container h5,
+.prose-container h6 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.5rem;
+}
+
+.prose-container p {
+  margin: 1.15rem 0;
+}
+
+.prose-container strong {
+  font-weight: 700;
+  color: var(--sakura-deep);
+}
+
+.prose-container em {
+  font-style: italic;
+}
+
+.prose-container a {
+  color: var(--sakura-deep);
+  text-decoration: none;
+  border-bottom: 1px solid var(--sakura);
+  transition: background-color var(--dur-micro) linear;
+}
+
+.prose-container a:hover {
+  background-color: var(--sakura-wash);
+}
+
+.prose-container code {
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  padding: 0.15em 0.4em;
+  background: var(--sakura-wash);
+  color: var(--sakura-deep);
+  border-radius: 0.25rem;
+}
+
+.prose-container pre {
+  background: var(--ink);
+  border-radius: 0.5rem;
+  padding: 1.15rem 1.25rem;
+  overflow-x: auto;
+  margin: 1.5rem 0;
+  box-shadow: 4px 4px 0 0 var(--paper-deep);
+}
+
+.prose-container pre code {
+  background: transparent;
+  padding: 0;
+  color: oklch(0.93 0.01 85);
+  font-size: 0.8125rem;
+  line-height: 1.7;
+}
+
+.prose-container ul,
+.prose-container ol {
+  padding-left: 1.5rem;
+  margin: 1.15rem 0;
+}
+
+.prose-container li {
+  margin: 0.5rem 0;
+}
+
+.prose-container li::marker {
+  color: var(--sakura-deep);
+}
+
+.prose-container blockquote {
+  border-left: 4px solid var(--sakura);
+  padding: 0.75rem 1.25rem;
+  margin: 1.5rem 0;
+  color: var(--ink-soft);
+  background: var(--paper-deep);
+}
+
+.prose-container blockquote p {
+  margin: 0.35rem 0;
+}
+
+.prose-container img {
+  max-width: 100%;
+  border: 1px solid var(--border);
+  margin: 1.5rem 0;
+  box-shadow: 4px 4px 0 0 var(--paper-deep);
+}
+
+.prose-container hr {
+  border: none;
+  height: 1px;
+  margin: 2.25rem 0;
+  background: var(--border);
+}
+
+.prose-container table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1.5rem 0;
+  font-size: 0.9375rem;
+}
+
+.prose-container th,
+.prose-container td {
+  border: 1px solid var(--border);
+  padding: 0.5rem 0.85rem;
+  text-align: left;
+}
+
+.prose-container th {
+  background: var(--paper-deep);
+  font-weight: 600;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--paper-deep);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--sakura);
+  border: 2px solid var(--paper-deep);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--sakura-deep);
+}
+
+::selection {
+  background: var(--sakura);
+  color: oklch(0.995 0.003 85);
+}

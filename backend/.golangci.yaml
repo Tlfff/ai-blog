@@ -1,0 +1,245 @@
+run:
+  go: '1.23'
+  timeout: 5m
+  modules-download-mode: readonly
+  issues-exit-code: 0
+  tests: false
+  build-tags:
+    - musl
+  skip-dirs:
+    - assets/
+  skip-files:
+    - assets.go
+
+# https://golangci-lint.run/usage/linters/
+linters:
+  # 关闭其他 linter
+  disable:
+    - gofumpt
+    - rowserrcheck
+    - tagalign   # 禁用 Can't run linter goanalysis_metalinter: goanalysis_metalinter: tagalign: package "po"
+    - gosmopolitan # 语言检查，如果需要做国际化，可以打开 https://github.com/xen0n/gosmopolitan/blob/main/README.zh-Hans.md
+  presets:
+    - bugs
+    #- comment
+    #- complexity
+    - error
+    - format
+    - import
+    #- metalinter
+    #- module
+    - performance
+    #- sql
+    #- style
+    #- test
+    - unused
+
+issues:
+  # Excluding configuration per-path, per-linter, per-text and per-source
+  exclude-rules:
+    # Exclude some linters from running on tests files.
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - gosec
+        - lll
+
+  # 自动修复需要修复的规则（需规则支持）
+  fix: false
+
+# Linter 规则配置
+linters-settings:
+  lll:
+    # 单行最大长度 500
+    line-length: 500
+  # 静态代码检查，包含大量规则，
+  staticcheck:
+    # https://staticcheck.io/docs/options#checks
+    checks: [ "all", "-ST1000", "-ST1020", "-ST1021", "-ST1022" ]
+
+  # 循环复杂度
+  cyclop:
+    # 不需要报告的最大代码复杂度
+    max-complexity: 10
+
+  # 空白标识符数量检查
+  dogsled:
+    # 检查包含过多空白标识符的赋值语句，默认空白标识符不超过 2
+    max-blank-identifiers: 2
+
+  # 重复代码
+  dupl:
+    # 触发重复代码报告的字符数量
+    threshold: 100
+
+  # error 处理检查
+  errcheck:
+    # 是否检查类型断言语句
+    check-type-assertions: true
+
+    # 是否报告空白标识符接收的 error 例如：`num, _ := strconv.Atoi(numStr)`
+    check-blank: false
+
+  errorlint:
+    # 检查 fmt.Errorf 是否使用了 %v 来包装错误，应该用 %w
+    errorf: true
+    # 检查直接通过类型断言或 switche 语句判断 error 类型，应该用 `errors.As`
+    asserts: true
+    # 检查对 error 直接进行类型判断，应该用 `errors.Is`
+    comparison: true
+
+  funlen:
+    # 函数长度不能超过的行数
+    lines: 60
+    # 语句不能超过的数量
+    statements: 40
+
+  gocognit:
+    # 需要报告的最小代码复杂度，建议 10-20， 默认 30
+    min-complexity: 20
+
+  gosec:
+    excludes:
+      - G401
+      - G501
+
+  nestif:
+    # minimal complexity of if statements to report, 5 by default
+    # 需要报告的最小的 if 语句嵌套复杂度，默认 5
+    min-complexity: 4
+
+  # 常量检查
+  goconst:
+    # 常量最小长度，默认 3
+    min-len: 3
+    # 需要报告的最小字符串出现次数，默认 3
+    min-occurrences: 3
+    # 是否忽略测试文件
+    ignore-tests: false
+    # 查找与已定义常量值相同的字符串
+    match-constant: true
+    # 忽略未当做函数参数使用的常量，默认 true
+    ignore-calls: true
+
+  gocyclo:
+    # 需要报告的最小代码复杂度，建议 10-20， 默认 30
+    min-complexity: 10
+
+  gofumpt:
+    # 是否开启额外规则
+    extra-rules: true
+
+  # 整理导入的包同时执行 gofmt
+  goimports:
+    # 将指定前缀的包移动到第三方包的后面，列表通过逗号分隔
+    local-prefixes: ""
+
+  # 魔法数字检查
+  gomnd:
+    settings:
+      mnd:
+        # 开启检查的代码位置
+        checks:
+          - argument
+          - case
+          - condition
+          - operation
+          - return
+          - assign
+        ignored-numbers: 0,1,2,3,4,5,6,7,8,9,10,8080,200,400,500
+        ignored-files: .*_test.go,main.go
+        ignored-functions: math.*
+
+  # go mod 管理
+  gomoddirectives:
+    # 是否允许 replace 至本地包
+    replace-local: false
+    replace-allow-list: [ ]
+
+  govet:
+    # 检查参数覆盖
+    check-shadowing: true
+
+    # settings per analyzer
+    settings:
+      printf: # analyzer name, run `go tool vet help` to see all analyzers
+        funcs: # run `go tool vet help printf` to see available settings for `printf` analyzer
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Infof
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Warnf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Errorf
+          - (github.com/golangci/golangci-lint/pkg/logutils.Log).Fatalf
+
+    # enable or disable analyzers by name
+    # run `go tool vet help` to see all analyzers
+    enable:
+      - atomicalign
+    enable-all: false
+    disable:
+      - shadow
+    disable-all: false
+
+
+  # 查找超过 50 行的函数使用不带返回参数的 return 语句
+  nakedret:
+    max-func-lines: 50
+
+  # 切片预分配大小检查
+  # 注：性能测试时再开启
+  prealloc:
+    # 是否只在没有 returns/breaks/continues/gotos 语句的简单循环中开启，默认 true
+    simple: true
+    range-loops: true # 检查 range 循环，默认 true
+    for-loops: false # 检查 for 循环，默认 false
+
+  # 查找覆盖 Go 预留标识符（new、make、append 等）的代码
+  predeclared:
+    # 忽略的预留标识符，英文逗号分隔
+    ignore: ""
+    # 包含方法名和属性名，默认 false
+    q: false
+
+  # 检查 sql rows 的报错是否正确的进行了检查
+  rowserrcheck:
+    packages:
+      - github.com/jmoiron/sqlx
+
+  # 检查是否使用单独的 _test 包的 linter 规则
+  testpackage:
+    # 跳过文件的正则规则
+    skip-regexp: (export|internal)_test\.go
+
+  tagliatelle:
+    # 检查 struct tag 名称的命名规范
+    case:
+      # 使用 struct field 名称检查 struct tag 名称
+      use-field-name: true
+      rules:
+        # 支持的命名规范：`camel`, `pascal`, `kebab`, `snake`, `goCamel`, `goPascal`, `goKebab`, `goSnake`, `upper`, `lower`
+        json: snake
+        yaml: snake
+        xml: snake
+        bson: snake
+        avro: snake
+        mapstructure: snake
+
+  # 检测函数首尾空行的工具
+  whitespace:
+    multi-if: false   # 强制在多行 if 语句之后添加空行
+    multi-func: false # 强制在多行函数（方法）之后添加空行
+
+  # 检查外部包返回的 error 是否进行了包装（wrapped）
+  wrapcheck:
+    ignorePackageGlobs:
+      - encoding/*
+      - github.com/pkg/*
+  depguard:
+    rules:
+      main:
+        files:
+          - "!**/*_a _file.go"
+        allow:
+          - $gostd
+          - codeup.aliyun.com/qimao
+          - github.com
+        deny:

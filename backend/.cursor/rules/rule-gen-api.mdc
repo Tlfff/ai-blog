@@ -1,0 +1,50 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 生成 API
+
+## 上下文 
+名称：${名称}
+路由：${路由}
+入参：${入参}
+出参：${出参}
+
+## 任务
+根据以上内容，生成 rpc 方法。以下示例可供参考：
+```
+service CliAdmin {
+  // 模块详情
+  rpc ModuleDetail (ModuleDetailRequest) returns (Module) {
+    option (google.api.http) = {
+      get: "/config-client/backend/:project/module/detail",
+    };
+  }
+}
+
+message ModuleDetailRequest {
+  int32 module_id = 1[(validate.rules).int32.gt = 0];
+}
+
+message Module {
+  int32 id = 1;
+  string creator = 2;
+  int32 inherit_id = 3;
+  string key = 4;
+  string name = 5;
+  string operator = 6;
+  int32 platform = 7;
+  string platform_str = 8;
+  string project = 9;
+  string remark = 10;
+  string created_time = 11;
+  string updated_time = 12;
+}
+
+```
+
+## 执行命令
+```bash
+make api
+```

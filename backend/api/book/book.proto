@@ -1,0 +1,46 @@
+syntax = "proto3";
+
+import "google/api/annotations.proto";
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/book;book";
+package BookServer;
+service Book {
+
+  // GET /api/ShowBook 123
+  rpc ShowBook (RequestBook) returns (ReplyBook) {
+    option (google.api.http) = {
+      get: "/api/ShowBook",
+    };
+  }
+
+  // GET /api/BookList
+  rpc BookList (RequestBook) returns (ReplyBook) {
+    option (google.api.http) = {
+      get: "/api/BookList",
+    };
+  }
+
+  // POST /api/UpdateBook
+  rpc UpdateBook (RequestBook) returns (ReplyBook) {
+    option (google.api.http) = {
+      post: "/api/UpdateBook",
+      body: "*",
+    };
+  }
+
+  // POST /api/DelBook
+  rpc DelBook (RequestBook) returns (ReplyBook) {
+    option (google.api.http) = {
+      post: "/api/DelBook",
+      body: "*",
+    };
+  }
+
+}
+message RequestBook {
+  string name = 1;
+  int64 id = 2;
+}
+message ReplyBook {
+//
+  string message = 1; //
+}

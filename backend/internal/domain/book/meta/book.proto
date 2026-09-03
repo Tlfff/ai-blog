@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package internal.domain.flow.meta;
+
+option go_package = "pixiu-ad-backend/internal/domain/flow/meta";
+
+
+// 配置状态
+enum FLOW_STATUS {
+  // 未启用、停用
+  STOP = 0;
+  // 启用
+  OK = 1;
+}
+
+// 书籍形式  FORMAT
+enum FORMAT {
+  FORMAT_ALL = 0;
+  // 信息流
+  FORMAT_FEEDS_AD = 1;
+  // 开屏
+  FORMAT_SPLASH_AD = 2;
+  // 激励视频
+  FORMAT_REWARD_VIDEO_AD = 3;
+  // Banner
+  FORMAT_BANNER_AD = 4;
+  // 前贴
+  FORMAT_PRE_ROLL_AD = 5;
+  // 插屏
+  FORMAT_INTERSTITIAL_AD = 6;
+  // 浮层
+  FORMAT_FLOAT_AD = 7;
+}

@@ -1,0 +1,114 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# Golang 单元测试规范
+
+## 命名规范
+- 测试文件命名：`xxx_test.go`
+- 测试函数命名：`Test${被测试函数名}`
+- 基准测试函数：`Benchmark${被测试函数名}`
+- 示例函数：`Example${被测试函数名}`
+
+## 测试用例组织
+- 使用 `t.Run()` 进行子测试分组
+- 每个测试场景应该有清晰的描述
+- 使用表驱动测试方式组织多个测试用例
+
+## 测试代码结构
+```go
+func TestXxx(t *testing.T) {
+    // 1. 准备测试数据
+    type args struct {
+        // 输入参数
+    }
+    tests := []struct {
+        name    string     // 测试用例名称
+        args    args       // 输入参数
+        want    interface{} // 期望输出
+        wantErr bool       // 是否期望错误
+    }{
+        // 测试用例列表
+    }
+
+    // 2. 执行测试
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            // 3. 准备测试环境（如果需要）
+            
+            // 4. 执行被测试函数
+            
+            // 5. 验证结果
+            
+            // 6. 清理测试环境（如果需要）
+        })
+    }
+}
+```
+
+## 测试原则
+1. 单一职责：每个测试用例只测试一个功能点
+2. 独立性：测试用例之间相互独立，不应该有依赖关系
+3. 可重复：测试结果应该是稳定的，多次运行结果一致
+4. 简单明了：测试代码应该简单易懂，避免复杂的逻辑
+
+## Mock 使用规范
+- 优先使用接口进行依赖注入，便于 mock
+- 推荐使用 `go-mock`、`testify/mock` 等工具
+- Mock 对象应该在测试函数开始时创建，结束时销毁
+
+## 断言规范
+- 推荐使用 `testify/assert` 包进行断言
+- 使用恰当的断言函数，如：
+  - `assert.Equal(t, expected, actual)`
+  - `assert.NoError(t, err)`
+  - `assert.True(t, condition)`
+
+## 最佳实践
+1. 测试文件与源文件放在同一目录下
+2. 优先测试接口而不是实现细节
+3. 避免测试私有方法，通过公共接口测试
+4. 合理使用测试辅助函数减少重复代码
+5. 及时清理测试产生的临时资源
+6. 编写测试时考虑边界条件和异常场景
+
+## 示例
+```go
+func TestCalculator_Add(t *testing.T) {
+    type args struct {
+        a, b int
+    }
+    tests := []struct {
+        name    string
+        args    args
+        want    int
+        wantErr bool
+    }{
+        {
+            name: "正常相加",
+            args: args{a: 1, b: 2},
+            want: 3,
+        },
+        {
+            name: "负数相加",
+            args: args{a: -1, b: 1},
+            want: 0,
+        },
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            c := NewCalculator()
+            got := c.Add(tt.args.a, tt.args.b)
+            assert.Equal(t, tt.want, got)
+        })
+    }
+}
+```
+
+## 运行测试
+- 运行所有测试：`go test ./...`
+- 运行指定包测试：`go test ./pkg/...`
+- 运行指定函数：`go test -run TestXxx`
+- 显示详细日志：`go test -v` 

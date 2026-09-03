@@ -1,0 +1,4 @@
+FROM qimao-test-registry.cn-shanghai.cr.aliyuncs.com/public-test/alpine:3.21
+ADD bin/blog /blog
+ADD assets /assets/
+ENTRYPOINT [ "/blog" ]

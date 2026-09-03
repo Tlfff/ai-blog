@@ -1,0 +1,20 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# 生成技术文档
+
+## 上下文信息
+业务模块：${模块}
+
+## 任务描述
+请基于 @codebase 与 @api，来分析 ${模块} 的实现，生成 markdown 格式技术文档。并保存在 internal/cli.admin/domain/docs/ 目录下，文件命令采用 domain-xxx-xxx.md方式。
+
+## 输出要求
+至少包含以下内容：
+- 功能概述
+- 业务流程
+- 依赖分析
+- 数据结构
+- 核心代码
