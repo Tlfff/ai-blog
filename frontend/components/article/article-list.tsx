@@ -107,19 +107,19 @@ function DarkPagination({
         type="button"
         onClick={() => onChange(page - 1)}
         disabled={page <= 1}
-        className="grid size-9 place-items-center rounded-[4px] border border-white/18 text-white/65 transition-colors hover:border-[#f46f98] hover:text-[#f46f98] disabled:cursor-not-allowed disabled:opacity-30"
+        className="grid size-9 place-items-center rounded-[4px] border border-[var(--home-divider)] text-[var(--home-muted)] transition-colors hover:border-[var(--home-accent)] hover:text-[var(--home-accent)] disabled:cursor-not-allowed disabled:opacity-30"
         aria-label="上一页"
       >
         <ChevronLeft className="size-4" />
       </button>
-      <span className="text-xs tracking-[0.18em] text-white/50">
+      <span className="text-xs tracking-[0.18em] text-[var(--home-faint)]">
         {String(page).padStart(2, "0")} / {String(totalPages).padStart(2, "0")}
       </span>
       <button
         type="button"
         onClick={() => onChange(page + 1)}
         disabled={page >= totalPages}
-        className="grid size-9 place-items-center rounded-[4px] border border-white/18 text-white/65 transition-colors hover:border-[#f46f98] hover:text-[#f46f98] disabled:cursor-not-allowed disabled:opacity-30"
+        className="grid size-9 place-items-center rounded-[4px] border border-[var(--home-divider)] text-[var(--home-muted)] transition-colors hover:border-[var(--home-accent)] hover:text-[var(--home-accent)] disabled:cursor-not-allowed disabled:opacity-30"
         aria-label="下一页"
       >
         <ChevronRight className="size-4" />
@@ -130,13 +130,13 @@ function DarkPagination({
 
 function ListLoading() {
   return (
-    <div className="flex items-center justify-center gap-2 py-16 text-sm text-white/50">
-      <Loader2 className="size-4 animate-spin text-[#f46f98]" />
+    <div className="flex items-center justify-center gap-2 py-16 text-sm text-[var(--home-faint)]">
+      <Loader2 className="size-4 animate-spin text-[var(--home-accent)]" />
       加载文章中...
     </div>
   )
 }
 
 function ListEmpty() {
-  return <div className="py-16 text-center text-sm text-white/50">没有找到相关文章</div>
+  return <div className="py-16 text-center text-sm text-[var(--home-faint)]">没有找到相关文章</div>
 }

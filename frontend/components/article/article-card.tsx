@@ -1,5 +1,5 @@
 import Link from "next/link"
-import { Eye, Heart, MessageSquare } from "lucide-react"
+import { CalendarDays, Eye, Heart, MessageSquare, PenLine } from "lucide-react"
 import type { Article } from "@/types"
 import { formatDate, formatNumber } from "@/lib/format"
 import { cn } from "@/lib/utils"
@@ -19,83 +19,81 @@ const FALLBACK_COVERS = [
 ] as const
 
 export function ArticleCard({ article, index = 0 }: ArticleCardProps) {
-  const reversed = index % 2 === 1
+  const imageOnLeft = index % 2 === 0
   const cover = article.cover || FALLBACK_COVERS[index % FALLBACK_COVERS.length]
   const category = article.tags[0]?.name || (index % 2 === 0 ? "技术随笔" : "开发记录")
 
   return (
     <article
-      className="home-article-row group border-b border-white/12 py-7 opacity-0 animate-cut-in-up first:pt-0 sm:py-9"
-      style={{ animationDelay: `${Math.min(index, 6) * 70}ms` }}
+      className="post-item-card group relative flex min-h-[14.5rem] border-b border-[var(--home-divider)] text-[var(--home-text)]"
     >
-      <div className="grid items-center gap-5 sm:gap-7 md:grid-cols-[minmax(0,3.8fr)_minmax(0,6.2fr)] lg:gap-9">
-        <Link
-          href={`/articles/${article.id}`}
-          className={cn(
-            "relative aspect-[16/9] min-w-0 overflow-hidden bg-white/5 md:row-start-1",
-            reversed
-              ? "md:col-start-2 [clip-path:polygon(10%_0,100%_0,100%_100%,0_100%)]"
-              : "md:col-start-1 [clip-path:polygon(0_0,100%_0,90%_100%,0_100%)]",
-          )}
-        >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={cover}
-            alt={article.title}
-            className="h-full w-full object-cover transition-transform duration-500 ease-out group-hover:scale-[1.045]"
-          />
-          <span
-            className="absolute inset-0 bg-gradient-to-t from-black/25 via-transparent to-transparent opacity-60 transition-opacity group-hover:opacity-25"
-            aria-hidden
-          />
+      <Link
+        href={`/articles/${article.id}`}
+        aria-label={`阅读：${article.title}`}
+        className={cn(
+          "post-cover relative block h-[14.5rem] w-[45%] shrink-0 overflow-hidden bg-[var(--home-image-surface)]",
+          imageOnLeft ? "post-cover-left order-1" : "post-cover-right order-2",
+        )}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={cover}
+          alt={article.title}
+          className="h-full w-full cursor-pointer object-cover transition duration-500 ease-out group-hover:scale-110 group-hover:rotate-[1.5deg]"
+        />
+      </Link>
+
+      <div
+        className={cn(
+          "post-content flex min-w-0 w-[55%] flex-col gap-2 px-4 pb-4 pt-4 sm:px-5",
+          imageOnLeft ? "order-2" : "order-1",
+        )}
+      >
+        <div className="flex w-full items-start justify-between gap-3 text-xs text-[var(--home-faint)]">
+          <Link
+            href={`/search?q=${encodeURIComponent(category)}&page=1`}
+            className="inline-flex min-w-0 items-center gap-1 truncate transition-colors hover:text-[var(--home-accent)]"
+          >
+            <PenLine className="size-3 shrink-0" />
+            <span className="truncate">{category}</span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-3">
+            {article.createdAt && (
+              <time className="inline-flex items-center gap-1">
+                <CalendarDays className="size-3" />
+                {formatDate(article.createdAt)}
+              </time>
+            )}
+            <span className="hidden items-center gap-1 lg:inline-flex">
+              <PenLine className="size-3" />
+              {article.content.length || "—"} 字
+            </span>
+          </div>
+        </div>
+
+        <Link href={`/articles/${article.id}`} className="mt-1 block min-w-0">
+          <h3 className="line-clamp-1 truncate font-playful text-lg font-bold leading-snug text-[var(--home-accent)] transition-colors duration-300 hover:text-[var(--home-accent-hover)] sm:text-xl">
+            {article.title}
+          </h3>
         </Link>
 
-        <div
-          className={cn(
-            "min-w-0 md:row-start-1",
-            reversed ? "md:col-start-1 md:pr-2" : "md:col-start-2 md:pl-1",
-          )}
-        >
-          <p className="text-xs font-medium tracking-[0.12em] text-white/50">
-            {category}
-          </p>
+        <p className="line-clamp-3 min-h-[4.5rem] text-sm leading-6 text-[var(--home-muted)]">
+          {article.summary || "继续阅读这篇文章，看看这里记录了哪些技术思考与生活片段。"}
+        </p>
 
-          <Link href={`/articles/${article.id}`} className="mt-2.5 block">
-            <h3 className="font-playful text-[1.35rem] font-bold leading-snug tracking-[-0.01em] text-[#f46f98] transition-colors group-hover:text-[#ff91b2] sm:text-2xl">
-              {article.title}
-            </h3>
-            <p className="mt-3 line-clamp-2 text-sm leading-7 text-white/68 sm:text-[0.95rem]">
-              {article.summary || "继续阅读这篇文章，看看这里记录了哪些技术思考与生活片段。"}
-            </p>
-          </Link>
-
-          {article.tags.length > 0 ? (
-            <div className="mt-4 flex flex-wrap gap-x-3 gap-y-1.5">
-              {article.tags.slice(0, 3).map((tag) => (
-                <Link
-                  key={tag.id}
-                  href={`/search?q=${encodeURIComponent(tag.name)}&page=1`}
-                  className="text-xs text-[#f3a4ba]/80 transition-colors hover:text-[#f3a4ba]"
-                >
-                  #{tag.name}
-                </Link>
-              ))}
-            </div>
-          ) : null}
-
-          <div className="mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-white/48">
-            {article.createdAt ? <time>{formatDate(article.createdAt)}</time> : null}
-            <span className="inline-flex items-center gap-1.5">
+        <div className="mt-auto flex items-center justify-end gap-3 pt-1">
+          <div className="flex shrink-0 items-center gap-3 text-xs text-[var(--home-faint)]">
+            <span className="inline-flex items-center gap-1">
               <Eye className="size-3.5" />
               {formatNumber(article.views)}
             </span>
-            <span className="inline-flex items-center gap-1.5">
+            <span className="hidden items-center gap-1 sm:inline-flex">
               <Heart className="size-3.5" />
               {formatNumber(article.likes)}
             </span>
             <Link
               href={`/articles/${article.id}#comments`}
-              className="inline-flex items-center gap-1.5 transition-colors hover:text-[#f3a4ba]"
+              className="inline-flex items-center gap-1 transition-colors hover:text-[var(--home-accent)]"
             >
               <MessageSquare className="size-3.5" />
               {formatNumber(article.commentsCount)}

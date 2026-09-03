@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Code2, PenSquare, Search } from "lucide-react"
 import { NotificationBell } from "@/components/notification/notification-bell"
+import { ThemeToggle } from "@/components/theme/theme-toggle"
 import { buttonVariants } from "@/components/ui/button"
 import { useAuth } from "@/hooks/use-auth"
 import { cn } from "@/lib/utils"
@@ -91,6 +92,8 @@ export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
               <SearchBox />
             </div>
           )}
+
+          <ThemeToggle inverted={transparent} />
 
           {isLoggedIn ? (
             <>

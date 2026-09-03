@@ -74,11 +74,11 @@ function HeroSection() {
         >
           <path
             d="M0 56C225 92 390 94 584 74C798 52 923 42 1115 58C1249 69 1345 72 1440 58V128H0Z"
-            fill="#f2c9d4"
+            fill="var(--home-wave)"
           />
           <path
             d="M0 76C211 62 342 112 590 99C816 87 995 54 1191 78C1287 90 1363 98 1440 89V128H0Z"
-            fill="#17171d"
+            fill="var(--home-surface)"
           />
         </svg>
       </div>
@@ -89,11 +89,11 @@ function HeroSection() {
 function SectionHeading({ children }: { children: React.ReactNode }) {
   return (
     <div className="mb-8 flex items-center gap-4 sm:mb-10 sm:gap-6">
-      <span className="h-px flex-1 bg-white/20" aria-hidden />
-      <h2 className="font-playful shrink-0 text-2xl font-bold tracking-wide text-[#fffaf3] sm:text-3xl">
+      <span className="h-px flex-1 bg-[var(--home-divider)]" aria-hidden />
+      <h2 className="font-playful shrink-0 text-2xl font-bold tracking-wide text-[var(--home-text)] sm:text-3xl">
         {children}
       </h2>
-      <span className="h-px flex-1 bg-white/20" aria-hidden />
+      <span className="h-px flex-1 bg-[var(--home-divider)]" aria-hidden />
     </div>
   )
 }
@@ -108,7 +108,7 @@ export default function HomePage({
   return (
     <SiteShell immersiveHeader>
       <HeroSection />
-      <section className="relative bg-[#17171d] text-[#fffaf3]">
+      <section className="relative bg-[var(--home-surface)] text-[var(--home-text)] transition-colors duration-300">
         <Container className="max-w-[1240px] pb-16 pt-7 sm:pb-20 sm:pt-10 lg:pb-24">
           <div className="grid gap-12 lg:grid-cols-[240px_minmax(0,1fr)] lg:gap-14 xl:gap-20">
             <aside id="about" className="scroll-mt-24 lg:sticky lg:top-24 lg:self-start">
@@ -121,10 +121,10 @@ export default function HomePage({
             </main>
           </div>
 
-          <footer className="mt-16 flex items-center gap-5 border-t border-white/10 pt-6 text-xs text-white/45">
+          <footer className="mt-16 flex items-center gap-5 border-t border-[var(--home-divider)] pt-6 text-xs text-[var(--home-faint)]">
             <span>© 2026 睦子米</span>
-            <span className="h-px flex-1 bg-white/10" aria-hidden />
-            <span className="font-playful text-sm text-white/55">Link start！</span>
+            <span className="h-px flex-1 bg-[var(--home-divider)]" aria-hidden />
+            <span className="font-playful text-sm text-[var(--home-muted)]">Link start！</span>
           </footer>
         </Container>
       </section>

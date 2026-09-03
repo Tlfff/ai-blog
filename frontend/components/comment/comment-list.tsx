@@ -40,13 +40,13 @@ export function CommentList({ articleId, authorId }: CommentListProps) {
 
   return (
     <div className="mt-6">
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-y border-border py-3">
+      <div className="mb-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-y border-border py-3">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MessageSquare className="size-4 text-sakura-deep" />
           <span>{data?.total || 0} 条评论</span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
           <select
             value={pageSize}
             onChange={(e) => {

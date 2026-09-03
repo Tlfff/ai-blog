@@ -3,6 +3,7 @@
 import ReactMarkdown from "react-markdown"
 import remarkGfm from "remark-gfm"
 import type { ArticleImage } from "@/types"
+import { slugifyHeading } from "./article-toc"
 
 interface ArticleContentProps {
   content: string
@@ -29,17 +30,17 @@ export function ArticleContent({ content, images = [] }: ArticleContentProps) {
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
-            <h1 className="font-title mt-10 mb-6 text-3xl font-bold text-foreground pb-3 border-b-2 border-transparent border-image-gradient">
+            <h1 id={slugifyHeading(String(children))} className="scroll-mt-24 font-title mt-10 mb-6 text-3xl font-bold text-foreground pb-3 border-b-2 border-transparent border-image-gradient">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="font-title mt-8 mb-4 text-2xl font-semibold text-foreground pb-2 border-b border-primary/30">
+            <h2 id={slugifyHeading(String(children))} className="scroll-mt-24 font-title mt-8 mb-4 text-2xl font-semibold text-foreground pb-2 border-b border-primary/30">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="font-title mt-6 mb-3 text-xl font-semibold text-foreground">
+            <h3 id={slugifyHeading(String(children))} className="scroll-mt-24 font-title mt-6 mb-3 text-xl font-semibold text-foreground">
               {children}
             </h3>
           ),
@@ -79,13 +80,13 @@ export function ArticleContent({ content, images = [] }: ArticleContentProps) {
               )
             }
             return (
-              <code className={`${className} language-${className?.replace('language-', '') || 'plaintext'}`}>
+              <code className={`${className} block max-w-full language-${className?.replace('language-', '') || 'plaintext'}`}>
                 {children}
               </code>
             )
           },
           pre: ({ children }) => (
-            <pre className="my-5 p-5 rounded-xl bg-gradient-to-br from-muted/80 to-muted/40 border border-primary/20 overflow-x-auto text-sm font-mono shadow-lg shadow-black/20">
+            <pre className="my-5 overflow-x-auto rounded-lg border border-[var(--article-code-border)] bg-[var(--article-code-surface)] p-5 font-mono text-sm text-[var(--article-code-text)] shadow-none">
               {children}
             </pre>
           ),
