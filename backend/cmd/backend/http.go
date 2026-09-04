@@ -92,9 +92,16 @@ func (app *httpApplication) HealthChecker() health.Checker {
 	return app.server.HealthChecker()
 }
 
-// newApp 创建包含传输服务和对象恢复任务的 HTTP 应用。
+// newApp 创建包含传输服务、对象恢复、热榜和浏览事件任务的 HTTP 应用。
+//
+// 参数说明：
+//   - cfg：HTTP Server 和中间件配置。
+//   - httpServer：生成路由的聚合注册器。
+//   - reconciler：正文图片删除恢复任务。
+//   - hotRank：文章热榜启动及整点重建任务。
+//   - viewEvents：文章浏览事件异步发送任务。
 func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appjob.ArticleDeletionReconciler, hotRank *appjob.ArticleHotRankJob, viewEvents *eventstream.ArticleViewPublisher) *httpApplication {
-
+	// 1. 初始化 HTTP 中间件和生成路由
 	sentry.SentryInit(cfg.GetServer().GetSentry().ToSentryConfig())
 	ginEngine := gin.New()
 	ginEngine.Use(
@@ -115,6 +122,7 @@ func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *app
 	)
 	httpServer.Register(ginEngine)
 
+	// 2. 解析超时并创建 Leo HTTP Server
 	ts, err := time.ParseDuration(cfg.GetServer().GetHttp().GetTimeout())
 	if err != nil {
 		log.Error(err.Error())
@@ -128,5 +136,6 @@ func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *app
 		ginhttp.ReadTimeout(ts),
 	)
 
+	// 3. 聚合全部由 Leo 生命周期管理的 Runner
 	return &httpApplication{server: httpServers, reconciler: reconciler, hotRank: hotRank, viewEvents: viewEvents}
 }

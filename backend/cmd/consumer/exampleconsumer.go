@@ -36,6 +36,7 @@ var blogConsumerCmd = &cobra.Command{
 
 // newBlogStreamer 创建博客消息流运行器。
 func newBlogStreamer(cf *conf.Data, handler *consumer.ArticleViewConsumer) *stream.Streamer {
+	// 1. 使用文章浏览消费者配置创建 Leo Streamer
 	articleViewConfig := cf.GetKafka().GetConsumer().GetArticleView()
 	streamer := stream.NewStreamer(
 		stream.MessageBufferSize(int(articleViewConfig.GetMessageBufferSize())),
@@ -53,6 +54,8 @@ func newArticleViewConsumer(processor article.ViewProcessor, subscriber *eventst
 	return consumer.NewArticleViewConsumer(subscriber, processor, deadLetter)
 }
 
+// init 注册博客消息消费者子命令。
 func init() {
+	// 1. 将文章浏览消费者命令加入根 Consumer 命令
 	ConsumerCmd.AddCommand(blogConsumerCmd)
 }

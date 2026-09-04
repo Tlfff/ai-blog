@@ -8,6 +8,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo/factory"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo/po"
 	"xorm.io/xorm"
+	"xorm.io/xorm/schemas"
 )
 
 // ListPublished 分页查询已发表文章。
@@ -53,12 +54,20 @@ func (r *Repository) RecordView(ctx context.Context, event article.ViewEvent) (*
 	var metric *article.HotMetric
 	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
 		session = session.Context(ctx)
+		inserted, err := insertViewEventInbox(session, event)
+		if err != nil {
+			return nil, err
+		}
 		articlePO, err := findArticleForUpdate(session, event.ArticleID)
 		if err != nil {
 			return nil, err
 		}
 		if articlePO.Status != article.StatusPublished {
 			return nil, article.ErrArticleNotPublished
+		}
+		if !inserted {
+			metric = hotMetricFromPO(articlePO)
+			return nil, nil
 		}
 
 		// 2. 登录用户更新既有历史，首次浏览时创建记录；游客不保存历史
@@ -86,6 +95,12 @@ func (r *Repository) RecordView(ctx context.Context, event article.ViewEvent) (*
 		return nil, nil
 	})
 	return metric, err
+}
+
+// ViewEventProcessed 查询浏览事件是否已在 MySQL 事务中完成。
+func (r *Repository) ViewEventProcessed(ctx context.Context, eventID string) (bool, error) {
+	// 1. Inbox 主键存在即表示历史和浏览量事务已经提交
+	return r.client.Context(ctx).ID(eventID).Exist(new(po.ViewEventInbox))
 }
 
 // FindHotMetric 查询指定已发表文章的权威热度字段。
@@ -146,4 +161,19 @@ func hotMetricFromPO(articlePO *po.Article) *article.HotMetric {
 		ArticleID: articlePO.ID, Title: articlePO.Title, ViewCount: articlePO.ViewCount,
 		LikeCount: articlePO.LikeCount, CommentCount: articlePO.CommentCount,
 	}
+}
+
+// insertViewEventInbox 原子插入浏览事件 Inbox 并返回是否首次处理。
+func insertViewEventInbox(session *xorm.Session, event article.ViewEvent) (bool, error) {
+	// 1. 使用各数据库方言的忽略冲突语法，主键保证并发幂等
+	query := "INSERT IGNORE INTO article_view_event_inbox (event_id, article_id, processed_time) VALUES (?, ?, ?)"
+	if session.Engine().Dialect().URI().DBType == schemas.SQLITE {
+		query = "INSERT OR IGNORE INTO article_view_event_inbox (event_id, article_id, processed_time) VALUES (?, ?, ?)"
+	}
+	result, err := session.Exec(query, event.EventID, event.ArticleID, event.ViewedAt)
+	if err != nil {
+		return false, err
+	}
+	rows, err := result.RowsAffected()
+	return rows == 1, err
 }

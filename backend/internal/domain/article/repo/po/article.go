@@ -55,6 +55,19 @@ type ViewHistory struct {
 	UpdatedTime time.Time `xorm:"'updated_time' datetime"` // UpdatedTime 是最近浏览时间。
 }
 
+// ViewEventInbox 与 MySQL article_view_event_inbox 技术幂等表字段一一对应。
+type ViewEventInbox struct {
+	EventID       string    `xorm:"'event_id' pk varchar(64)"` // EventID 是浏览事件幂等标识。
+	ArticleID     uint64    `xorm:"'article_id' notnull"`      // ArticleID 是事件关联文章标识。
+	ProcessedTime time.Time `xorm:"'processed_time' datetime"` // ProcessedTime 是事务处理完成时间。
+}
+
+// TableName 返回文章浏览事件技术幂等表名。
+func (ViewEventInbox) TableName() string {
+	// 1. 技术 Inbox 与浏览投影写入同一 MySQL 事务
+	return "article_view_event_inbox"
+}
+
 // TableName 返回文章浏览历史表名。
 func (ViewHistory) TableName() string {
 	// 1. 使用功能文档约定的 article_view_histories 表

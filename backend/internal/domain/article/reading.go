@@ -105,6 +105,8 @@ type ReadingRepository interface {
 	ListPublished(context.Context, PublicListQuery) ([]*entity.Article, uint64, error)
 	// RecordView 原子维护登录用户历史并增加文章浏览量。
 	RecordView(context.Context, ViewEvent) (*HotMetric, error)
+	// ViewEventProcessed 查询浏览事件是否已在 MySQL 事务中完成。
+	ViewEventProcessed(context.Context, string) (bool, error)
 	// FindHotMetric 查询指定已发表文章的权威热度字段。
 	FindHotMetric(context.Context, uint64) (*HotMetric, error)
 	// FindHotMetrics 批量查询指定已发表文章的权威热度字段。
@@ -230,7 +232,14 @@ func (s *ViewService) ConsumeView(ctx context.Context, event ViewEvent) error {
 		return fmt.Errorf("占用浏览事件处理状态: %w", err)
 	}
 	if state == ViewEventProcessing {
-		return ErrViewEventProcessing
+		processed, err := s.repository.ViewEventProcessed(ctx, event.EventID)
+		if err != nil {
+			return err
+		}
+		if processed {
+			return s.repairHotRank(ctx, event.ArticleID, event.EventID)
+		}
+		return errors.Join(ErrViewEventProcessing, s.dedupe.Release(ctx, event.EventID))
 	}
 	if state == ViewEventCompleted {
 		return s.repairHotRank(ctx, event.ArticleID, event.EventID)

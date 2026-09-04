@@ -14,6 +14,7 @@ type fakeReadingRepository struct {
 	articles    []*entity.Article // articles 是公开列表预设文章。
 	recordCalls int               // recordCalls 是浏览写入调用次数。
 	metric      *HotMetric        // metric 是热榜权威统计。
+	processed   bool              // processed 表示 MySQL Inbox 已提交事件。
 }
 
 // ListPublished 返回测试公开文章列表。
@@ -27,6 +28,12 @@ func (f *fakeReadingRepository) RecordView(context.Context, ViewEvent) (*HotMetr
 	// 1. 累加写入次数并返回权威统计
 	f.recordCalls++
 	return f.metric, nil
+}
+
+// ViewEventProcessed 返回测试 Inbox 状态。
+func (f *fakeReadingRepository) ViewEventProcessed(context.Context, string) (bool, error) {
+	// 1. 返回预设 MySQL 事务完成状态
+	return f.processed, nil
 }
 
 // FindHotMetric 返回单篇文章权威统计。
@@ -58,8 +65,9 @@ func (fakeViewPublisher) PublishView(context.Context, ViewEvent) error {
 
 // fakeDedupe 返回浏览事件幂等状态。
 type fakeDedupe struct {
-	states    []ViewEventState // states 是依次返回的事件状态。
-	completed int              // completed 是完成标记写入次数。
+	states         []ViewEventState // states 是依次返回的事件状态。
+	completeErrors []error          // completeErrors 是依次返回的完成标记错误。
+	completed      int              // completed 是完成标记写入次数。
 }
 
 // Begin 返回下一项事件处理状态。
@@ -74,6 +82,11 @@ func (f *fakeDedupe) Begin(context.Context, string, time.Duration) (ViewEventSta
 func (f *fakeDedupe) Complete(context.Context, string, time.Duration) error {
 	// 1. 累加完成标记次数
 	f.completed++
+	if len(f.completeErrors) > 0 {
+		err := f.completeErrors[0]
+		f.completeErrors = f.completeErrors[1:]
+		return err
+	}
 	return nil
 }
 
@@ -147,5 +160,28 @@ func TestConsumeViewRejectsConcurrentProcessing(t *testing.T) {
 	err := service.ConsumeView(context.Background(), ViewEvent{EventID: "event", ArticleID: 1, ViewedAt: time.Now()})
 	if !errors.Is(err, ErrViewEventProcessing) {
 		t.Fatalf("error = %v", err)
+	}
+}
+
+// TestConsumeViewRepairsAfterRedisCompleteFailure 验证 MySQL Inbox 防止完成标记失败后重复计数。
+func TestConsumeViewRepairsAfterRedisCompleteFailure(t *testing.T) {
+	// 1. 首次数据库事务成功，但 Redis 完成标记失败
+	metric := &HotMetric{ArticleID: 1, ViewCount: 3}
+	repository := &fakeReadingRepository{metric: metric}
+	dedupe := &fakeDedupe{states: []ViewEventState{ViewEventNew, ViewEventProcessing}, completeErrors: []error{errors.New("redis unavailable"), nil}}
+	hotRank := &fakeHotRank{}
+	service := NewViewService(repository, fakeViewPublisher{}, dedupe, hotRank)
+	event := ViewEvent{EventID: "event", ArticleID: 1, ViewedAt: time.Now()}
+	if err := service.ConsumeView(context.Background(), event); err == nil {
+		t.Fatal("first ConsumeView() error = nil")
+	}
+
+	// 2. 重试发现 MySQL Inbox 已提交，只修复缓存而不再次增加浏览量
+	repository.processed = true
+	if err := service.ConsumeView(context.Background(), event); err != nil {
+		t.Fatal(err)
+	}
+	if repository.recordCalls != 1 || hotRank.scores != 1 || dedupe.completed != 2 {
+		t.Fatalf("record calls=%d scores=%d completed=%d", repository.recordCalls, hotRank.scores, dedupe.completed)
 	}
 }

@@ -65,3 +65,10 @@ CREATE TABLE IF NOT EXISTS `article_view_histories` (
   `updated_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`), KEY `idx_userid_createdtime` (`user_id`,`created_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文章浏览历史表';
+
+CREATE TABLE IF NOT EXISTS `article_view_event_inbox` (
+  `event_id` VARCHAR(64) NOT NULL COMMENT '浏览事件幂等标识',
+  `article_id` BIGINT UNSIGNED NOT NULL COMMENT '文章 ID',
+  `processed_time` DATETIME NOT NULL COMMENT '处理完成时间',
+  PRIMARY KEY (`event_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文章浏览消费者技术幂等表';

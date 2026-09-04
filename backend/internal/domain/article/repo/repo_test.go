@@ -326,6 +326,9 @@ func TestPublishedReadingRepositoryMaintainsHistoryAndViewCount(t *testing.T) {
 	if metric, err := repository.RecordView(context.Background(), article.ViewEvent{EventID: "user-2", ArticleID: 4, UserID: 7, ViewedAt: now.Add(time.Minute)}); err != nil || metric.ViewCount != 3 {
 		t.Fatalf("metric = %#v, error = %v", metric, err)
 	}
+	if metric, err := repository.RecordView(context.Background(), article.ViewEvent{EventID: "user-2", ArticleID: 4, UserID: 7, ViewedAt: now.Add(time.Minute)}); err != nil || metric.ViewCount != 3 {
+		t.Fatalf("duplicate metric = %#v, error = %v", metric, err)
+	}
 	assertRowCount(t, engine, "article_view_histories", "user_id = ?", 7, 1)
 }
 
@@ -366,6 +369,7 @@ func newArticleTestRepository(t *testing.T) (*Repository, *xorm.Engine) {
 		`CREATE TABLE articles (id INTEGER PRIMARY KEY, author_id INTEGER NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, tags TEXT NOT NULL, status INTEGER NOT NULL, view_count INTEGER NOT NULL DEFAULT 0, like_count INTEGER NOT NULL DEFAULT 0, comment_count INTEGER NOT NULL DEFAULT 0, created_time DATETIME NOT NULL, updated_time DATETIME NOT NULL)`,
 		`CREATE TABLE article_images (id INTEGER PRIMARY KEY, article_id INTEGER NULL, object_key TEXT NOT NULL, created_time DATETIME NOT NULL)`,
 		`CREATE TABLE article_view_histories (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, article_id INTEGER NOT NULL, created_time DATETIME NOT NULL, updated_time DATETIME NOT NULL)`,
+		`CREATE TABLE article_view_event_inbox (event_id TEXT PRIMARY KEY, article_id INTEGER NOT NULL, processed_time DATETIME NOT NULL)`,
 	}
 	for _, statement := range schema {
 		if _, err := engine.Exec(statement); err != nil {
