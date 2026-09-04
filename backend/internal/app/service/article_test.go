@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,8 +20,15 @@ import (
 
 // articleFake 模拟文章应用服务依赖的领域用例。
 type articleFake struct {
-	createError error // createError 是创建文章预设错误。
-	createCalls int   // createCalls 是创建文章用例调用次数。
+	createError   error                 // createError 是创建文章预设错误。
+	createCalls   int                   // createCalls 是创建文章用例调用次数。
+	updateCommand article.UpdateCommand // updateCommand 是收到的文章更新命令。
+	updateError   error                 // updateError 是更新文章预设错误。
+	publishID     uint64                // publishID 是收到的发布文章标识。
+	publishAuthor uint64                // publishAuthor 是收到的发布作者标识。
+	publishError  error                 // publishError 是发布文章预设错误。
+	publicUserID  uint64                // publicUserID 是公开详情收到的可选用户标识。
+	publicError   error                 // publicError 是公开详情预设错误。
 }
 
 // UploadImage 返回测试图片上传凭证。
@@ -34,6 +42,38 @@ func (f *articleFake) Create(context.Context, article.CreateCommand) error {
 	// 1. 记录调用并返回领域层已完成防重后的结果
 	f.createCalls++
 	return f.createError
+}
+
+// Update 记录测试文章更新命令。
+func (f *articleFake) Update(_ context.Context, command article.UpdateCommand) error {
+	// 1. 保存协议层转换后的更新命令
+	f.updateCommand = command
+	return f.updateError
+}
+
+// Publish 记录测试文章发布参数。
+func (f *articleFake) Publish(_ context.Context, articleID, authorID uint64) error {
+	// 1. 保存协议层传递的文章和作者标识
+	f.publishID = articleID
+	f.publishAuthor = authorID
+	return f.publishError
+}
+
+// PublicDetail 返回与可选登录身份对应的测试公开详情。
+func (f *articleFake) PublicDetail(ctx context.Context, _ uint64, userID uint64) (*entity.Detail, error) {
+	// 1. 记录可选登录身份并返回预设错误
+	f.publicUserID = userID
+	if f.publicError != nil {
+		return nil, f.publicError
+	}
+
+	// 2. 登录用户返回已点赞，游客固定返回未点赞
+	detail, err := f.Detail(ctx, 1, userID)
+	if err != nil {
+		return nil, err
+	}
+	detail.IsLiked = userID > 0
+	return detail, nil
 }
 
 // Detail 返回带点赞状态和图片映射的测试详情。
@@ -160,5 +200,144 @@ func TestArticleDetailHTTPIncludesLikeState(t *testing.T) {
 		!bytes.Contains(response.Body.Bytes(), []byte(`"url":"preview"`)) ||
 		!bytes.Contains(response.Body.Bytes(), []byte(`"ip":"浙江"`)) {
 		t.Fatalf("response = %s", response.Body.String())
+	}
+}
+
+// TestArticleUpdateAndPublishHTTPContract 验证更新与发布接口的身份转换和空数据契约。
+func TestArticleUpdateAndPublishHTTPContract(t *testing.T) {
+	// 1. 定义更新和发布两个管理员操作
+	tests := []struct {
+		name        string // name 是接口场景。
+		path        string // path 是请求路径。
+		body        string // body 是 JSON 请求体。
+		wantMessage string // wantMessage 是预期成功消息。
+	}{
+		{name: "更新文章", path: "/admin/article/update", body: `{"id":9,"title":"新标题","content":"正文","tags":["Go"],"status":2}`, wantMessage: "文章修改成功"},
+		{name: "发布文章", path: "/admin/article/publish", body: `{"id":9}`, wantMessage: "文章发布成功"},
+	}
+
+	// 2. 逐项通过生成路由执行管理员请求
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			useCase := &articleFake{}
+			router := gin.New()
+			router.Use(middleware.UnifiedResponseMiddleware())
+			router.Use(func(ctx *gin.Context) {
+				identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7, Role: 2})
+				ctx.Next()
+			})
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(http.MethodPost, test.path, bytes.NewBufferString(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(response, request)
+
+			// 2.1 校验成功消息、data=null 和作者身份传递
+			var envelope struct {
+				Success bool            `json:"success"` // Success 是业务成功标记。
+				Message string          `json:"message"` // Message 是业务消息。
+				Data    json.RawMessage `json:"data"`    // Data 是业务数据。
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+				t.Fatal(err)
+			}
+			if !envelope.Success || envelope.Message != test.wantMessage || string(envelope.Data) != "null" {
+				t.Fatalf("response = %s", response.Body.String())
+			}
+			if test.path == "/admin/article/update" && (useCase.updateCommand.ArticleID != 9 || useCase.updateCommand.AuthorID != 7) {
+				t.Fatalf("update command = %#v", useCase.updateCommand)
+			}
+			if test.path == "/admin/article/publish" && (useCase.publishID != 9 || useCase.publishAuthor != 7) {
+				t.Fatalf("publish ID = %d, author ID = %d", useCase.publishID, useCase.publishAuthor)
+			}
+		})
+	}
+}
+
+// TestPublicArticleDetailUsesOptionalIdentity 验证公开详情区分游客和登录用户点赞状态。
+func TestPublicArticleDetailUsesOptionalIdentity(t *testing.T) {
+	// 1. 定义游客和登录用户两个公开读取场景
+	tests := []struct {
+		name      string // name 是接口场景。
+		userID    uint64 // userID 是可选登录用户标识。
+		wantLiked bool   // wantLiked 是预期点赞状态。
+	}{
+		{name: "游客固定未点赞"},
+		{name: "登录用户查询实际状态", userID: 7, wantLiked: true},
+	}
+
+	// 2. 逐项通过公开路由验证可选身份
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			useCase := &articleFake{}
+			router := gin.New()
+			router.Use(middleware.UnifiedResponseMiddleware())
+			if test.userID > 0 {
+				router.Use(func(ctx *gin.Context) {
+					identity.SetCurrentUser(ctx, identity.CurrentUser{ID: test.userID, Role: 1})
+					ctx.Next()
+				})
+			}
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/optional/article/detail?id=1", nil))
+
+			// 2.1 响应点赞状态和领域用例收到的用户标识必须一致
+			wantLikedJSON := []byte(`"is_liked":false`)
+			if test.wantLiked {
+				wantLikedJSON = []byte(`"is_liked":true`)
+			}
+			if !bytes.Contains(response.Body.Bytes(), wantLikedJSON) || useCase.publicUserID != test.userID {
+				t.Fatalf("response = %s, user ID = %d", response.Body.String(), useCase.publicUserID)
+			}
+		})
+	}
+}
+
+// TestArticleMutationAndPublicErrorsHTTPContract 验证文章权限、删除和未发表错误码。
+func TestArticleMutationAndPublicErrorsHTTPContract(t *testing.T) {
+	// 1. 定义更新、发布和公开读取的可预期失败场景
+	tests := []struct {
+		name     string       // name 是接口场景。
+		method   string       // method 是 HTTP 请求方法。
+		path     string       // path 是请求路径。
+		body     string       // body 是 JSON 请求体。
+		useCase  *articleFake // useCase 是领域用例预设结果。
+		wantCode int          // wantCode 是预期业务错误码。
+	}{
+		{name: "非作者不能更新", method: http.MethodPost, path: "/admin/article/update", body: `{"id":9,"title":"标题","content":"正文","status":2}`, useCase: &articleFake{updateError: article.ErrArticleNotOwned}, wantCode: codeArticleNotOwned},
+		{name: "已删除文章不能发布", method: http.MethodPost, path: "/admin/article/publish", body: `{"id":9}`, useCase: &articleFake{publishError: article.ErrArticleDeleted}, wantCode: codeArticleDeleted},
+		{name: "草稿不能公开读取", method: http.MethodGet, path: "/optional/article/detail?id=9", useCase: &articleFake{publicError: article.ErrArticleNotPublished}, wantCode: codeArticleNotPublished},
+	}
+
+	// 2. 逐项通过生成路由验证稳定业务码
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			router := gin.New()
+			router.Use(middleware.UnifiedResponseMiddleware())
+			router.Use(func(ctx *gin.Context) {
+				if strings.HasPrefix(test.path, "/admin/") {
+					identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7, Role: 2})
+				}
+				ctx.Next()
+			})
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(test.useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			response := httptest.NewRecorder()
+			request := httptest.NewRequest(test.method, test.path, bytes.NewBufferString(test.body))
+			request.Header.Set("Content-Type", "application/json")
+			router.ServeHTTP(response, request)
+
+			// 2.1 错误响应保持 HTTP 200 并返回预期业务码
+			var envelope struct {
+				Success bool `json:"success"` // Success 是业务成功标记。
+				Code    int  `json:"code"`    // Code 是业务错误码。
+			}
+			if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil {
+				t.Fatal(err)
+			}
+			if response.Code != http.StatusOK || envelope.Success || envelope.Code != test.wantCode {
+				t.Fatalf("response = %s", response.Body.String())
+			}
+		})
 	}
 }
