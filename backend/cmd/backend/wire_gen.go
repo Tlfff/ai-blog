@@ -7,6 +7,7 @@
 package server
 
 import (
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/job"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/service"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
@@ -93,7 +94,7 @@ func wireApp() (*httpApplication, func(), error) {
 	}
 	articleServiceHTTPServerController := service.NewArticleServer(articleService, storage, resolver)
 	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, sessionRepository)
-	articleDeletionReconciler := service.NewArticleDeletionReconciler(articleService)
+	articleDeletionReconciler := job.NewArticleDeletionReconciler(articleService)
 	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler)
 	return serverHttpApplication, func() {
 		cleanup4()

@@ -6,6 +6,7 @@
 package server
 
 import (
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/job"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/service"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
@@ -27,6 +28,7 @@ func wireApp() (application *httpApplication, cleanup func(), err error) {
 		domain.UserProviderSet,
 		// 应用层
 		service.ServiceProviderAppSet,
+		job.ArticleRecoveryProviderSet,
 		// 驱动层
 		server.ProviderServerSet,
 		// 服务层

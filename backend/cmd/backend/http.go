@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	appservice "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/service"
+	appjob "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/job"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/middleware"
 	"codeup.aliyun.com/qimao/leo/leo"
@@ -67,8 +67,8 @@ var HttpCmd = &cobra.Command{
 
 // httpApplication 聚合 HTTP Server 和正文图片删除恢复 Runner。
 type httpApplication struct {
-	server     *ginhttp.Server                       // server 是博客 HTTP 传输服务。
-	reconciler *appservice.ArticleDeletionReconciler // reconciler 是正文图片删除恢复任务。
+	server     *ginhttp.Server                   // server 是博客 HTTP 传输服务。
+	reconciler *appjob.ArticleDeletionReconciler // reconciler 是正文图片删除恢复任务。
 }
 
 // Run 通过 Leo 生命周期并发运行 HTTP 服务和恢复任务。
@@ -90,7 +90,7 @@ func (app *httpApplication) HealthChecker() health.Checker {
 }
 
 // newApp 创建包含传输服务和对象恢复任务的 HTTP 应用。
-func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appservice.ArticleDeletionReconciler) *httpApplication {
+func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appjob.ArticleDeletionReconciler) *httpApplication {
 
 	sentry.SentryInit(cfg.GetServer().GetSentry().ToSentryConfig())
 	ginEngine := gin.New()
