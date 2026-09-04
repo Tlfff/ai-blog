@@ -9,6 +9,7 @@ package server
 import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/service"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
@@ -46,14 +47,30 @@ func wireApp() (*ginhttp.Server, func(), error) {
 	helloworldService := book.NewHelloworld(hdRepo)
 	greeterHTTPServerController := service.NewBlogServer(helloworldService)
 	bookHTTPServerController := service.NewBookServer()
-	repository := repo2.NewUserRepository(mysqlClient)
+	userRepository := repo2.NewUserRepository(mysqlClient)
 	passwordHasher := user.NewPBKDF2PasswordHasher()
-	userService := user.NewService(repository, passwordHasher)
-	userServiceHTTPServerController := service.NewUserServer(userService)
 	sessionRepository := repo2.NewSessionRepository(redisClient)
+	userService := user.NewServiceWithSession(userRepository, userRepository, passwordHasher, sessionRepository)
+	resolver, cleanup4, err := ipregion.NewConfiguredResolver(config)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	v, err := service.ProvideTrustedProxyCIDRs(config)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	userServiceHTTPServerController := service.NewUserServer(userService, resolver, v)
 	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, sessionRepository)
 	ginhttpServer := newApp(config, registerServer)
 	return ginhttpServer, func() {
+		cleanup4()
 		cleanup3()
 		cleanup2()
 		cleanup()

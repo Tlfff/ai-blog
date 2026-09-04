@@ -17,14 +17,17 @@ const (
 	systemBusyCode       = 47010101 // systemBusyCode 表示依赖异常导致请求暂时不可用。
 )
 
-// UserAuthMiddleware 为 `/auth/*` 和 `/admin/*` 路由解析 Bearer Token 身份。
+// UserAuthMiddleware 为认证、管理员和可选登录路由解析 Bearer Token 身份。
 func UserAuthMiddleware(sessions userdomain.SessionRepository) gin.HandlerFunc {
 	if sessions == nil {
 		panic("用户认证中间件缺少会话仓储")
 	}
 	return func(ctx *gin.Context) {
-		// 1. 公开路由不读取登录会话
-		if !requiresUserAuthentication(ctx.Request.URL.Path) {
+		// 1. 公开路由不读取登录会话，可选登录路由允许游客继续
+		path := ctx.Request.URL.Path
+		required := requiresUserAuthentication(path)
+		optional := strings.HasPrefix(path, "/optional/")
+		if !required && !optional {
 			ctx.Next()
 			return
 		}
@@ -32,12 +35,20 @@ func UserAuthMiddleware(sessions userdomain.SessionRepository) gin.HandlerFunc {
 		// 2. 校验 Bearer Header 并查询 Redis 会话
 		token, ok := bearerToken(ctx.GetHeader("Authorization"))
 		if !ok {
+			if optional {
+				ctx.Next()
+				return
+			}
 			abortUnauthenticated(ctx, "未登录")
 			return
 		}
 		session, err := sessions.FindByToken(ctx.Request.Context(), token)
 		if err != nil {
 			if errors.Is(err, userdomain.ErrSessionNotFound) {
+				if optional {
+					ctx.Next()
+					return
+				}
 				abortUnauthenticated(ctx, "Token 无效")
 				return
 			}
@@ -46,7 +57,7 @@ func UserAuthMiddleware(sessions userdomain.SessionRepository) gin.HandlerFunc {
 		}
 
 		// 3. 管理员路由必须由管理员角色访问
-		if strings.HasPrefix(ctx.Request.URL.Path, "/admin/") && session.Role != userdomain.RoleAdmin {
+		if strings.HasPrefix(path, "/admin/") && session.Role != userdomain.RoleAdmin {
 			ctx.Negotiate(render.AbortWithError(ctx, errassets.NewError(permissionDeniedCode, "无管理员权限")))
 			return
 		}

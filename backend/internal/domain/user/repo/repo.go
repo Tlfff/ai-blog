@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"strings"
+	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
@@ -19,7 +20,7 @@ type UserRepository struct {
 }
 
 // NewUserRepository 创建用户 MySQL 仓储。
-func NewUserRepository(client clients.MysqlClient) user.Repository {
+func NewUserRepository(client clients.MysqlClient) *UserRepository {
 	// 1. 启动阶段拒绝缺少数据库客户端的仓储
 	if client == nil {
 		panic("用户仓储缺少 MySQL 客户端")
@@ -108,4 +109,39 @@ func mapDuplicateError(err error) error {
 		return user.ErrPhoneExists
 	}
 	return err
+}
+
+// FindNormalByAccount 按非空手机号、昵称条件查询正常用户。
+func (r *UserRepository) FindNormalByAccount(ctx context.Context, phone, nickname string) (*entity.User, error) {
+	// 1. 限定正常状态，并按实际提供的账号字段组合查询
+	userPO := new(po.User)
+	session := r.client.Context(ctx).Where("status = ?", user.StatusNormal)
+	if phone != "" {
+		session = session.And("phone = ?", phone)
+	}
+	if nickname != "" {
+		session = session.And("nickname = ?", nickname)
+	}
+	found, err := session.Get(userPO)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, user.ErrUserNotFound
+	}
+	return factory.UserToEntity(userPO), nil
+}
+
+// UpdateLogin 更新用户最后一次登录的原始 IP 和时间。
+func (r *UserRepository) UpdateLogin(ctx context.Context, userID uint64, ip string, at time.Time) error {
+	// 1. 只更新正常用户的登录来源和时间
+	rows, err := r.client.Context(ctx).Where("id = ? AND status = ?", userID, user.StatusNormal).
+		Cols("last_login_ip", "last_login_time").Update(&po.User{LastLoginIP: ip, LastLoginTime: at})
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return user.ErrUserNotFound
+	}
+	return nil
 }

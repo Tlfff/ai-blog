@@ -2,6 +2,9 @@ package user
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,11 +12,12 @@ import (
 )
 
 const (
-	RoleUser      int8   = 1                       // RoleUser 表示普通用户角色。
-	RoleAdmin     int8   = 2                       // RoleAdmin 表示管理员角色。
-	StatusDeleted int8   = 0                       // StatusDeleted 表示用户已删除。
-	StatusNormal  int8   = 1                       // StatusNormal 表示用户状态正常。
-	DefaultAvatar string = "/placeholder-user.jpg" // DefaultAvatar 是新注册用户使用的默认头像。
+	RoleUser          int8   = 1                                                                                                                 // RoleUser 表示普通用户角色。
+	RoleAdmin         int8   = 2                                                                                                                 // RoleAdmin 表示管理员角色。
+	StatusDeleted     int8   = 0                                                                                                                 // StatusDeleted 表示用户已删除。
+	StatusNormal      int8   = 1                                                                                                                 // StatusNormal 表示用户状态正常。
+	DefaultAvatar     string = "/placeholder-user.jpg"                                                                                           // DefaultAvatar 是新注册用户使用的默认头像。
+	dummyPasswordHash        = "pbkdf2$100000$00000000000000000000000000000000$0000000000000000000000000000000000000000000000000000000000000000" // dummyPasswordHash 用于账号不存在时保持密码校验成本接近。
 )
 
 // RegisterCommand 是注册用户所需的领域输入。
@@ -42,8 +46,11 @@ type UseCase interface {
 
 // Service 实现用户上下文的业务规则。
 type Service struct {
-	repository Repository     // repository 提供用户数据访问能力。
-	hasher     PasswordHasher // hasher 提供密码摘要能力。
+	repository     Repository       // repository 提供用户数据访问能力。
+	authRepository AuthRepository   // authRepository 提供登录账号查询和登录信息更新能力。
+	hasher         PasswordHasher   // hasher 提供密码摘要能力。
+	sessions       SessionManager   // sessions 提供登录会话存储能力。
+	now            func() time.Time // now 提供可测试的当前时间。
 }
 
 // NewService 创建用户领域服务。
@@ -52,7 +59,7 @@ func NewService(repository Repository, hasher PasswordHasher) *Service {
 	if repository == nil || hasher == nil {
 		panic("用户领域服务缺少必要依赖")
 	}
-	return &Service{repository: repository, hasher: hasher}
+	return &Service{repository: repository, hasher: hasher, now: time.Now}
 }
 
 // Register 校验唯一性、摘要密码并创建普通用户。
@@ -127,4 +134,96 @@ func (s *Service) UpdateProfile(ctx context.Context, command UpdateProfileComman
 	user.Nickname = command.Nickname
 	user.Avatar = command.Avatar
 	return s.repository.UpdateProfile(ctx, user)
+}
+
+// NewServiceWithSession 创建包含登录会话能力的用户领域服务。
+func NewServiceWithSession(repository Repository, authRepository AuthRepository, hasher PasswordHasher, sessions SessionManager) *Service {
+	// 1. 启动阶段拒绝缺少登录必要依赖的领域服务
+	if authRepository == nil || sessions == nil {
+		panic("用户领域服务缺少认证仓储或会话存储")
+	}
+	service := NewService(repository, hasher)
+	service.authRepository = authRepository
+	service.sessions = sessions
+	return service
+}
+
+// Login 校验手机号或昵称和密码，并创建独立的 Redis 会话。
+func (s *Service) Login(ctx context.Context, command LoginCommand) (*LoginResult, error) {
+	// 1. 校验账号字段约束，手机号和昵称允许同时提供
+	if command.Phone == "" && command.Nickname == "" ||
+		(command.Phone != "" && !isDigits(command.Phone)) ||
+		(command.Nickname != "" && isDigits(command.Nickname)) {
+		return nil, ErrInvalidLogin
+	}
+
+	// 2. 查询正常账号并统一隐藏账号是否存在
+	account, err := s.authRepository.FindNormalByAccount(ctx, command.Phone, command.Nickname)
+	accountMissing := false
+	if err != nil {
+		if errors.Is(err, ErrUserNotFound) {
+			accountMissing = true
+			account = &entity.User{Password: dummyPasswordHash, Status: StatusNormal}
+		} else {
+			return nil, err
+		}
+	}
+	if account == nil || account.Status != StatusNormal {
+		return nil, ErrInvalidCredentials
+	}
+
+	// 3. 使用恒定时间方式校验密码
+	matched, err := s.hasher.Compare(account.Password, command.Password)
+	if err != nil || !matched || accountMissing {
+		return nil, ErrInvalidCredentials
+	}
+
+	// 4. 更新用户最后登录来源和时间
+	loginAt := s.now()
+	if err := s.authRepository.UpdateLogin(ctx, account.ID, command.ClientIP, loginAt); err != nil {
+		return nil, fmt.Errorf("更新最后登录信息: %w", err)
+	}
+
+	// 5. 生成 32 字节安全随机 Token 并按记住登录设置有效期
+	rawToken := make([]byte, 32)
+	if _, err := rand.Read(rawToken); err != nil {
+		return nil, fmt.Errorf("生成登录 Token: %w", err)
+	}
+	token := hex.EncodeToString(rawToken)
+	ttl := int64((7 * 24 * time.Hour).Seconds())
+	if command.RememberMe {
+		ttl = int64((30 * 24 * time.Hour).Seconds())
+	}
+	if err := s.sessions.Create(ctx, token, Session{UserID: account.ID, Role: account.Role, Device: command.Device, LoginIP: command.ClientIP, LoginTime: loginAt.Unix()}, ttl); err != nil {
+		return nil, fmt.Errorf("保存登录会话: %w", err)
+	}
+	return &LoginResult{AccessToken: token, ExpiresIn: ttl}, nil
+}
+
+// Logout 只撤销当前设备携带的 Token。
+func (s *Service) Logout(ctx context.Context, token string) error {
+	// 1. 查询当前 Token 所属用户，避免误删其他设备会话
+	if s.sessions == nil {
+		return errors.New("用户退出未配置会话存储")
+	}
+	session, err := s.sessions.FindByToken(ctx, token)
+	if err != nil {
+		return err
+	}
+	// 2. 仅删除当前 Token 及用户 Token 集合中的对应成员
+	return s.sessions.Delete(ctx, token, session.UserID)
+}
+
+// isDigits 判断字符串是否全部由 ASCII 数字组成。
+func isDigits(value string) bool {
+	// 1. 空字符串不视为纯数字账号
+	if value == "" {
+		return false
+	}
+	for _, character := range value {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
 }

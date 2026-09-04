@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/entity"
 )
@@ -174,13 +175,187 @@ func (f *fakeRepository) UpdateProfile(_ context.Context, user *entity.User) err
 }
 
 type fakePasswordHasher struct {
-	input  string // input 记录收到的明文密码。
-	hashed string // hashed 是预设密码摘要。
-	err    error  // err 是预设摘要错误。
+	input    string // input 记录收到的明文密码。
+	hashed   string // hashed 是预设密码摘要。
+	err      error  // err 是预设摘要错误。
+	compared string // compared 记录执行过密码比较。
 }
 
 // Hash 记录明文密码并返回测试预设摘要。
 func (f *fakePasswordHasher) Hash(password string) (string, error) {
 	f.input = password
 	return f.hashed, f.err
+}
+
+// Compare 返回测试预设的密码比较结果。
+func (f *fakePasswordHasher) Compare(string, string) (bool, error) {
+	// 1. 记录比较已执行并返回预设结果
+	f.compared = "compared"
+	return true, f.err
+}
+
+// TestServiceLoginCreatesIndependentSessions 验证手机号、昵称登录及两种会话有效期。
+func TestServiceLoginCreatesIndependentSessions(t *testing.T) {
+	t.Parallel()
+	password := (&PBKDF2PasswordHasher{})
+	hash, err := password.Hash("secret1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	repository := &fakeAuthRepository{user: &entity.User{ID: 7, Role: RoleUser, Status: StatusNormal, Password: hash}}
+	sessions := &fakeSessionManager{}
+	service := NewServiceWithSession(repository, repository, password, sessions)
+
+	first, err := service.Login(context.Background(), LoginCommand{Phone: "13800138000", Password: "secret1", Device: "web", ClientIP: "203.0.113.9"})
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+	second, err := service.Login(context.Background(), LoginCommand{Nickname: "tester", Password: "secret1", RememberMe: true, Device: "ios", ClientIP: "203.0.113.10"})
+	if err != nil {
+		t.Fatalf("Login() remember error = %v", err)
+	}
+	if first.AccessToken == second.AccessToken || len(first.AccessToken) != 64 || len(second.AccessToken) != 64 {
+		t.Fatalf("tokens are not independent secure values: %q %q", first.AccessToken, second.AccessToken)
+	}
+	if first.ExpiresIn != int64((7*24*time.Hour).Seconds()) || second.ExpiresIn != int64((30*24*time.Hour).Seconds()) {
+		t.Fatalf("expires = %d/%d", first.ExpiresIn, second.ExpiresIn)
+	}
+	if len(sessions.created) != 2 || sessions.created[0].ttl != first.ExpiresIn || sessions.created[1].ttl != second.ExpiresIn {
+		t.Fatalf("created sessions = %#v", sessions.created)
+	}
+	if sessions.created[0].session.Device != "web" || sessions.created[1].session.Device != "ios" || sessions.created[1].session.LoginIP != "203.0.113.10" || sessions.created[1].session.LoginTime == 0 {
+		t.Fatalf("session metadata = %#v", sessions.created)
+	}
+	if repository.lastIP != "203.0.113.10" || repository.lastLoginAt.IsZero() {
+		t.Fatalf("login metadata = %q/%v", repository.lastIP, repository.lastLoginAt)
+	}
+}
+
+// TestServiceLoginValidationAndCredentialPrivacy 验证账号字段约束和登录防枚举行为。
+func TestServiceLoginValidationAndCredentialPrivacy(t *testing.T) {
+	t.Parallel()
+
+	password := &fakePasswordHasher{}
+	repository := &fakeAuthRepository{}
+	sessions := &fakeSessionManager{}
+	service := NewServiceWithSession(repository, repository, password, sessions)
+	tests := []struct {
+		name    string       // name 是测试场景名称。
+		command LoginCommand // command 是登录命令。
+		want    error        // want 是预期领域错误。
+	}{
+		{name: "账号均为空", command: LoginCommand{Password: "secret1"}, want: ErrInvalidLogin},
+		{name: "手机号非数字", command: LoginCommand{Phone: "abc", Password: "secret1"}, want: ErrInvalidLogin},
+		{name: "昵称全数字", command: LoginCommand{Nickname: "123", Password: "secret1"}, want: ErrInvalidLogin},
+		{name: "账号不存在", command: LoginCommand{Phone: "13800138000", Password: "secret1"}, want: ErrInvalidCredentials},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := service.Login(context.Background(), test.command); !errors.Is(err, test.want) {
+				t.Fatalf("Login() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+// TestServiceLoginMissingAccountStillVerifiesPassword 验证账号不存在时仍执行等价密码校验。
+func TestServiceLoginMissingAccountStillVerifiesPassword(t *testing.T) {
+	t.Parallel()
+	hasher := &fakePasswordHasher{}
+	repository := &fakeAuthRepository{}
+	service := NewServiceWithSession(repository, repository, hasher, &fakeSessionManager{})
+	_, err := service.Login(context.Background(), LoginCommand{Phone: "13800138000", Password: "secret1"})
+	if !errors.Is(err, ErrInvalidCredentials) || hasher.compared == "" {
+		t.Fatalf("Login() error = %v compared = %q", err, hasher.compared)
+	}
+}
+
+// TestServiceLogoutOnlyDeletesCurrentSession 验证退出只删除当前 Token。
+func TestServiceLogoutOnlyDeletesCurrentSession(t *testing.T) {
+	sessions := &fakeSessionManager{byToken: map[string]*Session{
+		"current": {UserID: 7, Role: RoleUser, Device: "web"},
+		"other":   {UserID: 7, Role: RoleUser, Device: "ios"},
+	}}
+	repository := &fakeAuthRepository{}
+	service := NewServiceWithSession(repository, repository, &fakePasswordHasher{}, sessions)
+	if err := service.Logout(context.Background(), "current"); err != nil {
+		t.Fatal(err)
+	}
+	if sessions.deletedToken != "current" || sessions.deletedUserID != 7 {
+		t.Fatalf("delete = %q/%d", sessions.deletedToken, sessions.deletedUserID)
+	}
+	if _, exists := sessions.byToken["other"]; !exists {
+		t.Fatal("Logout() should preserve other device session")
+	}
+}
+
+type fakeAuthRepository struct {
+	fakeRepository              // fakeRepository 提供资料相关仓储能力。
+	user           *entity.User // user 是预设登录用户。
+	lastIP         string       // lastIP 记录最后登录 IP。
+	lastLoginAt    time.Time    // lastLoginAt 记录最后登录时间。
+}
+
+// FindNormalByAccount 返回测试预设的登录用户。
+func (f *fakeAuthRepository) FindNormalByAccount(context.Context, string, string) (*entity.User, error) {
+	// 1. 返回预设用户或账号不存在错误
+	if f.user == nil {
+		return nil, ErrUserNotFound
+	}
+	return f.user, nil
+}
+
+// UpdateLogin 记录测试中的最后登录信息。
+func (f *fakeAuthRepository) UpdateLogin(_ context.Context, _ uint64, ip string, at time.Time) error {
+	// 1. 记录登录来源和时间供测试断言
+	f.lastIP, f.lastLoginAt = ip, at
+	return nil
+}
+
+type fakeSessionManager struct {
+	created []struct {
+		token   string  // token 是创建的访问 Token。
+		ttl     int64   // ttl 是会话有效期秒数。
+		session Session // session 是写入的会话内容。
+	}
+	found         *Session            // found 是预设查询会话。
+	byToken       map[string]*Session // byToken 保存多设备测试会话。
+	deletedToken  string              // deletedToken 记录删除的 Token。
+	deletedUserID uint64              // deletedUserID 记录 Token 所属用户。
+}
+
+// FindByToken 返回测试预设的会话。
+func (f *fakeSessionManager) FindByToken(_ context.Context, token string) (*Session, error) {
+	// 1. 多设备场景按 Token 返回对应会话
+	if f.byToken != nil {
+		session, exists := f.byToken[token]
+		if !exists {
+			return nil, ErrSessionNotFound
+		}
+		return session, nil
+	}
+	// 2. 其他场景返回单个预设会话
+	if f.found == nil {
+		return nil, ErrSessionNotFound
+	}
+	return f.found, nil
+}
+
+// Create 记录待创建的登录会话。
+func (f *fakeSessionManager) Create(_ context.Context, token string, session Session, ttl int64) error {
+	// 1. 记录创建的 Token、会话内容和有效期
+	f.created = append(f.created, struct {
+		token   string
+		ttl     int64
+		session Session
+	}{token, ttl, session})
+	return nil
+}
+
+// Delete 记录待删除的当前设备会话。
+func (f *fakeSessionManager) Delete(_ context.Context, token string, userID uint64) error {
+	// 1. 只删除指定 Token 并保留其他设备会话
+	f.deletedToken, f.deletedUserID = token, userID
+	delete(f.byToken, token)
+	return nil
 }

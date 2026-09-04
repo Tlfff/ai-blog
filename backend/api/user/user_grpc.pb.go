@@ -20,6 +20,8 @@ const _ = grpc.SupportPackageIsVersion9
 
 const (
 	UserService_Register_FullMethodName         = "/user.v1.UserService/Register"
+	UserService_Login_FullMethodName            = "/user.v1.UserService/Login"
+	UserService_Logout_FullMethodName           = "/user.v1.UserService/Logout"
 	UserService_GetMyProfile_FullMethodName     = "/user.v1.UserService/GetMyProfile"
 	UserService_GetPublicProfile_FullMethodName = "/user.v1.UserService/GetPublicProfile"
 	UserService_UpdateMyProfile_FullMethodName  = "/user.v1.UserService/UpdateMyProfile"
@@ -33,6 +35,10 @@ const (
 type UserServiceClient interface {
 	// Register 注册普通用户。
 	Register(ctx context.Context, in *RegisterRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	// Login 使用手机号或昵称登录。
+	Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginReply, error)
+	// Logout 退出当前设备会话。
+	Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*EmptyReply, error)
 	// GetMyProfile 查询当前登录用户资料。
 	GetMyProfile(ctx context.Context, in *GetMyProfileRequest, opts ...grpc.CallOption) (*ProfileReply, error)
 	// GetPublicProfile 查询指定用户的公开资料。
@@ -53,6 +59,26 @@ func (c *userServiceClient) Register(ctx context.Context, in *RegisterRequest, o
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(EmptyReply)
 	err := c.cc.Invoke(ctx, UserService_Register_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) Login(ctx context.Context, in *LoginRequest, opts ...grpc.CallOption) (*LoginReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(LoginReply)
+	err := c.cc.Invoke(ctx, UserService_Login_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) Logout(ctx context.Context, in *LogoutRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EmptyReply)
+	err := c.cc.Invoke(ctx, UserService_Logout_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -97,6 +123,10 @@ func (c *userServiceClient) UpdateMyProfile(ctx context.Context, in *UpdateMyPro
 type UserServiceServer interface {
 	// Register 注册普通用户。
 	Register(context.Context, *RegisterRequest) (*EmptyReply, error)
+	// Login 使用手机号或昵称登录。
+	Login(context.Context, *LoginRequest) (*LoginReply, error)
+	// Logout 退出当前设备会话。
+	Logout(context.Context, *LogoutRequest) (*EmptyReply, error)
 	// GetMyProfile 查询当前登录用户资料。
 	GetMyProfile(context.Context, *GetMyProfileRequest) (*ProfileReply, error)
 	// GetPublicProfile 查询指定用户的公开资料。
@@ -115,6 +145,12 @@ type UnimplementedUserServiceServer struct{}
 
 func (UnimplementedUserServiceServer) Register(context.Context, *RegisterRequest) (*EmptyReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method Register not implemented")
+}
+func (UnimplementedUserServiceServer) Login(context.Context, *LoginRequest) (*LoginReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method Login not implemented")
+}
+func (UnimplementedUserServiceServer) Logout(context.Context, *LogoutRequest) (*EmptyReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method Logout not implemented")
 }
 func (UnimplementedUserServiceServer) GetMyProfile(context.Context, *GetMyProfileRequest) (*ProfileReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetMyProfile not implemented")
@@ -160,6 +196,42 @@ func _UserService_Register_Handler(srv interface{}, ctx context.Context, dec fun
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(UserServiceServer).Register(ctx, req.(*RegisterRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_Login_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LoginRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).Login(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_Login_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).Login(ctx, req.(*LoginRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_Logout_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LogoutRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).Logout(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_Logout_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).Logout(ctx, req.(*LogoutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -228,6 +300,14 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Register",
 			Handler:    _UserService_Register_Handler,
+		},
+		{
+			MethodName: "Login",
+			Handler:    _UserService_Login_Handler,
+		},
+		{
+			MethodName: "Logout",
+			Handler:    _UserService_Logout_Handler,
 		},
 		{
 			MethodName: "GetMyProfile",

@@ -1,6 +1,8 @@
 package clients
 
 import (
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	"github.com/google/wire"
 )
 
@@ -11,4 +13,6 @@ var ProviderClientsSet = wire.NewSet(
 	NewLogMysqlClient,
 	// redis
 	NewRedisClient,
+	ipregion.NewConfiguredResolver,
+	wire.Bind(new(user.IPRegionResolver), new(*ipregion.Resolver)),
 )

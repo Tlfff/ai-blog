@@ -19,5 +19,5 @@ type (
 )
 
 type (
-	RedisClient redis.Cmdable
+	RedisClient redis.UniversalClient
 )
