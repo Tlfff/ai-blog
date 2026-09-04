@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -35,6 +36,28 @@ type articleFake struct {
 	recoverID     uint64                // recoverID 是收到的恢复文章标识。
 	clearID       uint64                // clearID 是收到的彻底删除文章标识。
 	actionAuthor  uint64                // actionAuthor 是文章管理操作的当前作者标识。
+	viewCalls     int                   // viewCalls 是浏览事件发布次数。
+	viewError     error                 // viewError 是浏览事件发布预设错误。
+}
+
+// ListPublished 返回固定公开文章列表。
+func (*articleFake) ListPublished(context.Context, article.PublicListCommand) (*article.PublicListResult, error) {
+	// 1. 返回带 Unicode 摘要和互动统计的已发表文章
+	item := &entity.Article{ID: 9, AuthorID: 7, Title: "公开文章", Status: article.StatusPublished, ViewCount: 3, LikeCount: 2, CommentCount: 1, UpdatedTime: time.Unix(20, 0)}
+	return &article.PublicListResult{Items: []*article.PublicListItem{{Article: item, Summary: "摘要"}}, LastID: 9, Total: 1, Page: 1, PageSize: 10}, nil
+}
+
+// PublishView 模拟文章浏览事件发布。
+func (f *articleFake) PublishView(context.Context, uint64, uint64) error {
+	// 1. 记录浏览事件发布并返回预设错误
+	f.viewCalls++
+	return f.viewError
+}
+
+// HotRank 返回固定文章热榜。
+func (*articleFake) HotRank(context.Context) ([]*article.HotRankItem, error) {
+	// 1. 返回固定热度和统计数据
+	return []*article.HotRankItem{{Metric: article.HotMetric{ArticleID: 9, Title: "热门文章", ViewCount: 3, LikeCount: 2, CommentCount: 1}, Hot: 6}}, nil
 }
 
 // UploadImage 返回测试图片上传凭证。
@@ -187,6 +210,12 @@ func testArticleListResult() *article.ListResult {
 	}
 }
 
+// newArticleHTTPTestServer 创建同时实现管理和阅读用例的测试 Controller。
+func newArticleHTTPTestServer(useCase *articleFake) articleapi.ArticleServiceHTTPServerController {
+	// 1. 使用同一测试替身覆盖管理和阅读协议接缝
+	return NewArticleServer(useCase, useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"})
+}
+
 // TestArticleCreateHTTPContract 验证创建成功和重复提交的完整 HTTP 契约。
 func TestArticleCreateHTTPContract(t *testing.T) {
 	// 1. 定义创建成功和可预期领域错误的响应场景
@@ -211,7 +240,7 @@ func TestArticleCreateHTTPContract(t *testing.T) {
 				identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7, Role: 2})
 				ctx.Next()
 			})
-			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(&articleFake{createError: test.createError}, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(&articleFake{createError: test.createError}))
 			response := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodPost, "/admin/article/create", bytes.NewBufferString(`{"title":"标题","content":"正文","status":2}`))
 			request.Header.Set("Content-Type", "application/json")
@@ -247,7 +276,7 @@ func TestArticleCreateRejectsOutOfRangeStatus(t *testing.T) {
 		identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7, Role: 2})
 		ctx.Next()
 	})
-	articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+	articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(useCase))
 	response := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/admin/article/create", bytes.NewBufferString(`{"title":"标题","content":"正文","status":258}`))
 	request.Header.Set("Content-Type", "application/json")
@@ -276,7 +305,7 @@ func TestArticleDetailHTTPIncludesLikeState(t *testing.T) {
 		identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7, Role: 2})
 		ctx.Next()
 	})
-	articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(&articleFake{}, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+	articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(&articleFake{}))
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/article/me/detail?id=1", nil))
 
@@ -286,6 +315,42 @@ func TestArticleDetailHTTPIncludesLikeState(t *testing.T) {
 		!bytes.Contains(response.Body.Bytes(), []byte(`"url":"preview"`)) ||
 		!bytes.Contains(response.Body.Bytes(), []byte(`"ip":"浙江"`)) {
 		t.Fatalf("response = %s", response.Body.String())
+	}
+}
+
+// TestPublicArticleDetailIgnoresViewPublishFailure 验证浏览事件失败不影响详情响应。
+func TestPublicArticleDetailIgnoresViewPublishFailure(t *testing.T) {
+	// 1. 构造浏览事件发布失败的公开详情服务
+	useCase := &articleFake{viewError: errors.New("kafka unavailable")}
+	router := gin.New()
+	router.Use(middleware.UnifiedResponseMiddleware())
+	articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(useCase))
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/optional/article/detail?id=1", nil))
+
+	// 2. 详情仍成功返回，且浏览事件只尝试发布一次
+	if response.Code != http.StatusOK || !bytes.Contains(response.Body.Bytes(), []byte(`"success":true`)) || useCase.viewCalls != 1 {
+		t.Fatalf("response = %s, view calls = %d", response.Body.String(), useCase.viewCalls)
+	}
+}
+
+// TestPublicListAndHotRankHTTPContract 验证公开列表和热榜响应字段。
+func TestPublicListAndHotRankHTTPContract(t *testing.T) {
+	// 1. 注册公开文章服务并请求列表和热榜
+	router := gin.New()
+	router.Use(middleware.UnifiedResponseMiddleware())
+	articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(&articleFake{}))
+	listResponse := httptest.NewRecorder()
+	router.ServeHTTP(listResponse, httptest.NewRequest(http.MethodGet, "/article/list?page=1&page_size=10&is_desc=true", nil))
+	hotResponse := httptest.NewRecorder()
+	router.ServeHTTP(hotResponse, httptest.NewRequest(http.MethodGet, "/article/hot-rank", nil))
+
+	// 2. 列表返回摘要与统计，热榜返回当前热度
+	if !bytes.Contains(listResponse.Body.Bytes(), []byte(`"summary":"摘要"`)) ||
+		!bytes.Contains(listResponse.Body.Bytes(), []byte(`"view_count":3`)) ||
+		!bytes.Contains(hotResponse.Body.Bytes(), []byte(`"hot":6`)) ||
+		!bytes.Contains(hotResponse.Body.Bytes(), []byte(`"title":"热门文章"`)) {
+		t.Fatalf("list = %s, hot = %s", listResponse.Body.String(), hotResponse.Body.String())
 	}
 }
 
@@ -312,7 +377,7 @@ func TestArticleUpdateAndPublishHTTPContract(t *testing.T) {
 				identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7, Role: 2})
 				ctx.Next()
 			})
-			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(useCase))
 			response := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodPost, test.path, bytes.NewBufferString(test.body))
 			request.Header.Set("Content-Type", "application/json")
@@ -364,7 +429,7 @@ func TestPublicArticleDetailUsesOptionalIdentity(t *testing.T) {
 					ctx.Next()
 				})
 			}
-			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(useCase))
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/optional/article/detail?id=1", nil))
 
@@ -407,7 +472,7 @@ func TestArticleMutationAndPublicErrorsHTTPContract(t *testing.T) {
 				}
 				ctx.Next()
 			})
-			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(test.useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(test.useCase))
 			response := httptest.NewRecorder()
 			request := httptest.NewRequest(test.method, test.path, bytes.NewBufferString(test.body))
 			request.Header.Set("Content-Type", "application/json")
@@ -450,7 +515,7 @@ func TestArticleAdminListsHTTPContract(t *testing.T) {
 				identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7, Role: 2})
 				ctx.Next()
 			})
-			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(useCase))
 			response := httptest.NewRecorder()
 			router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.path, nil))
 
@@ -494,7 +559,7 @@ func TestArticleTrashMutationsHTTPContract(t *testing.T) {
 				identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7, Role: 2})
 				ctx.Next()
 			})
-			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), NewArticleServer(useCase, articleStorageFake{}, fakeRegionResolver{region: "浙江"}))
+			articleapi.RegisterArticleServiceHTTPServerController(router.Group(""), newArticleHTTPTestServer(useCase))
 			response := httptest.NewRecorder()
 			request := httptest.NewRequest(http.MethodPost, test.path, bytes.NewBufferString(`{"id":9,"status":2}`))
 			request.Header.Set("Content-Type", "application/json")

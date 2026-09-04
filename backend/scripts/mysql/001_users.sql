@@ -56,3 +56,12 @@ CREATE TABLE IF NOT EXISTS `article_likes` (
   PRIMARY KEY (`id`), UNIQUE KEY `uni_userid_articleid` (`user_id`,`article_id`),
   KEY `idx_created_time` (`created_time`), KEY `idx_updated_time` (`updated_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文章点赞表';
+
+CREATE TABLE IF NOT EXISTS `article_view_histories` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `article_id` BIGINT UNSIGNED NOT NULL,
+  `created_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), KEY `idx_userid_createdtime` (`user_id`,`created_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='文章浏览历史表';

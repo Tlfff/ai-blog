@@ -25,10 +25,11 @@ func wireApp() (application *httpApplication, cleanup func(), err error) {
 		clients.ProviderClientsSet,
 		// 领域层
 		domain.DomainProviderAppSet,
+		domain.ArticleReadingProviderSet,
 		domain.UserProviderSet,
 		// 应用层
 		service.ServiceProviderAppSet,
-		job.ArticleRecoveryProviderSet,
+		job.ArticleHTTPJobProviderSet,
 		// 驱动层
 		server.ProviderServerSet,
 		// 服务层

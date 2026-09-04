@@ -2,7 +2,9 @@ package consumer
 
 import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/consumer"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"context"
 
 	"codeup.aliyun.com/qimao/leo/leo"
@@ -33,15 +35,22 @@ var blogConsumerCmd = &cobra.Command{
 }
 
 // newBlogStreamer 创建博客消息流运行器。
-func newBlogStreamer(cf *conf.Data, handler *consumer.BlogConsumer) *stream.Streamer {
+func newBlogStreamer(cf *conf.Data, handler *consumer.ArticleViewConsumer) *stream.Streamer {
+	articleViewConfig := cf.GetKafka().GetConsumer().GetArticleView()
 	streamer := stream.NewStreamer(
-		stream.MessageBufferSize(int(cf.GetKafka().GetConsumer().GetBidResultReport().GetMessageBufferSize())),
+		stream.MessageBufferSize(int(articleViewConfig.GetMessageBufferSize())),
 		stream.Handlers(handler),
 		stream.ErrorHandler(func(err error) {
 			log.Error("error: ", err)
 		}),
 	)
 	return streamer
+}
+
+// newArticleViewConsumer 组装文章浏览领域处理器、订阅器和死信发布器。
+func newArticleViewConsumer(processor article.ViewProcessor, subscriber *eventstream.ArticleViewSubscriber, deadLetter article.ViewDeadLetterPublisher) *consumer.ArticleViewConsumer {
+	// 1. 将基础设施适配器作为 Leo Stream 接缝注入应用消费者
+	return consumer.NewArticleViewConsumer(subscriber, processor, deadLetter)
 }
 
 func init() {

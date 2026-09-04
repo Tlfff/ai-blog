@@ -6,6 +6,7 @@ import (
 	"time"
 
 	appjob "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/job"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/middleware"
 	"codeup.aliyun.com/qimao/leo/leo"
@@ -69,12 +70,14 @@ var HttpCmd = &cobra.Command{
 type httpApplication struct {
 	server     *ginhttp.Server                   // server 是博客 HTTP 传输服务。
 	reconciler *appjob.ArticleDeletionReconciler // reconciler 是正文图片删除恢复任务。
+	hotRank    *appjob.ArticleHotRankJob         // hotRank 是文章热榜启动及整点重建任务。
+	viewEvents *eventstream.ArticleViewPublisher // viewEvents 是文章浏览事件异步发送 Runner。
 }
 
 // Run 通过 Leo 生命周期并发运行 HTTP 服务和恢复任务。
 func (app *httpApplication) Run(ctx context.Context) error {
 	// 1. 复用 Leo 多 Runner 编排和统一退出机制
-	return leo.MutilRunner(app.server, app.reconciler).Run(ctx)
+	return leo.MutilRunner(app.server, app.reconciler, app.hotRank, app.viewEvents).Run(ctx)
 }
 
 // ActuatorHandler 返回 HTTP Server 的管理端点处理器。
@@ -90,7 +93,7 @@ func (app *httpApplication) HealthChecker() health.Checker {
 }
 
 // newApp 创建包含传输服务和对象恢复任务的 HTTP 应用。
-func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appjob.ArticleDeletionReconciler) *httpApplication {
+func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appjob.ArticleDeletionReconciler, hotRank *appjob.ArticleHotRankJob, viewEvents *eventstream.ArticleViewPublisher) *httpApplication {
 
 	sentry.SentryInit(cfg.GetServer().GetSentry().ToSentryConfig())
 	ginEngine := gin.New()
@@ -125,5 +128,5 @@ func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *app
 		ginhttp.ReadTimeout(ts),
 	)
 
-	return &httpApplication{server: httpServers, reconciler: reconciler}
+	return &httpApplication{server: httpServers, reconciler: reconciler, hotRank: hotRank, viewEvents: viewEvents}
 }

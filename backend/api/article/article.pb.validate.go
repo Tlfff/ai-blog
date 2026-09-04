@@ -496,6 +496,105 @@ var _ interface {
 	ErrorName() string
 } = EmptyReplyValidationError{}
 
+// Validate checks the field values on EmptyRequest with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *EmptyRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on EmptyRequest with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in EmptyRequestMultiError, or
+// nil if none found.
+func (m *EmptyRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *EmptyRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return EmptyRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// EmptyRequestMultiError is an error wrapping multiple validation errors
+// returned by EmptyRequest.ValidateAll() if the designated constraints aren't met.
+type EmptyRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m EmptyRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m EmptyRequestMultiError) AllErrors() []error { return m }
+
+// EmptyRequestValidationError is the validation error returned by
+// EmptyRequest.Validate if the designated constraints aren't met.
+type EmptyRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e EmptyRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e EmptyRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e EmptyRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e EmptyRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e EmptyRequestValidationError) ErrorName() string { return "EmptyRequestValidationError" }
+
+// Error satisfies the builtin error interface
+func (e EmptyRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sEmptyRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = EmptyRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = EmptyRequestValidationError{}
+
 // Validate checks the field values on GetMyArticleDetailRequest with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.
@@ -1369,6 +1468,635 @@ var _ interface {
 	Cause() error
 	ErrorName() string
 } = ArticleListItemValidationError{}
+
+// Validate checks the field values on PublicArticleListRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *PublicArticleListRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on PublicArticleListRequest with the
+// rules defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PublicArticleListRequestMultiError, or nil if none found.
+func (m *PublicArticleListRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *PublicArticleListRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for LastId
+
+	// no validation rules for Page
+
+	if m.GetPageSize() != 0 {
+
+		if val := m.GetPageSize(); val < 10 || val > 20 {
+			err := PublicArticleListRequestValidationError{
+				field:  "PageSize",
+				reason: "value must be inside range [10, 20]",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+	}
+
+	// no validation rules for IsDesc
+
+	if len(errors) > 0 {
+		return PublicArticleListRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// PublicArticleListRequestMultiError is an error wrapping multiple validation
+// errors returned by PublicArticleListRequest.ValidateAll() if the designated
+// constraints aren't met.
+type PublicArticleListRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m PublicArticleListRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m PublicArticleListRequestMultiError) AllErrors() []error { return m }
+
+// PublicArticleListRequestValidationError is the validation error returned by
+// PublicArticleListRequest.Validate if the designated constraints aren't met.
+type PublicArticleListRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e PublicArticleListRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e PublicArticleListRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e PublicArticleListRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e PublicArticleListRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e PublicArticleListRequestValidationError) ErrorName() string {
+	return "PublicArticleListRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e PublicArticleListRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sPublicArticleListRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = PublicArticleListRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = PublicArticleListRequestValidationError{}
+
+// Validate checks the field values on PublicArticleListReply with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *PublicArticleListReply) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on PublicArticleListReply with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PublicArticleListReplyMultiError, or nil if none found.
+func (m *PublicArticleListReply) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *PublicArticleListReply) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, PublicArticleListReplyValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, PublicArticleListReplyValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return PublicArticleListReplyValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	// no validation rules for LastId
+
+	// no validation rules for Total
+
+	// no validation rules for Page
+
+	// no validation rules for PageSize
+
+	if len(errors) > 0 {
+		return PublicArticleListReplyMultiError(errors)
+	}
+
+	return nil
+}
+
+// PublicArticleListReplyMultiError is an error wrapping multiple validation
+// errors returned by PublicArticleListReply.ValidateAll() if the designated
+// constraints aren't met.
+type PublicArticleListReplyMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m PublicArticleListReplyMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m PublicArticleListReplyMultiError) AllErrors() []error { return m }
+
+// PublicArticleListReplyValidationError is the validation error returned by
+// PublicArticleListReply.Validate if the designated constraints aren't met.
+type PublicArticleListReplyValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e PublicArticleListReplyValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e PublicArticleListReplyValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e PublicArticleListReplyValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e PublicArticleListReplyValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e PublicArticleListReplyValidationError) ErrorName() string {
+	return "PublicArticleListReplyValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e PublicArticleListReplyValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sPublicArticleListReply.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = PublicArticleListReplyValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = PublicArticleListReplyValidationError{}
+
+// Validate checks the field values on PublicArticleListItem with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *PublicArticleListItem) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on PublicArticleListItem with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// PublicArticleListItemMultiError, or nil if none found.
+func (m *PublicArticleListItem) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *PublicArticleListItem) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	// no validation rules for Title
+
+	// no validation rules for Summary
+
+	// no validation rules for AuthorId
+
+	// no validation rules for UpdatedTime
+
+	// no validation rules for ViewCount
+
+	// no validation rules for LikeCount
+
+	// no validation rules for CommentCount
+
+	if len(errors) > 0 {
+		return PublicArticleListItemMultiError(errors)
+	}
+
+	return nil
+}
+
+// PublicArticleListItemMultiError is an error wrapping multiple validation
+// errors returned by PublicArticleListItem.ValidateAll() if the designated
+// constraints aren't met.
+type PublicArticleListItemMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m PublicArticleListItemMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m PublicArticleListItemMultiError) AllErrors() []error { return m }
+
+// PublicArticleListItemValidationError is the validation error returned by
+// PublicArticleListItem.Validate if the designated constraints aren't met.
+type PublicArticleListItemValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e PublicArticleListItemValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e PublicArticleListItemValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e PublicArticleListItemValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e PublicArticleListItemValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e PublicArticleListItemValidationError) ErrorName() string {
+	return "PublicArticleListItemValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e PublicArticleListItemValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sPublicArticleListItem.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = PublicArticleListItemValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = PublicArticleListItemValidationError{}
+
+// Validate checks the field values on HotRankReply with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *HotRankReply) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on HotRankReply with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in HotRankReplyMultiError, or
+// nil if none found.
+func (m *HotRankReply) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *HotRankReply) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, HotRankReplyValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, HotRankReplyValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return HotRankReplyValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	if len(errors) > 0 {
+		return HotRankReplyMultiError(errors)
+	}
+
+	return nil
+}
+
+// HotRankReplyMultiError is an error wrapping multiple validation errors
+// returned by HotRankReply.ValidateAll() if the designated constraints aren't met.
+type HotRankReplyMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m HotRankReplyMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m HotRankReplyMultiError) AllErrors() []error { return m }
+
+// HotRankReplyValidationError is the validation error returned by
+// HotRankReply.Validate if the designated constraints aren't met.
+type HotRankReplyValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e HotRankReplyValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e HotRankReplyValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e HotRankReplyValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e HotRankReplyValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e HotRankReplyValidationError) ErrorName() string { return "HotRankReplyValidationError" }
+
+// Error satisfies the builtin error interface
+func (e HotRankReplyValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sHotRankReply.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = HotRankReplyValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = HotRankReplyValidationError{}
+
+// Validate checks the field values on HotRankItem with the rules defined in
+// the proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *HotRankItem) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on HotRankItem with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in HotRankItemMultiError, or
+// nil if none found.
+func (m *HotRankItem) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *HotRankItem) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for ArticleId
+
+	// no validation rules for Title
+
+	// no validation rules for Hot
+
+	// no validation rules for ViewCount
+
+	// no validation rules for CommentCount
+
+	// no validation rules for LikeCount
+
+	if len(errors) > 0 {
+		return HotRankItemMultiError(errors)
+	}
+
+	return nil
+}
+
+// HotRankItemMultiError is an error wrapping multiple validation errors
+// returned by HotRankItem.ValidateAll() if the designated constraints aren't met.
+type HotRankItemMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m HotRankItemMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m HotRankItemMultiError) AllErrors() []error { return m }
+
+// HotRankItemValidationError is the validation error returned by
+// HotRankItem.Validate if the designated constraints aren't met.
+type HotRankItemValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e HotRankItemValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e HotRankItemValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e HotRankItemValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e HotRankItemValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e HotRankItemValidationError) ErrorName() string { return "HotRankItemValidationError" }
+
+// Error satisfies the builtin error interface
+func (e HotRankItemValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sHotRankItem.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = HotRankItemValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = HotRankItemValidationError{}
 
 // Validate checks the field values on ArticleDetailReply with the rules
 // defined in the proto definition for this message. If any rules are
