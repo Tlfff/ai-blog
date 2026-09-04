@@ -22,3 +22,37 @@ CREATE TABLE IF NOT EXISTS `users` (
   KEY `idx_created_time` (`created_time`),
   KEY `idx_updated_time` (`updated_time`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='用户表';
+
+CREATE TABLE IF NOT EXISTS `articles` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `author_id` BIGINT UNSIGNED NOT NULL,
+  `title` VARCHAR(255) NOT NULL,
+  `content` TEXT NOT NULL,
+  `tags` VARCHAR(255) NOT NULL DEFAULT '',
+  `status` TINYINT NOT NULL DEFAULT 2,
+  `view_count` BIGINT NOT NULL DEFAULT 0,
+  `like_count` BIGINT NOT NULL DEFAULT 0,
+  `comment_count` BIGINT NOT NULL DEFAULT 0,
+  `created_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), KEY `idx_author_status` (`author_id`,`status`), KEY `idx_status_updated` (`status`,`updated_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `article_images` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `article_id` BIGINT UNSIGNED NULL,
+  `object_key` VARCHAR(255) NOT NULL,
+  `created_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), UNIQUE KEY `uk_object_key` (`object_key`), KEY `idx_article_id` (`article_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+CREATE TABLE IF NOT EXISTS `article_likes` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `article_id` BIGINT UNSIGNED NOT NULL,
+  `status` TINYINT NOT NULL DEFAULT 1 COMMENT '1-已点赞；其他值-已取消',
+  `created_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`), UNIQUE KEY `uni_userid_articleid` (`user_id`,`article_id`),
+  KEY `idx_created_time` (`created_time`), KEY `idx_updated_time` (`updated_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

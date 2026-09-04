@@ -2,6 +2,8 @@ package clients
 
 import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/objectstorage"
+	article "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	"github.com/google/wire"
 )
@@ -14,5 +16,8 @@ var ProviderClientsSet = wire.NewSet(
 	// redis
 	NewRedisClient,
 	ipregion.NewConfiguredResolver,
+	objectstorage.NewStorage,
+	objectstorage.ProvideAllowedImageExtensions,
+	wire.Bind(new(article.Storage), new(*objectstorage.Storage)),
 	wire.Bind(new(user.IPRegionResolver), new(*ipregion.Resolver)),
 )

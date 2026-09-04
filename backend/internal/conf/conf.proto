@@ -97,6 +97,18 @@ message Data {
   SLSProducer sls_producer = 3;
   KylinStorage kylin_storage = 4;
   Kafka kafka = 5;
+  ObjectStorage object_storage = 6;
+}
+
+// ObjectStorage 定义正文图片使用的 MinIO 配置。
+message ObjectStorage {
+  string endpoint = 1;
+  string access_key = 2;
+  string secret_key = 3;
+  string bucket = 4;
+  bool use_ssl = 5;
+  string public_url = 6;
+  repeated string image_extensions = 7;
 }
 
 message MySQL {

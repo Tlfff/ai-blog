@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package article.v1;
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/article;article";
+
+service ArticleService {
+  rpc GetImageUploadURL(GetImageUploadURLRequest) returns (ImageUploadURLReply) {
+    option (google.api.http) = { post: "/admin/article/image/upload-url" body: "*" };
+  }
+  rpc CreateArticle(CreateArticleRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/admin/article/create" body: "*" };
+  }
+  rpc GetMyArticleDetail(GetMyArticleDetailRequest) returns (ArticleDetailReply) {
+    option (google.api.http) = { get: "/admin/article/me/detail" };
+  }
+}
+message GetImageUploadURLRequest { string file_ext = 1 [(validate.rules).string = {min_len: 1, max_len: 10}]; }
+message ImageUploadURLReply { uint64 image_id = 1; string upload_url = 2; string url = 3; }
+message CreateArticleRequest {
+  string title = 1 [(validate.rules).string = {min_len: 1, max_len: 255}];
+  string content = 2 [(validate.rules).string = {min_len: 1}];
+  repeated string tags = 3;
+  int32 status = 4 [(validate.rules).int32 = {in: [0, 2, 3]}];
+}
+message EmptyReply {}
+message GetMyArticleDetailRequest { uint64 id = 1 [(validate.rules).uint64 = {gt: 0}]; }
+message ArticleDetailReply {
+  uint64 id = 1; string title = 2; string content = 3; repeated string tags = 4; int32 status = 5;
+  string author_nick = 6; string author_avatar = 7; string ip = 8; int64 created_time = 9; int64 updated_time = 10;
+  bool is_liked = 11; int64 like_count = 12; repeated ArticleImage images = 13;
+}
+message ArticleImage { uint64 id = 1; string url = 2; }
