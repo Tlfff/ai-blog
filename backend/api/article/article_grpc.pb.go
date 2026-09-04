@@ -25,6 +25,11 @@ const (
 	ArticleService_UpdateArticle_FullMethodName      = "/article.v1.ArticleService/UpdateArticle"
 	ArticleService_PublishArticle_FullMethodName     = "/article.v1.ArticleService/PublishArticle"
 	ArticleService_GetArticleDetail_FullMethodName   = "/article.v1.ArticleService/GetArticleDetail"
+	ArticleService_ListMyArticles_FullMethodName     = "/article.v1.ArticleService/ListMyArticles"
+	ArticleService_MoveArticleToTrash_FullMethodName = "/article.v1.ArticleService/MoveArticleToTrash"
+	ArticleService_ListTrashArticles_FullMethodName  = "/article.v1.ArticleService/ListTrashArticles"
+	ArticleService_RecoverArticle_FullMethodName     = "/article.v1.ArticleService/RecoverArticle"
+	ArticleService_ClearArticle_FullMethodName       = "/article.v1.ArticleService/ClearArticle"
 )
 
 // ArticleServiceClient is the client API for ArticleService service.
@@ -37,6 +42,11 @@ type ArticleServiceClient interface {
 	UpdateArticle(ctx context.Context, in *UpdateArticleRequest, opts ...grpc.CallOption) (*EmptyReply, error)
 	PublishArticle(ctx context.Context, in *ArticleIDRequest, opts ...grpc.CallOption) (*EmptyReply, error)
 	GetArticleDetail(ctx context.Context, in *ArticleIDRequest, opts ...grpc.CallOption) (*ArticleDetailReply, error)
+	ListMyArticles(ctx context.Context, in *ArticleListRequest, opts ...grpc.CallOption) (*ArticleListReply, error)
+	MoveArticleToTrash(ctx context.Context, in *DeleteArticleRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	ListTrashArticles(ctx context.Context, in *ArticleListRequest, opts ...grpc.CallOption) (*ArticleListReply, error)
+	RecoverArticle(ctx context.Context, in *ArticleIDRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	ClearArticle(ctx context.Context, in *ArticleIDRequest, opts ...grpc.CallOption) (*EmptyReply, error)
 }
 
 type articleServiceClient struct {
@@ -107,6 +117,56 @@ func (c *articleServiceClient) GetArticleDetail(ctx context.Context, in *Article
 	return out, nil
 }
 
+func (c *articleServiceClient) ListMyArticles(ctx context.Context, in *ArticleListRequest, opts ...grpc.CallOption) (*ArticleListReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArticleListReply)
+	err := c.cc.Invoke(ctx, ArticleService_ListMyArticles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *articleServiceClient) MoveArticleToTrash(ctx context.Context, in *DeleteArticleRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EmptyReply)
+	err := c.cc.Invoke(ctx, ArticleService_MoveArticleToTrash_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *articleServiceClient) ListTrashArticles(ctx context.Context, in *ArticleListRequest, opts ...grpc.CallOption) (*ArticleListReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ArticleListReply)
+	err := c.cc.Invoke(ctx, ArticleService_ListTrashArticles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *articleServiceClient) RecoverArticle(ctx context.Context, in *ArticleIDRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EmptyReply)
+	err := c.cc.Invoke(ctx, ArticleService_RecoverArticle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *articleServiceClient) ClearArticle(ctx context.Context, in *ArticleIDRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EmptyReply)
+	err := c.cc.Invoke(ctx, ArticleService_ClearArticle_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ArticleServiceServer is the server API for ArticleService service.
 // All implementations must embed UnimplementedArticleServiceServer
 // for forward compatibility.
@@ -117,6 +177,11 @@ type ArticleServiceServer interface {
 	UpdateArticle(context.Context, *UpdateArticleRequest) (*EmptyReply, error)
 	PublishArticle(context.Context, *ArticleIDRequest) (*EmptyReply, error)
 	GetArticleDetail(context.Context, *ArticleIDRequest) (*ArticleDetailReply, error)
+	ListMyArticles(context.Context, *ArticleListRequest) (*ArticleListReply, error)
+	MoveArticleToTrash(context.Context, *DeleteArticleRequest) (*EmptyReply, error)
+	ListTrashArticles(context.Context, *ArticleListRequest) (*ArticleListReply, error)
+	RecoverArticle(context.Context, *ArticleIDRequest) (*EmptyReply, error)
+	ClearArticle(context.Context, *ArticleIDRequest) (*EmptyReply, error)
 	mustEmbedUnimplementedArticleServiceServer()
 }
 
@@ -144,6 +209,21 @@ func (UnimplementedArticleServiceServer) PublishArticle(context.Context, *Articl
 }
 func (UnimplementedArticleServiceServer) GetArticleDetail(context.Context, *ArticleIDRequest) (*ArticleDetailReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetArticleDetail not implemented")
+}
+func (UnimplementedArticleServiceServer) ListMyArticles(context.Context, *ArticleListRequest) (*ArticleListReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListMyArticles not implemented")
+}
+func (UnimplementedArticleServiceServer) MoveArticleToTrash(context.Context, *DeleteArticleRequest) (*EmptyReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method MoveArticleToTrash not implemented")
+}
+func (UnimplementedArticleServiceServer) ListTrashArticles(context.Context, *ArticleListRequest) (*ArticleListReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListTrashArticles not implemented")
+}
+func (UnimplementedArticleServiceServer) RecoverArticle(context.Context, *ArticleIDRequest) (*EmptyReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method RecoverArticle not implemented")
+}
+func (UnimplementedArticleServiceServer) ClearArticle(context.Context, *ArticleIDRequest) (*EmptyReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ClearArticle not implemented")
 }
 func (UnimplementedArticleServiceServer) mustEmbedUnimplementedArticleServiceServer() {}
 func (UnimplementedArticleServiceServer) testEmbeddedByValue()                        {}
@@ -274,6 +354,96 @@ func _ArticleService_GetArticleDetail_Handler(srv interface{}, ctx context.Conte
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArticleService_ListMyArticles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArticleListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArticleServiceServer).ListMyArticles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArticleService_ListMyArticles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArticleServiceServer).ListMyArticles(ctx, req.(*ArticleListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArticleService_MoveArticleToTrash_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteArticleRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArticleServiceServer).MoveArticleToTrash(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArticleService_MoveArticleToTrash_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArticleServiceServer).MoveArticleToTrash(ctx, req.(*DeleteArticleRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArticleService_ListTrashArticles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArticleListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArticleServiceServer).ListTrashArticles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArticleService_ListTrashArticles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArticleServiceServer).ListTrashArticles(ctx, req.(*ArticleListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArticleService_RecoverArticle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArticleIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArticleServiceServer).RecoverArticle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArticleService_RecoverArticle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArticleServiceServer).RecoverArticle(ctx, req.(*ArticleIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArticleService_ClearArticle_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ArticleIDRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArticleServiceServer).ClearArticle(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArticleService_ClearArticle_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArticleServiceServer).ClearArticle(ctx, req.(*ArticleIDRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ArticleService_ServiceDesc is the grpc.ServiceDesc for ArticleService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -304,6 +474,26 @@ var ArticleService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetArticleDetail",
 			Handler:    _ArticleService_GetArticleDetail_Handler,
+		},
+		{
+			MethodName: "ListMyArticles",
+			Handler:    _ArticleService_ListMyArticles_Handler,
+		},
+		{
+			MethodName: "MoveArticleToTrash",
+			Handler:    _ArticleService_MoveArticleToTrash_Handler,
+		},
+		{
+			MethodName: "ListTrashArticles",
+			Handler:    _ArticleService_ListTrashArticles_Handler,
+		},
+		{
+			MethodName: "RecoverArticle",
+			Handler:    _ArticleService_RecoverArticle_Handler,
+		},
+		{
+			MethodName: "ClearArticle",
+			Handler:    _ArticleService_ClearArticle_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

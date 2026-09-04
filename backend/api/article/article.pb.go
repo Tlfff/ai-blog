@@ -395,6 +395,286 @@ func (x *ArticleIDRequest) GetId() uint64 {
 	return 0
 }
 
+type DeleteArticleRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteArticleRequest) Reset() {
+	*x = DeleteArticleRequest{}
+	mi := &file_article_article_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteArticleRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteArticleRequest) ProtoMessage() {}
+
+func (x *DeleteArticleRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_article_article_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteArticleRequest.ProtoReflect.Descriptor instead.
+func (*DeleteArticleRequest) Descriptor() ([]byte, []int) {
+	return file_article_article_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DeleteArticleRequest) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+type ArticleListRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Status        int32                  `protobuf:"varint,1,opt,name=status,proto3" json:"status"`
+	LastId        uint64                 `protobuf:"varint,2,opt,name=last_id,json=lastId,proto3" json:"last_id"`
+	Page          uint64                 `protobuf:"varint,3,opt,name=page,proto3" json:"page"`
+	PageSize      uint64                 `protobuf:"varint,4,opt,name=page_size,json=pageSize,proto3" json:"page_size"`
+	IsDesc        bool                   `protobuf:"varint,5,opt,name=is_desc,json=isDesc,proto3" json:"is_desc"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArticleListRequest) Reset() {
+	*x = ArticleListRequest{}
+	mi := &file_article_article_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArticleListRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArticleListRequest) ProtoMessage() {}
+
+func (x *ArticleListRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_article_article_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArticleListRequest.ProtoReflect.Descriptor instead.
+func (*ArticleListRequest) Descriptor() ([]byte, []int) {
+	return file_article_article_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *ArticleListRequest) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *ArticleListRequest) GetLastId() uint64 {
+	if x != nil {
+		return x.LastId
+	}
+	return 0
+}
+
+func (x *ArticleListRequest) GetPage() uint64 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ArticleListRequest) GetPageSize() uint64 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+func (x *ArticleListRequest) GetIsDesc() bool {
+	if x != nil {
+		return x.IsDesc
+	}
+	return false
+}
+
+type ArticleListReply struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	List          []*ArticleListItem     `protobuf:"bytes,1,rep,name=list,proto3" json:"list"`
+	LastId        uint64                 `protobuf:"varint,2,opt,name=last_id,json=lastId,proto3" json:"last_id"`
+	Total         uint64                 `protobuf:"varint,3,opt,name=total,proto3" json:"total"`
+	Page          uint64                 `protobuf:"varint,4,opt,name=page,proto3" json:"page"`
+	PageSize      uint64                 `protobuf:"varint,5,opt,name=page_size,json=pageSize,proto3" json:"page_size"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArticleListReply) Reset() {
+	*x = ArticleListReply{}
+	mi := &file_article_article_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArticleListReply) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArticleListReply) ProtoMessage() {}
+
+func (x *ArticleListReply) ProtoReflect() protoreflect.Message {
+	mi := &file_article_article_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArticleListReply.ProtoReflect.Descriptor instead.
+func (*ArticleListReply) Descriptor() ([]byte, []int) {
+	return file_article_article_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ArticleListReply) GetList() []*ArticleListItem {
+	if x != nil {
+		return x.List
+	}
+	return nil
+}
+
+func (x *ArticleListReply) GetLastId() uint64 {
+	if x != nil {
+		return x.LastId
+	}
+	return 0
+}
+
+func (x *ArticleListReply) GetTotal() uint64 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
+}
+
+func (x *ArticleListReply) GetPage() uint64 {
+	if x != nil {
+		return x.Page
+	}
+	return 0
+}
+
+func (x *ArticleListReply) GetPageSize() uint64 {
+	if x != nil {
+		return x.PageSize
+	}
+	return 0
+}
+
+type ArticleListItem struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title"`
+	Tags          []string               `protobuf:"bytes,3,rep,name=tags,proto3" json:"tags"`
+	Status        int32                  `protobuf:"varint,4,opt,name=status,proto3" json:"status"`
+	CreatedTime   int64                  `protobuf:"varint,5,opt,name=created_time,json=createdTime,proto3" json:"created_time"`
+	UpdatedTime   int64                  `protobuf:"varint,6,opt,name=updated_time,json=updatedTime,proto3" json:"updated_time"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ArticleListItem) Reset() {
+	*x = ArticleListItem{}
+	mi := &file_article_article_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ArticleListItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ArticleListItem) ProtoMessage() {}
+
+func (x *ArticleListItem) ProtoReflect() protoreflect.Message {
+	mi := &file_article_article_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ArticleListItem.ProtoReflect.Descriptor instead.
+func (*ArticleListItem) Descriptor() ([]byte, []int) {
+	return file_article_article_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ArticleListItem) GetId() uint64 {
+	if x != nil {
+		return x.Id
+	}
+	return 0
+}
+
+func (x *ArticleListItem) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *ArticleListItem) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
+}
+
+func (x *ArticleListItem) GetStatus() int32 {
+	if x != nil {
+		return x.Status
+	}
+	return 0
+}
+
+func (x *ArticleListItem) GetCreatedTime() int64 {
+	if x != nil {
+		return x.CreatedTime
+	}
+	return 0
+}
+
+func (x *ArticleListItem) GetUpdatedTime() int64 {
+	if x != nil {
+		return x.UpdatedTime
+	}
+	return 0
+}
+
 type ArticleDetailReply struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id"`
@@ -416,7 +696,7 @@ type ArticleDetailReply struct {
 
 func (x *ArticleDetailReply) Reset() {
 	*x = ArticleDetailReply{}
-	mi := &file_article_article_proto_msgTypes[7]
+	mi := &file_article_article_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -428,7 +708,7 @@ func (x *ArticleDetailReply) String() string {
 func (*ArticleDetailReply) ProtoMessage() {}
 
 func (x *ArticleDetailReply) ProtoReflect() protoreflect.Message {
-	mi := &file_article_article_proto_msgTypes[7]
+	mi := &file_article_article_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -441,7 +721,7 @@ func (x *ArticleDetailReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticleDetailReply.ProtoReflect.Descriptor instead.
 func (*ArticleDetailReply) Descriptor() ([]byte, []int) {
-	return file_article_article_proto_rawDescGZIP(), []int{7}
+	return file_article_article_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ArticleDetailReply) GetId() uint64 {
@@ -545,7 +825,7 @@ type ArticleImage struct {
 
 func (x *ArticleImage) Reset() {
 	*x = ArticleImage{}
-	mi := &file_article_article_proto_msgTypes[8]
+	mi := &file_article_article_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -557,7 +837,7 @@ func (x *ArticleImage) String() string {
 func (*ArticleImage) ProtoMessage() {}
 
 func (x *ArticleImage) ProtoReflect() protoreflect.Message {
-	mi := &file_article_article_proto_msgTypes[8]
+	mi := &file_article_article_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -570,7 +850,7 @@ func (x *ArticleImage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ArticleImage.ProtoReflect.Descriptor instead.
 func (*ArticleImage) Descriptor() ([]byte, []int) {
-	return file_article_article_proto_rawDescGZIP(), []int{8}
+	return file_article_article_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *ArticleImage) GetId() uint64 {
@@ -619,7 +899,29 @@ const file_article_article_proto_rawDesc = "" +
 	"\x04tags\x18\x04 \x03(\tR\x04tags\x12#\n" +
 	"\x06status\x18\x05 \x01(\x05B\v\xfaB\b\x1a\x060\x000\x020\x03R\x06status\"+\n" +
 	"\x10ArticleIDRequest\x12\x17\n" +
-	"\x02id\x18\x01 \x01(\x04B\a\xfaB\x042\x02 \x00R\x02id\"\x88\x03\n" +
+	"\x02id\x18\x01 \x01(\x04B\a\xfaB\x042\x02 \x00R\x02id\"&\n" +
+	"\x14DeleteArticleRequest\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\"\xbf\x01\n" +
+	"\x12ArticleListRequest\x129\n" +
+	"\x06status\x18\x01 \x01(\x05B!\xfaB\x1e\x1a\x1c0\xfe\xff\xff\xff\xff\xff\xff\xff\xff\x010\xff\xff\xff\xff\xff\xff\xff\xff\xff\x010\x010\x020\x03R\x06status\x12\x17\n" +
+	"\alast_id\x18\x02 \x01(\x04R\x06lastId\x12\x12\n" +
+	"\x04page\x18\x03 \x01(\x04R\x04page\x12(\n" +
+	"\tpage_size\x18\x04 \x01(\x04B\v\xfaB\b2\x06\x18\x14(\n" +
+	"@\x01R\bpageSize\x12\x17\n" +
+	"\ais_desc\x18\x05 \x01(\bR\x06isDesc\"\xa3\x01\n" +
+	"\x10ArticleListReply\x12/\n" +
+	"\x04list\x18\x01 \x03(\v2\x1b.article.v1.ArticleListItemR\x04list\x12\x17\n" +
+	"\alast_id\x18\x02 \x01(\x04R\x06lastId\x12\x14\n" +
+	"\x05total\x18\x03 \x01(\x04R\x05total\x12\x12\n" +
+	"\x04page\x18\x04 \x01(\x04R\x04page\x12\x1b\n" +
+	"\tpage_size\x18\x05 \x01(\x04R\bpageSize\"\xa9\x01\n" +
+	"\x0fArticleListItem\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
+	"\x04tags\x18\x03 \x03(\tR\x04tags\x12\x16\n" +
+	"\x06status\x18\x04 \x01(\x05R\x06status\x12!\n" +
+	"\fcreated_time\x18\x05 \x01(\x03R\vcreatedTime\x12!\n" +
+	"\fupdated_time\x18\x06 \x01(\x03R\vupdatedTime\"\x88\x03\n" +
 	"\x12ArticleDetailReply\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
@@ -639,14 +941,20 @@ const file_article_article_proto_rawDesc = "" +
 	"\x06images\x18\r \x03(\v2\x18.article.v1.ArticleImageR\x06images\"0\n" +
 	"\fArticleImage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x10\n" +
-	"\x03url\x18\x02 \x01(\tR\x03url2\xd1\x05\n" +
+	"\x03url\x18\x02 \x01(\tR\x03url2\x84\n" +
+	"\n" +
 	"\x0eArticleService\x12\x86\x01\n" +
 	"\x11GetImageUploadURL\x12$.article.v1.GetImageUploadURLRequest\x1a\x1f.article.v1.ImageUploadURLReply\"*\x82\xd3\xe4\x93\x02$:\x01*\"\x1f/admin/article/image/upload-url\x12k\n" +
 	"\rCreateArticle\x12 .article.v1.CreateArticleRequest\x1a\x16.article.v1.EmptyReply\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/admin/article/create\x12}\n" +
 	"\x12GetMyArticleDetail\x12%.article.v1.GetMyArticleDetailRequest\x1a\x1e.article.v1.ArticleDetailReply\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/admin/article/me/detail\x12k\n" +
 	"\rUpdateArticle\x12 .article.v1.UpdateArticleRequest\x1a\x16.article.v1.EmptyReply\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/admin/article/update\x12i\n" +
 	"\x0ePublishArticle\x12\x1c.article.v1.ArticleIDRequest\x1a\x16.article.v1.EmptyReply\"!\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/admin/article/publish\x12r\n" +
-	"\x10GetArticleDetail\x12\x1c.article.v1.ArticleIDRequest\x1a\x1e.article.v1.ArticleDetailReply\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/optional/article/detailBBZ@codeup.aliyun.com/qimao/blog/ai-blog/backend/api/article;articleb\x06proto3"
+	"\x10GetArticleDetail\x12\x1c.article.v1.ArticleIDRequest\x1a\x1e.article.v1.ArticleDetailReply\" \x82\xd3\xe4\x93\x02\x1a\x12\x18/optional/article/detail\x12k\n" +
+	"\x0eListMyArticles\x12\x1e.article.v1.ArticleListRequest\x1a\x1c.article.v1.ArticleListReply\"\x1b\x82\xd3\xe4\x93\x02\x15\x12\x13/admin/article/list\x12p\n" +
+	"\x12MoveArticleToTrash\x12 .article.v1.DeleteArticleRequest\x1a\x16.article.v1.EmptyReply\" \x82\xd3\xe4\x93\x02\x1a:\x01*\"\x15/admin/article/delete\x12t\n" +
+	"\x11ListTrashArticles\x12\x1e.article.v1.ArticleListRequest\x1a\x1c.article.v1.ArticleListReply\"!\x82\xd3\xe4\x93\x02\x1b\x12\x19/admin/article/trash/list\x12o\n" +
+	"\x0eRecoverArticle\x12\x1c.article.v1.ArticleIDRequest\x1a\x16.article.v1.EmptyReply\"'\x82\xd3\xe4\x93\x02!:\x01*\"\x1c/admin/article/trash/recover\x12k\n" +
+	"\fClearArticle\x12\x1c.article.v1.ArticleIDRequest\x1a\x16.article.v1.EmptyReply\"%\x82\xd3\xe4\x93\x02\x1f:\x01*\"\x1a/admin/article/trash/clearBBZ@codeup.aliyun.com/qimao/blog/ai-blog/backend/api/article;articleb\x06proto3"
 
 var (
 	file_article_article_proto_rawDescOnce sync.Once
@@ -660,7 +968,7 @@ func file_article_article_proto_rawDescGZIP() []byte {
 	return file_article_article_proto_rawDescData
 }
 
-var file_article_article_proto_msgTypes = make([]protoimpl.MessageInfo, 9)
+var file_article_article_proto_msgTypes = make([]protoimpl.MessageInfo, 13)
 var file_article_article_proto_goTypes = []any{
 	(*GetImageUploadURLRequest)(nil),  // 0: article.v1.GetImageUploadURLRequest
 	(*ImageUploadURLReply)(nil),       // 1: article.v1.ImageUploadURLReply
@@ -669,28 +977,43 @@ var file_article_article_proto_goTypes = []any{
 	(*GetMyArticleDetailRequest)(nil), // 4: article.v1.GetMyArticleDetailRequest
 	(*UpdateArticleRequest)(nil),      // 5: article.v1.UpdateArticleRequest
 	(*ArticleIDRequest)(nil),          // 6: article.v1.ArticleIDRequest
-	(*ArticleDetailReply)(nil),        // 7: article.v1.ArticleDetailReply
-	(*ArticleImage)(nil),              // 8: article.v1.ArticleImage
+	(*DeleteArticleRequest)(nil),      // 7: article.v1.DeleteArticleRequest
+	(*ArticleListRequest)(nil),        // 8: article.v1.ArticleListRequest
+	(*ArticleListReply)(nil),          // 9: article.v1.ArticleListReply
+	(*ArticleListItem)(nil),           // 10: article.v1.ArticleListItem
+	(*ArticleDetailReply)(nil),        // 11: article.v1.ArticleDetailReply
+	(*ArticleImage)(nil),              // 12: article.v1.ArticleImage
 }
 var file_article_article_proto_depIdxs = []int32{
-	8, // 0: article.v1.ArticleDetailReply.images:type_name -> article.v1.ArticleImage
-	0, // 1: article.v1.ArticleService.GetImageUploadURL:input_type -> article.v1.GetImageUploadURLRequest
-	2, // 2: article.v1.ArticleService.CreateArticle:input_type -> article.v1.CreateArticleRequest
-	4, // 3: article.v1.ArticleService.GetMyArticleDetail:input_type -> article.v1.GetMyArticleDetailRequest
-	5, // 4: article.v1.ArticleService.UpdateArticle:input_type -> article.v1.UpdateArticleRequest
-	6, // 5: article.v1.ArticleService.PublishArticle:input_type -> article.v1.ArticleIDRequest
-	6, // 6: article.v1.ArticleService.GetArticleDetail:input_type -> article.v1.ArticleIDRequest
-	1, // 7: article.v1.ArticleService.GetImageUploadURL:output_type -> article.v1.ImageUploadURLReply
-	3, // 8: article.v1.ArticleService.CreateArticle:output_type -> article.v1.EmptyReply
-	7, // 9: article.v1.ArticleService.GetMyArticleDetail:output_type -> article.v1.ArticleDetailReply
-	3, // 10: article.v1.ArticleService.UpdateArticle:output_type -> article.v1.EmptyReply
-	3, // 11: article.v1.ArticleService.PublishArticle:output_type -> article.v1.EmptyReply
-	7, // 12: article.v1.ArticleService.GetArticleDetail:output_type -> article.v1.ArticleDetailReply
-	7, // [7:13] is the sub-list for method output_type
-	1, // [1:7] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	10, // 0: article.v1.ArticleListReply.list:type_name -> article.v1.ArticleListItem
+	12, // 1: article.v1.ArticleDetailReply.images:type_name -> article.v1.ArticleImage
+	0,  // 2: article.v1.ArticleService.GetImageUploadURL:input_type -> article.v1.GetImageUploadURLRequest
+	2,  // 3: article.v1.ArticleService.CreateArticle:input_type -> article.v1.CreateArticleRequest
+	4,  // 4: article.v1.ArticleService.GetMyArticleDetail:input_type -> article.v1.GetMyArticleDetailRequest
+	5,  // 5: article.v1.ArticleService.UpdateArticle:input_type -> article.v1.UpdateArticleRequest
+	6,  // 6: article.v1.ArticleService.PublishArticle:input_type -> article.v1.ArticleIDRequest
+	6,  // 7: article.v1.ArticleService.GetArticleDetail:input_type -> article.v1.ArticleIDRequest
+	8,  // 8: article.v1.ArticleService.ListMyArticles:input_type -> article.v1.ArticleListRequest
+	7,  // 9: article.v1.ArticleService.MoveArticleToTrash:input_type -> article.v1.DeleteArticleRequest
+	8,  // 10: article.v1.ArticleService.ListTrashArticles:input_type -> article.v1.ArticleListRequest
+	6,  // 11: article.v1.ArticleService.RecoverArticle:input_type -> article.v1.ArticleIDRequest
+	6,  // 12: article.v1.ArticleService.ClearArticle:input_type -> article.v1.ArticleIDRequest
+	1,  // 13: article.v1.ArticleService.GetImageUploadURL:output_type -> article.v1.ImageUploadURLReply
+	3,  // 14: article.v1.ArticleService.CreateArticle:output_type -> article.v1.EmptyReply
+	11, // 15: article.v1.ArticleService.GetMyArticleDetail:output_type -> article.v1.ArticleDetailReply
+	3,  // 16: article.v1.ArticleService.UpdateArticle:output_type -> article.v1.EmptyReply
+	3,  // 17: article.v1.ArticleService.PublishArticle:output_type -> article.v1.EmptyReply
+	11, // 18: article.v1.ArticleService.GetArticleDetail:output_type -> article.v1.ArticleDetailReply
+	9,  // 19: article.v1.ArticleService.ListMyArticles:output_type -> article.v1.ArticleListReply
+	3,  // 20: article.v1.ArticleService.MoveArticleToTrash:output_type -> article.v1.EmptyReply
+	9,  // 21: article.v1.ArticleService.ListTrashArticles:output_type -> article.v1.ArticleListReply
+	3,  // 22: article.v1.ArticleService.RecoverArticle:output_type -> article.v1.EmptyReply
+	3,  // 23: article.v1.ArticleService.ClearArticle:output_type -> article.v1.EmptyReply
+	13, // [13:24] is the sub-list for method output_type
+	2,  // [2:13] is the sub-list for method input_type
+	2,  // [2:2] is the sub-list for extension type_name
+	2,  // [2:2] is the sub-list for extension extendee
+	0,  // [0:2] is the sub-list for field type_name
 }
 
 func init() { file_article_article_proto_init() }
@@ -704,7 +1027,7 @@ func file_article_article_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_article_article_proto_rawDesc), len(file_article_article_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   9,
+			NumMessages:   13,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

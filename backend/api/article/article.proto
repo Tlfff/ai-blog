@@ -26,6 +26,21 @@ service ArticleService {
   rpc GetArticleDetail(ArticleIDRequest) returns (ArticleDetailReply) {
     option (google.api.http) = { get: "/optional/article/detail" };
   }
+  rpc ListMyArticles(ArticleListRequest) returns (ArticleListReply) {
+    option (google.api.http) = { get: "/admin/article/list" };
+  }
+  rpc MoveArticleToTrash(DeleteArticleRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/admin/article/delete" body: "*" };
+  }
+  rpc ListTrashArticles(ArticleListRequest) returns (ArticleListReply) {
+    option (google.api.http) = { get: "/admin/article/trash/list" };
+  }
+  rpc RecoverArticle(ArticleIDRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/admin/article/trash/recover" body: "*" };
+  }
+  rpc ClearArticle(ArticleIDRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/admin/article/trash/clear" body: "*" };
+  }
 }
 message GetImageUploadURLRequest { string file_ext = 1 [(validate.rules).string = {min_len: 1, max_len: 10}]; }
 message ImageUploadURLReply { uint64 image_id = 1; string upload_url = 2; string url = 3; }
@@ -45,6 +60,29 @@ message UpdateArticleRequest {
   int32 status = 5 [(validate.rules).int32 = {in: [0, 2, 3]}];
 }
 message ArticleIDRequest { uint64 id = 1 [(validate.rules).uint64 = {gt: 0}]; }
+message DeleteArticleRequest { uint64 id = 1; }
+message ArticleListRequest {
+  int32 status = 1 [(validate.rules).int32 = {in: [-2, -1, 1, 2, 3]}];
+  uint64 last_id = 2;
+  uint64 page = 3;
+  uint64 page_size = 4 [(validate.rules).uint64 = {ignore_empty: true, gte: 10, lte: 20}];
+  bool is_desc = 5;
+}
+message ArticleListReply {
+  repeated ArticleListItem list = 1;
+  uint64 last_id = 2;
+  uint64 total = 3;
+  uint64 page = 4;
+  uint64 page_size = 5;
+}
+message ArticleListItem {
+  uint64 id = 1;
+  string title = 2;
+  repeated string tags = 3;
+  int32 status = 4;
+  int64 created_time = 5;
+  int64 updated_time = 6;
+}
 message ArticleDetailReply {
   uint64 id = 1; string title = 2; string content = 3; repeated string tags = 4; int32 status = 5;
   string author_nick = 6; string author_avatar = 7; string ip = 8; int64 created_time = 9; int64 updated_time = 10;
