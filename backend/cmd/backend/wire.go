@@ -11,14 +11,13 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/server"
-	"codeup.aliyun.com/qimao/leo/leo/transport/ginhttp"
 	"codeup.aliyun.com/qimao/leo/leo/transport/lgrpc"
 
 	"github.com/google/wire"
 )
 
 // wireApp init application.
-func wireApp() (application *ginhttp.Server, cleanup func(), err error) {
+func wireApp() (application *httpApplication, cleanup func(), err error) {
 	panic(wire.Build(
 		conf.ProviderSet,
 		// 基础层

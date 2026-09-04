@@ -20,14 +20,13 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/server"
-	"codeup.aliyun.com/qimao/leo/leo/transport/ginhttp"
 	"codeup.aliyun.com/qimao/leo/leo/transport/lgrpc"
 )
 
 // Injectors from wire.go:
 
 // wireApp init application.
-func wireApp() (*ginhttp.Server, func(), error) {
+func wireApp() (*httpApplication, func(), error) {
 	config, err := conf.NewConfig()
 	if err != nil {
 		return nil, nil, err
@@ -94,8 +93,9 @@ func wireApp() (*ginhttp.Server, func(), error) {
 	}
 	articleServiceHTTPServerController := service.NewArticleServer(articleService, storage, resolver)
 	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, sessionRepository)
-	ginhttpServer := newApp(config, registerServer)
-	return ginhttpServer, func() {
+	articleDeletionReconciler := service.NewArticleDeletionReconciler(articleService)
+	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler)
+	return serverHttpApplication, func() {
 		cleanup4()
 		cleanup3()
 		cleanup2()

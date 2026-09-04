@@ -5,10 +5,12 @@ import (
 	"os"
 	"time"
 
+	appservice "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/service"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/middleware"
 	"codeup.aliyun.com/qimao/leo/leo"
 	"codeup.aliyun.com/qimao/leo/leo/actuator"
+	"codeup.aliyun.com/qimao/leo/leo/actuator/health"
 	"codeup.aliyun.com/qimao/leo/leo/log"
 	"codeup.aliyun.com/qimao/leo/leo/log/slog"
 	ginlogmdw "codeup.aliyun.com/qimao/leo/leo/middleware/ginhttp/log"
@@ -63,7 +65,32 @@ var HttpCmd = &cobra.Command{
 	},
 }
 
-func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer) *ginhttp.Server {
+// httpApplication 聚合 HTTP Server 和正文图片删除恢复 Runner。
+type httpApplication struct {
+	server     *ginhttp.Server                       // server 是博客 HTTP 传输服务。
+	reconciler *appservice.ArticleDeletionReconciler // reconciler 是正文图片删除恢复任务。
+}
+
+// Run 通过 Leo 生命周期并发运行 HTTP 服务和恢复任务。
+func (app *httpApplication) Run(ctx context.Context) error {
+	// 1. 复用 Leo 多 Runner 编排和统一退出机制
+	return leo.MutilRunner(app.server, app.reconciler).Run(ctx)
+}
+
+// ActuatorHandler 返回 HTTP Server 的管理端点处理器。
+func (app *httpApplication) ActuatorHandler() actuator.Handler {
+	// 1. 管理端点继续由原 HTTP Server 提供
+	return app.server.ActuatorHandler()
+}
+
+// HealthChecker 返回 HTTP Server 的健康检查器。
+func (app *httpApplication) HealthChecker() health.Checker {
+	// 1. 健康状态继续由原 HTTP Server 提供
+	return app.server.HealthChecker()
+}
+
+// newApp 创建包含传输服务和对象恢复任务的 HTTP 应用。
+func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appservice.ArticleDeletionReconciler) *httpApplication {
 
 	sentry.SentryInit(cfg.GetServer().GetSentry().ToSentryConfig())
 	ginEngine := gin.New()
@@ -98,5 +125,5 @@ func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer) *ginhttp.Server
 		ginhttp.ReadTimeout(ts),
 	)
 
-	return httpServers
+	return &httpApplication{server: httpServers, reconciler: reconciler}
 }

@@ -144,7 +144,7 @@ func NewService(repository Repository, storage Storage, likes LikeReader, guard 
 	// 2. 启动时恢复进程中断遗留的持久化对象删除记录
 	recoveryCtx, cancel := context.WithTimeout(context.Background(), objectCleanupTTL)
 	defer cancel()
-	if err := service.reconcileStagedDeletions(recoveryCtx); err != nil {
+	if err := service.ReconcileStagedDeletions(recoveryCtx); err != nil {
 		return nil, fmt.Errorf("恢复正文图片暂存删除: %w", err)
 	}
 	return service, nil
@@ -308,7 +308,7 @@ func (s *Service) Recover(ctx context.Context, articleID, authorID uint64) error
 // Clear 彻底删除当前作者的垃圾箱文章及其绑定对象。
 func (s *Service) Clear(ctx context.Context, articleID, authorID uint64) error {
 	// 1. 每次清理前重试恢复超过宽限期的持久化暂存删除记录
-	if err := s.reconcileStagedDeletions(ctx); err != nil {
+	if err := s.ReconcileStagedDeletions(ctx); err != nil {
 		return fmt.Errorf("恢复正文图片暂存删除: %w", err)
 	}
 
@@ -345,8 +345,8 @@ func (s *Service) Clear(ctx context.Context, articleID, authorID uint64) error {
 	return commitStagedDeletions(ctx, staged)
 }
 
-// reconcileStagedDeletions 根据数据库图片关系恢复或提交持久化暂存删除。
-func (s *Service) reconcileStagedDeletions(ctx context.Context) error {
+// ReconcileStagedDeletions 根据数据库图片关系恢复或提交持久化暂存删除。
+func (s *Service) ReconcileStagedDeletions(ctx context.Context) error {
 	// 1. 列出超过安全宽限期的 MinIO 隔离对象
 	deletions, err := s.storage.ListStagedDeletions(ctx)
 	if err != nil {

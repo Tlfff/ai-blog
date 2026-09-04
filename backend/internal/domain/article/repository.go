@@ -29,6 +29,12 @@ type StagedObjectDeletion interface {
 	Rollback(context.Context) error
 }
 
+// DeletionRecovery 定义进程中断后恢复正文图片暂存删除的能力。
+type DeletionRecovery interface {
+	// ReconcileStagedDeletions 根据数据库图片关系恢复或提交成熟的暂存删除。
+	ReconcileStagedDeletions(context.Context) error
+}
+
 // Repository 定义文章和正文图片所需的数据访问能力。
 type Repository interface {
 	// CreatePendingImage 创建尚未归属文章的正文图片记录。

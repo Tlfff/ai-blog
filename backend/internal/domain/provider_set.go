@@ -24,6 +24,7 @@ var DomainProviderAppSet = wire.NewSet(
 	wire.Bind(new(article.SubmissionGuard), new(*articlerepo.SubmissionGuard)),
 	article.NewService,
 	wire.Bind(new(article.UseCase), new(*article.Service)),
+	wire.Bind(new(article.DeletionRecovery), new(*article.Service)),
 )
 
 // UserProviderSet 提供用户上下文的仓储、密码摘要和领域服务。
