@@ -122,11 +122,11 @@ func (p *ArticleViewPublisher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return p.shutdown(ctx)
 		case message := <-p.queue:
-			// 2.1 取消信号与队列同时就绪时，将当前消息纳入独立关闭上下文排空
+			// 1.1 取消信号与队列同时就绪时，将当前消息纳入独立关闭上下文排空
 			if ctx.Err() != nil {
 				return p.shutdown(ctx, message)
 			}
-			// 2. 单条消息有限重试后记录错误，不阻断后续浏览事件
+			// 1.2 单条消息有限重试后记录错误，不阻断后续浏览事件
 			if err := p.publishWithRetry(ctx, message); err != nil {
 				if ctx.Err() != nil {
 					return errors.Join(err, p.shutdown(ctx, message))
