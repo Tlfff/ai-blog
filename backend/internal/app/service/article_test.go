@@ -145,9 +145,24 @@ func (articleStorageFake) PublicURL(string) string {
 	return "preview"
 }
 
-// DeleteObject 模拟成功删除正文图片对象。
-func (articleStorageFake) DeleteObject(context.Context, string) error {
-	// 1. 测试应用层不执行真实对象删除
+// StageDelete 模拟可提交或回滚的正文图片对象删除。
+func (articleStorageFake) StageDelete(context.Context, string) (article.StagedObjectDeletion, error) {
+	// 1. 应用层测试返回无副作用的暂存删除操作
+	return articleStagedDeletionFake{}, nil
+}
+
+// articleStagedDeletionFake 模拟对象删除提交和回滚操作。
+type articleStagedDeletionFake struct{}
+
+// Commit 模拟完成对象删除。
+func (articleStagedDeletionFake) Commit(context.Context) error {
+	// 1. 应用层测试不执行真实对象清理
+	return nil
+}
+
+// Rollback 模拟恢复对象。
+func (articleStagedDeletionFake) Rollback(context.Context) error {
+	// 1. 应用层测试不执行真实对象恢复
 	return nil
 }
 

@@ -25,6 +25,7 @@ const (
 	codeArticleNotPublished   = 44050108 // codeArticleNotPublished 表示文章尚未发表，不能公开读取。
 	codeArticleNotDeleted     = 44050109 // codeArticleNotDeleted 表示文章不在垃圾箱中。
 	codeArticleInvalidList    = 44050110 // codeArticleInvalidList 表示后台列表筛选或分页参数不合法。
+	codeArticleChanged        = 44050111 // codeArticleChanged 表示彻底删除前文章或图片关系发生变化。
 )
 
 // ArticleService 将文章 HTTP 协议转换为文章领域调用。
@@ -309,6 +310,8 @@ func articleHTTPError(err error) error {
 		return errassets.NewError(codeArticleNotDeleted, err.Error())
 	case errors.Is(err, article.ErrInvalidListStatus), errors.Is(err, article.ErrInvalidPagination):
 		return errassets.NewError(codeArticleInvalidList, err.Error())
+	case errors.Is(err, article.ErrArticleChanged):
+		return errassets.NewError(codeArticleChanged, err.Error())
 	default:
 		return err
 	}

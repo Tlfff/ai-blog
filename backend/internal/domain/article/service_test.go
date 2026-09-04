@@ -24,6 +24,8 @@ type fakeRepository struct {
 	listQuery    ListQuery                // listQuery 是收到的后台列表查询。
 	listResult   *ListResult              // listResult 是后台列表预设结果。
 	clearImages  []*entity.Image          // clearImages 是待彻底删除的正文图片。
+	clearCurrent []*entity.Image          // clearCurrent 是事务复核时的正文图片快照。
+	clearErr     error                    // clearErr 是数据库硬删除预设错误。
 	clearedID    uint64                   // clearedID 是已彻底删除的文章标识。
 	deleted      uint64                   // deleted 是被清理的图片标识。
 }
@@ -105,18 +107,35 @@ func (f *fakeRepository) ListArticles(_ context.Context, query ListQuery) (*List
 	return &ListResult{Page: query.Page, PageSize: query.PageSize}, nil
 }
 
-// ClearArticle 在测试文章上执行彻底删除领域规则。
-func (f *fakeRepository) ClearArticle(_ context.Context, articleID uint64, remove ArticleRemoval) error {
-	// 1. 使用当前文章和待删除图片执行领域规则
+// FindClearTarget 返回测试文章和图片清理快照。
+func (f *fakeRepository) FindClearTarget(_ context.Context, articleID uint64) (*ClearTarget, error) {
+	// 1. 使用预设文章或构造默认垃圾箱文章
 	current := f.current
 	if current == nil {
 		current = &entity.Article{ID: articleID, AuthorID: 7, Status: StatusDeleted}
 	}
-	if err := remove(current, f.clearImages); err != nil {
+	return &ClearTarget{Article: current, Images: f.clearImages}, nil
+}
+
+// ClearArticle 在测试事务快照上执行彻底删除校验。
+func (f *fakeRepository) ClearArticle(_ context.Context, articleID uint64, validate ArticleClearValidation) error {
+	// 1. 使用当前文章和事务复核图片执行领域校验
+	current := f.current
+	if current == nil {
+		current = &entity.Article{ID: articleID, AuthorID: 7, Status: StatusDeleted}
+	}
+	images := f.clearCurrent
+	if images == nil {
+		images = f.clearImages
+	}
+	if err := validate(current, images); err != nil {
 		return err
 	}
+	if f.clearErr != nil {
+		return f.clearErr
+	}
 
-	// 2. 只有领域规则和对象删除成功后才记录数据库清理
+	// 2. 只有事务校验和数据库写入成功后才记录清理
 	f.clearedID = articleID
 	return nil
 }
@@ -148,6 +167,8 @@ type fakeStorage struct {
 	err        error         // err 是预签名失败。
 	deleteErr  error         // deleteErr 是对象删除预设错误。
 	deletedKey []string      // deletedKey 是已删除对象键集合。
+	committed  []string      // committed 是已完成隔离副本清理的对象键。
+	rolledBack []string      // rolledBack 是数据库失败后恢复的对象键。
 }
 
 // PresignPut 返回测试预签名地址。
@@ -166,13 +187,33 @@ func (*fakeStorage) PublicURL(string) string {
 	return "https://cdn.test/image"
 }
 
-// DeleteObject 记录测试对象删除操作。
-func (f *fakeStorage) DeleteObject(_ context.Context, objectKey string) error {
-	// 1. 预设失败时不记录成功删除对象
+// StageDelete 记录测试对象的可回滚删除操作。
+func (f *fakeStorage) StageDelete(_ context.Context, objectKey string) (StagedObjectDeletion, error) {
+	// 1. 预设失败时不记录已暂存对象
 	if f.deleteErr != nil {
-		return f.deleteErr
+		return nil, f.deleteErr
 	}
 	f.deletedKey = append(f.deletedKey, objectKey)
+	return &fakeStagedDeletion{storage: f, objectKey: objectKey}, nil
+}
+
+// fakeStagedDeletion 记录测试对象删除的提交和回滚。
+type fakeStagedDeletion struct {
+	storage   *fakeStorage // storage 是记录操作结果的测试对象存储。
+	objectKey string       // objectKey 是原始稳定对象键。
+}
+
+// Commit 记录对象删除已完成。
+func (d *fakeStagedDeletion) Commit(context.Context) error {
+	// 1. 保存数据库提交后清理隔离副本的对象键
+	d.storage.committed = append(d.storage.committed, d.objectKey)
+	return nil
+}
+
+// Rollback 记录原始对象已恢复。
+func (d *fakeStagedDeletion) Rollback(context.Context) error {
+	// 1. 保存数据库失败后恢复的对象键
+	d.storage.rolledBack = append(d.storage.rolledBack, d.objectKey)
 	return nil
 }
 
@@ -506,8 +547,47 @@ func TestClearArticleDeletesAllObjectsBeforeDatabaseRecords(t *testing.T) {
 	if err := service.Clear(context.Background(), 9, 7); err != nil {
 		t.Fatal(err)
 	}
-	if repository.clearedID != 9 || len(storage.deletedKey) != 2 || storage.deletedKey[0] != "first.png" || storage.deletedKey[1] != "second.png" {
-		t.Fatalf("cleared ID = %d, deleted keys = %v", repository.clearedID, storage.deletedKey)
+	if repository.clearedID != 9 || len(storage.committed) != 2 || storage.committed[0] != "first.png" || storage.committed[1] != "second.png" {
+		t.Fatalf("cleared ID = %d, committed keys = %v", repository.clearedID, storage.committed)
+	}
+}
+
+// TestClearArticleRestoresObjectsWhenDatabaseDeletionFails 验证数据库失败时恢复全部原始对象。
+func TestClearArticleRestoresObjectsWhenDatabaseDeletionFails(t *testing.T) {
+	// 1. 暂存两张图片后模拟数据库事务写入失败
+	repository := &fakeRepository{
+		current:     &entity.Article{ID: 9, AuthorID: 7, Status: StatusDeleted},
+		clearImages: []*entity.Image{{ID: 1, ObjectKey: "first.png"}, {ID: 2, ObjectKey: "second.png"}},
+		clearErr:    errors.New("database unavailable"),
+	}
+	storage := &fakeStorage{}
+	service := newTestService(repository, storage, &fakeLikeReader{}, &fakeGuard{acquired: true})
+
+	// 2. 数据库失败必须逆序回滚对象，且不提交任何隔离对象清理
+	if err := service.Clear(context.Background(), 9, 7); err == nil {
+		t.Fatal("Clear() error = nil")
+	}
+	if repository.clearedID != 0 || len(storage.committed) != 0 || len(storage.rolledBack) != 2 ||
+		storage.rolledBack[0] != "second.png" || storage.rolledBack[1] != "first.png" {
+		t.Fatalf("cleared ID = %d, committed = %v, rolled back = %v", repository.clearedID, storage.committed, storage.rolledBack)
+	}
+}
+
+// TestClearArticleRestoresObjectsWhenImageSnapshotChanges 验证并发图片关系变化时恢复对象并重试。
+func TestClearArticleRestoresObjectsWhenImageSnapshotChanges(t *testing.T) {
+	// 1. 初始快照和事务复核快照使用不同图片关系
+	repository := &fakeRepository{
+		current:      &entity.Article{ID: 9, AuthorID: 7, Status: StatusDeleted},
+		clearImages:  []*entity.Image{{ID: 1, ObjectKey: "first.png"}},
+		clearCurrent: []*entity.Image{{ID: 2, ObjectKey: "second.png"}},
+	}
+	storage := &fakeStorage{}
+	service := newTestService(repository, storage, &fakeLikeReader{}, &fakeGuard{acquired: true})
+
+	// 2. 快照变化返回稳定冲突错误并恢复已暂存对象
+	err := service.Clear(context.Background(), 9, 7)
+	if !errors.Is(err, ErrArticleChanged) || repository.clearedID != 0 || len(storage.rolledBack) != 1 || storage.rolledBack[0] != "first.png" {
+		t.Fatalf("error = %v, cleared ID = %d, rolled back = %v", err, repository.clearedID, storage.rolledBack)
 	}
 }
 

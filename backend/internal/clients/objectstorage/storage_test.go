@@ -3,6 +3,7 @@ package objectstorage
 import (
 	"context"
 	"net/url"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,15 +13,29 @@ import (
 
 // fakePresigner 记录 MinIO SDK 预签名参数。
 type fakePresigner struct {
-	expires    time.Duration // expires 是传入 MinIO SDK 的有效期。
-	removedKey string        // removedKey 是请求删除的对象键。
+	expires     time.Duration // expires 是传入 MinIO SDK 的有效期。
+	removedKeys []string      // removedKeys 是请求删除的对象键。
+	copies      []copyCall    // copies 是请求执行的对象复制操作。
+}
+
+// copyCall 记录一次 MinIO 服务端对象复制。
+type copyCall struct {
+	source      string // source 是复制源对象键。
+	destination string // destination 是复制目标对象键。
 }
 
 // RemoveObject 记录测试对象删除请求。
 func (f *fakePresigner) RemoveObject(_ context.Context, _ string, objectKey string, _ minio.RemoveObjectOptions) error {
 	// 1. 保存 MinIO SDK 收到的稳定对象键
-	f.removedKey = objectKey
+	f.removedKeys = append(f.removedKeys, objectKey)
 	return nil
+}
+
+// CopyObject 记录测试对象复制请求。
+func (f *fakePresigner) CopyObject(_ context.Context, destination minio.CopyDestOptions, source minio.CopySrcOptions) (minio.UploadInfo, error) {
+	// 1. 保存源对象和目标对象键
+	f.copies = append(f.copies, copyCall{source: source.Object, destination: destination.Object})
+	return minio.UploadInfo{}, nil
 }
 
 // PresignedPutObject 返回带签名参数的测试 URL。
@@ -85,17 +100,44 @@ func TestNewStorageRequiresCredentials(t *testing.T) {
 	}
 }
 
-// TestStorageDeleteObjectUsesStableObjectKey 验证适配器按稳定对象键删除 MinIO 图片。
-func TestStorageDeleteObjectUsesStableObjectKey(t *testing.T) {
-	// 1. 注入 MinIO SDK 接缝并删除正文图片对象
+// TestStorageStagedDeleteCanCommit 验证适配器暂存删除并提交隔离对象清理。
+func TestStorageStagedDeleteCanCommit(t *testing.T) {
+	// 1. 注入 MinIO SDK 接缝并暂存删除正文图片对象
 	client := &fakePresigner{}
 	storage := &Storage{client: client, bucket: "article-images"}
-	if err := storage.DeleteObject(context.Background(), "article/202609/image.png"); err != nil {
+	deletion, err := storage.StageDelete(context.Background(), "article/202609/image.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := deletion.Commit(context.Background()); err != nil {
 		t.Fatal(err)
 	}
 
-	// 2. SDK 必须收到数据库保存的稳定对象键
-	if client.removedKey != "article/202609/image.png" {
-		t.Fatalf("removed key = %q", client.removedKey)
+	// 2. 原对象先复制到隔离键并删除，提交后再删除隔离副本
+	if len(client.copies) != 1 || client.copies[0].source != "article/202609/image.png" ||
+		!strings.HasPrefix(client.copies[0].destination, ".article-trash/") ||
+		len(client.removedKeys) != 2 || client.removedKeys[0] != "article/202609/image.png" || client.removedKeys[1] != client.copies[0].destination {
+		t.Fatalf("copies = %#v, removed keys = %v", client.copies, client.removedKeys)
+	}
+}
+
+// TestStorageStagedDeleteCanRollback 验证数据库失败时从隔离副本恢复原对象。
+func TestStorageStagedDeleteCanRollback(t *testing.T) {
+	// 1. 暂存删除正文图片后执行回滚
+	client := &fakePresigner{}
+	storage := &Storage{client: client, bucket: "article-images"}
+	deletion, err := storage.StageDelete(context.Background(), "article/202609/image.png")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := deletion.Rollback(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. 回滚将隔离对象复制回稳定键并清理隔离副本
+	if len(client.copies) != 2 || client.copies[1].source != client.copies[0].destination ||
+		client.copies[1].destination != "article/202609/image.png" || len(client.removedKeys) != 2 ||
+		client.removedKeys[1] != client.copies[0].destination {
+		t.Fatalf("copies = %#v, removed keys = %v", client.copies, client.removedKeys)
 	}
 }

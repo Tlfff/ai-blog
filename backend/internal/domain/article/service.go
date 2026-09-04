@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -29,8 +30,9 @@ const (
 )
 
 const (
-	defaultListPage     uint64 = 1  // defaultListPage 是后台列表默认页码。
-	defaultListPageSize uint64 = 10 // defaultListPageSize 是后台列表默认每页数量。
+	defaultListPage     uint64 = 1                // defaultListPage 是后台列表默认页码。
+	defaultListPageSize uint64 = 10               // defaultListPageSize 是后台列表默认每页数量。
+	objectCleanupTTL           = 30 * time.Second // objectCleanupTTL 是对象删除补偿操作的最长执行时间。
 )
 
 // CreateCommand 表示创建文章所需的领域输入。
@@ -297,21 +299,115 @@ func (s *Service) Recover(ctx context.Context, articleID, authorID uint64) error
 
 // Clear 彻底删除当前作者的垃圾箱文章及其绑定对象。
 func (s *Service) Clear(ctx context.Context, articleID, authorID uint64) error {
-	// 1. 事务内校验作者和垃圾箱状态，再逐个删除已绑定对象
-	return s.repository.ClearArticle(ctx, articleID, func(article *entity.Article, images []*entity.Image) error {
-		if article.AuthorID != authorID {
-			return ErrArticleNotOwned
+	// 1. 查询并校验待删除文章和图片快照，避免无权限操作对象存储
+	target, err := s.repository.FindClearTarget(ctx, articleID)
+	if err != nil {
+		return err
+	}
+	if err := validateClearTarget(target, authorID); err != nil {
+		return err
+	}
+
+	// 2. 在数据库事务外暂存并删除原始对象，任一失败时恢复已处理对象
+	staged, err := s.stageObjectDeletions(ctx, target.Images)
+	if err != nil {
+		return err
+	}
+
+	// 3. 事务内重新校验文章与图片快照后硬删除数据库记录
+	err = s.repository.ClearArticle(ctx, articleID, func(current *entity.Article, images []*entity.Image) error {
+		if err := validateClearTarget(&ClearTarget{Article: current, Images: images}, authorID); err != nil {
+			return err
 		}
-		if article.Status != StatusDeleted {
-			return ErrArticleNotDeleted
-		}
-		for _, image := range images {
-			if err := s.storage.DeleteObject(ctx, image.ObjectKey); err != nil {
-				return fmt.Errorf("删除正文图片对象 %q: %w", image.ObjectKey, err)
-			}
+		if !sameImageSnapshot(target.Images, images) {
+			return ErrArticleChanged
 		}
 		return nil
 	})
+	if err != nil {
+		return errors.Join(err, rollbackStagedDeletions(ctx, staged))
+	}
+
+	// 4. 数据库提交成功后清理隔离对象，完成两阶段删除
+	return commitStagedDeletions(ctx, staged)
+}
+
+// stageObjectDeletions 暂存并删除全部正文图片原始对象。
+func (s *Service) stageObjectDeletions(ctx context.Context, images []*entity.Image) ([]StagedObjectDeletion, error) {
+	// 1. 按图片快照顺序逐个创建可回滚删除操作
+	staged := make([]StagedObjectDeletion, 0, len(images))
+	for _, image := range images {
+		deletion, err := s.storage.StageDelete(ctx, image.ObjectKey)
+		if err != nil {
+			rollbackErr := rollbackStagedDeletions(ctx, staged)
+			return nil, errors.Join(fmt.Errorf("暂存删除正文图片对象 %q: %w", image.ObjectKey, err), rollbackErr)
+		}
+		staged = append(staged, deletion)
+	}
+	return staged, nil
+}
+
+// validateClearTarget 校验彻底删除所需的作者和垃圾箱状态。
+func validateClearTarget(target *ClearTarget, authorID uint64) error {
+	// 1. 缺失文章快照按文章不存在处理
+	if target == nil || target.Article == nil {
+		return ErrArticleNotFound
+	}
+
+	// 2. 只有作者可以彻底删除自己的文章
+	if target.Article.AuthorID != authorID {
+		return ErrArticleNotOwned
+	}
+
+	// 3. 只有垃圾箱文章允许进入物理删除流程
+	if target.Article.Status != StatusDeleted {
+		return ErrArticleNotDeleted
+	}
+	return nil
+}
+
+// sameImageSnapshot 判断两次查询的正文图片关系是否完全一致。
+func sameImageSnapshot(expected, actual []*entity.Image) bool {
+	// 1. 图片数量不同表示清理期间关系已经变化
+	if len(expected) != len(actual) {
+		return false
+	}
+
+	// 2. 以图片标识和稳定对象键比较无序快照
+	expectedKeys := make(map[uint64]string, len(expected))
+	for _, image := range expected {
+		expectedKeys[image.ID] = image.ObjectKey
+	}
+	for _, image := range actual {
+		if expectedKeys[image.ID] != image.ObjectKey {
+			return false
+		}
+	}
+	return true
+}
+
+// rollbackStagedDeletions 逆序恢复已暂存删除的对象。
+func rollbackStagedDeletions(ctx context.Context, staged []StagedObjectDeletion) error {
+	// 1. 使用独立短期上下文，避免请求取消阻断必要补偿
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), objectCleanupTTL)
+	defer cancel()
+	var rollbackErr error
+	for index := len(staged) - 1; index >= 0; index-- {
+		rollbackErr = errors.Join(rollbackErr, staged[index].Rollback(cleanupCtx))
+	}
+	return rollbackErr
+}
+
+// commitStagedDeletions 清理全部隔离对象并完成删除。
+func commitStagedDeletions(ctx context.Context, staged []StagedObjectDeletion) error {
+	// 1. 使用独立短期上下文完成数据库提交后的资源清理
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), objectCleanupTTL)
+	defer cancel()
+	var commitErr error
+	for _, deletion := range staged {
+		commitErr = errors.Join(commitErr, deletion.Commit(cleanupCtx))
+	}
+	return commitErr
 }
 
 // normalizeListQuery 校验状态并补齐后台列表默认分页参数。

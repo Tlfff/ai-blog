@@ -241,9 +241,29 @@ func (r *Repository) ListArticles(ctx context.Context, query article.ListQuery) 
 	return &article.ListResult{Articles: articles, LastID: lastID, Total: uint64(total), Page: query.Page, PageSize: query.PageSize}, nil
 }
 
-// ClearArticle 在同一事务中校验文章、删除对象并硬删除数据库记录。
-func (r *Repository) ClearArticle(ctx context.Context, articleID uint64, remove article.ArticleRemoval) error {
-	// 1. 锁定文章和全部绑定图片，避免清理期间关系发生变化
+// FindClearTarget 查询待彻底删除的文章和全部绑定图片快照。
+func (r *Repository) FindClearTarget(ctx context.Context, articleID uint64) (*article.ClearTarget, error) {
+	// 1. 查询文章当前状态和作者信息
+	articlePO := new(po.Article)
+	found, err := r.client.Context(ctx).ID(articleID).Get(articlePO)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, article.ErrArticleNotFound
+	}
+
+	// 2. 查询当前绑定图片，供领域服务暂存对象和后续事务复核
+	imagePOs := make([]*po.Image, 0)
+	if err := r.client.Context(ctx).Where("article_id = ?", articleID).Find(&imagePOs); err != nil {
+		return nil, err
+	}
+	return &article.ClearTarget{Article: factory.ArticleFromPO(articlePO), Images: imageEntities(imagePOs)}, nil
+}
+
+// ClearArticle 在同一事务中复核文章快照并硬删除数据库记录。
+func (r *Repository) ClearArticle(ctx context.Context, articleID uint64, validate article.ArticleClearValidation) error {
+	// 1. 锁定文章和全部绑定图片，避免数据库清理期间关系发生变化
 	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
 		session = session.Context(ctx)
 		articlePO, err := findArticleForUpdate(session, articleID)
@@ -254,17 +274,13 @@ func (r *Repository) ClearArticle(ctx context.Context, articleID uint64, remove 
 		if err := forUpdate(session.Where("article_id = ?", articleID)).Find(&imagePOs); err != nil {
 			return nil, err
 		}
-		images := make([]*entity.Image, 0, len(imagePOs))
-		for _, imagePO := range imagePOs {
-			images = append(images, &entity.Image{ID: imagePO.ID, ArticleID: imagePO.ArticleID, ObjectKey: imagePO.ObjectKey})
-		}
 
-		// 2. 先执行领域权限校验和 MinIO 对象删除，失败时回滚数据库事务
-		if err := remove(factory.ArticleFromPO(articlePO), images); err != nil {
+		// 2. 在事务内重新执行领域权限、状态和图片快照校验
+		if err := validate(factory.ArticleFromPO(articlePO), imageEntities(imagePOs)); err != nil {
 			return nil, err
 		}
 
-		// 3. 对象全部删除成功后，在同一事务中删除图片记录和文章记录
+		// 3. 对象已在事务外可回滚暂存，当前事务只删除图片和文章记录
 		if _, err := session.Where("article_id = ?", articleID).Delete(new(po.Image)); err != nil {
 			return nil, err
 		}
@@ -274,6 +290,16 @@ func (r *Repository) ClearArticle(ctx context.Context, articleID uint64, remove 
 		return nil, nil
 	})
 	return err
+}
+
+// imageEntities 将图片持久化对象转换为领域快照。
+func imageEntities(imagePOs []*po.Image) []*entity.Image {
+	// 1. 只复制彻底删除和详情映射需要的稳定字段
+	images := make([]*entity.Image, 0, len(imagePOs))
+	for _, imagePO := range imagePOs {
+		images = append(images, &entity.Image{ID: imagePO.ID, ArticleID: imagePO.ArticleID, ObjectKey: imagePO.ObjectKey})
+	}
+	return images
 }
 
 // FindDetail 查询非删除文章、作者公开字段和全部绑定图片。

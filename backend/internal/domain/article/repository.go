@@ -10,8 +10,22 @@ import (
 // ArticleMutation 定义事务内对已锁定文章执行的领域规则。
 type ArticleMutation func(*entity.Article) error
 
-// ArticleRemoval 定义事务内校验文章并删除已绑定对象的领域规则。
-type ArticleRemoval func(*entity.Article, []*entity.Image) error
+// ArticleClearValidation 定义事务内对文章和图片快照执行的清理校验。
+type ArticleClearValidation func(*entity.Article, []*entity.Image) error
+
+// ClearTarget 表示彻底删除前需要校验和暂存的文章资源快照。
+type ClearTarget struct {
+	Article *entity.Article // Article 是待彻底删除的文章。
+	Images  []*entity.Image // Images 是文章当前绑定的正文图片。
+}
+
+// StagedObjectDeletion 表示可提交或回滚的对象删除操作。
+type StagedObjectDeletion interface {
+	// Commit 清理用于回滚的隔离对象，完成删除。
+	Commit(context.Context) error
+	// Rollback 将隔离对象恢复到原始稳定对象键。
+	Rollback(context.Context) error
+}
 
 // Repository 定义文章和正文图片所需的数据访问能力。
 type Repository interface {
@@ -27,8 +41,10 @@ type Repository interface {
 	ChangeArticleStatus(context.Context, uint64, ArticleMutation) error
 	// ListArticles 分页查询当前作者的文章。
 	ListArticles(context.Context, ListQuery) (*ListResult, error)
-	// ClearArticle 在同一事务中校验文章、删除对象并硬删除数据库记录。
-	ClearArticle(context.Context, uint64, ArticleRemoval) error
+	// FindClearTarget 查询待彻底删除的文章和绑定图片快照。
+	FindClearTarget(context.Context, uint64) (*ClearTarget, error)
+	// ClearArticle 在同一事务中复核快照并硬删除数据库记录。
+	ClearArticle(context.Context, uint64, ArticleClearValidation) error
 	// FindDetail 查询非删除文章、作者快照和正文图片映射。
 	FindDetail(context.Context, uint64, uint64) (*entity.Detail, error)
 	// FindPublicDetail 查询已发表文章、作者快照和正文图片映射。
@@ -41,8 +57,8 @@ type Storage interface {
 	PresignPut(context.Context, string, time.Duration) (string, error)
 	// PublicURL 根据稳定对象键生成公开访问地址。
 	PublicURL(string) string
-	// DeleteObject 删除指定稳定对象键对应的正文图片。
-	DeleteObject(context.Context, string) error
+	// StageDelete 暂存并删除原始对象，返回可提交或回滚的操作。
+	StageDelete(context.Context, string) (StagedObjectDeletion, error)
 }
 
 // LikeReader 定义文章上下文读取点赞事实的稳定查询契约。

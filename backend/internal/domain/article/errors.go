@@ -12,6 +12,7 @@ var (
 	ErrArticleNotDeleted     = errors.New("文章不在垃圾箱中")
 	ErrInvalidListStatus     = errors.New("文章列表状态不合法")
 	ErrInvalidPagination     = errors.New("文章列表分页参数不合法")
+	ErrArticleChanged        = errors.New("文章或图片关系已变更，请重试")
 	ErrInvalidStatus         = errors.New("文章状态不合法")
 	ErrInvalidImageExtension = errors.New("正文图片扩展名不合法")
 	ErrDuplicateSubmission   = errors.New("请勿重复提交")
