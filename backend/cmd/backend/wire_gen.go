@@ -10,9 +10,13 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/service"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/objectstorage"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
+	repo3 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
+	repo4 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/server"
@@ -67,7 +71,22 @@ func wireApp() (*ginhttp.Server, func(), error) {
 		return nil, nil, err
 	}
 	userServiceHTTPServerController := service.NewUserServer(userService, resolver, v)
-	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, sessionRepository)
+	transactionClient := repo3.ProvideTransactionClient(mysqlClient)
+	repository := repo3.NewRepository(mysqlClient, transactionClient)
+	storage, err := objectstorage.NewStorage(config)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	queryRepository := repo4.NewQueryRepository(mysqlClient)
+	submissionGuard := repo3.NewSubmissionGuard(redisClient)
+	allowedImageExtensions := objectstorage.ProvideAllowedImageExtensions(config)
+	articleService := article.NewService(repository, storage, queryRepository, submissionGuard, allowedImageExtensions)
+	articleServiceHTTPServerController := service.NewArticleServer(articleService, storage, resolver)
+	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, sessionRepository)
 	ginhttpServer := newApp(config, registerServer)
 	return ginhttpServer, func() {
 		cleanup4()

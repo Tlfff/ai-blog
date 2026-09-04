@@ -1,8 +1,11 @@
 package domain
 
 import (
+	article "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
+	articlerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
+	likerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	userrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
 	"github.com/google/wire"
@@ -12,6 +15,15 @@ import (
 var DomainProviderAppSet = wire.NewSet(
 	repo.NewHdRepo,
 	book.NewHelloworld,
+	articlerepo.ProvideTransactionClient,
+	articlerepo.NewRepository,
+	articlerepo.NewSubmissionGuard,
+	likerepo.NewQueryRepository,
+	wire.Bind(new(article.LikeReader), new(*likerepo.QueryRepository)),
+	wire.Bind(new(article.Repository), new(*articlerepo.Repository)),
+	wire.Bind(new(article.SubmissionGuard), new(*articlerepo.SubmissionGuard)),
+	article.NewService,
+	wire.Bind(new(article.UseCase), new(*article.Service)),
 )
 
 // UserProviderSet 提供用户上下文的仓储、密码摘要和领域服务。
