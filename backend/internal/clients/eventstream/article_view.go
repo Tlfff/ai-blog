@@ -122,8 +122,15 @@ func (p *ArticleViewPublisher) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return p.shutdown(ctx)
 		case message := <-p.queue:
+			// 2.1 取消信号与队列同时就绪时，将当前消息纳入独立关闭上下文排空
+			if ctx.Err() != nil {
+				return p.shutdown(ctx, message)
+			}
 			// 2. 单条消息有限重试后记录错误，不阻断后续浏览事件
 			if err := p.publishWithRetry(ctx, message); err != nil {
+				if ctx.Err() != nil {
+					return errors.Join(err, p.shutdown(ctx, message))
+				}
 				log.L().WithContext(ctx).Error("异步发布文章浏览事件失败", err)
 			}
 		}
@@ -131,7 +138,7 @@ func (p *ArticleViewPublisher) Run(ctx context.Context) error {
 }
 
 // shutdown 停止入队、排空已接收消息并关闭 Kafka 发布器。
-func (p *ArticleViewPublisher) shutdown(ctx context.Context) error {
+func (p *ArticleViewPublisher) shutdown(ctx context.Context, pending ...*stream.Message) error {
 	// 1. 与请求入队互斥地标记关闭，确保不会遗漏已接受消息
 	p.mutex.Lock()
 	p.closed = true
@@ -141,6 +148,9 @@ func (p *ArticleViewPublisher) shutdown(ctx context.Context) error {
 
 	// 2. 排空队列并汇总发送错误
 	var shutdownErr error
+	for _, message := range pending {
+		shutdownErr = errors.Join(shutdownErr, p.publishWithRetry(cleanupCtx, message))
+	}
 	for {
 		select {
 		case message := <-p.queue:
