@@ -13,13 +13,12 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo"
-	"codeup.aliyun.com/qimao/leo/leo/stream"
 	"github.com/google/wire"
 )
 
 // Injectors from wire.go:
 
-func newBlogStreamerApp() (*stream.Streamer, func(), error) {
+func newBlogStreamerApp() (*consumerApplication, func(), error) {
 	config, err := conf.NewConfig()
 	if err != nil {
 		return nil, nil, err
@@ -31,14 +30,13 @@ func newBlogStreamerApp() (*stream.Streamer, func(), error) {
 	}
 	transactionClient := repo.ProvideTransactionClient(mysqlClient)
 	repository := repo.NewRepository(mysqlClient, transactionClient)
-	articleViewPublisher, cleanup2, err := eventstream.NewArticleViewPublisher(config)
+	articleViewPublisher, err := eventstream.NewArticleViewPublisher(config)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	redisClient, cleanup3, err := clients.NewRedisClient()
+	redisClient, cleanup2, err := clients.NewRedisClient()
 	if err != nil {
-		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
@@ -46,23 +44,19 @@ func newBlogStreamerApp() (*stream.Streamer, func(), error) {
 	viewService := article.NewViewService(repository, articleViewPublisher, readingCache, readingCache)
 	articleViewSubscriber, err := eventstream.NewArticleViewSubscriber(config)
 	if err != nil {
-		cleanup3()
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	articleViewDeadLetterPublisher, cleanup4, err := eventstream.NewArticleViewDeadLetterPublisher(config)
+	articleViewDeadLetterPublisher, err := eventstream.NewArticleViewDeadLetterPublisher(config)
 	if err != nil {
-		cleanup3()
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
 	articleViewConsumer := newArticleViewConsumer(viewService, articleViewSubscriber, articleViewDeadLetterPublisher)
-	streamer := newBlogStreamer(data, articleViewConsumer)
-	return streamer, func() {
-		cleanup4()
-		cleanup3()
+	consumerConsumerApplication := newBlogStreamer(data, articleViewConsumer, articleViewPublisher, articleViewDeadLetterPublisher)
+	return consumerConsumerApplication, func() {
 		cleanup2()
 		cleanup()
 	}, nil

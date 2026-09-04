@@ -59,7 +59,7 @@ type ViewHistory struct {
 type ViewEventInbox struct {
 	EventID       string    `xorm:"'event_id' pk varchar(64)"` // EventID 是浏览事件幂等标识。
 	ArticleID     uint64    `xorm:"'article_id' notnull"`      // ArticleID 是事件关联文章标识。
-	ProcessedTime time.Time `xorm:"'processed_time' datetime"` // ProcessedTime 是事务处理完成时间。
+	ProcessedTime time.Time `xorm:"'processed_time' datetime"` // ProcessedTime 是 Consumer Inbox 写入事务的处理时间。
 }
 
 // TableName 返回文章浏览事件技术幂等表名。

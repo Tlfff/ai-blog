@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/entity"
@@ -170,7 +171,7 @@ func insertViewEventInbox(session *xorm.Session, event article.ViewEvent) (bool,
 	if session.Engine().Dialect().URI().DBType == schemas.SQLITE {
 		query = "INSERT OR IGNORE INTO article_view_event_inbox (event_id, article_id, processed_time) VALUES (?, ?, ?)"
 	}
-	result, err := session.Exec(query, event.EventID, event.ArticleID, event.ViewedAt)
+	result, err := session.Exec(query, event.EventID, event.ArticleID, time.Now())
 	if err != nil {
 		return false, err
 	}

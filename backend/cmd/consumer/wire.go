@@ -9,7 +9,6 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
-	"codeup.aliyun.com/qimao/leo/leo/stream"
 	"github.com/google/wire"
 )
 
@@ -28,7 +27,7 @@ var ProviderSet = wire.NewSet(
 	newBlogStreamer,
 )
 
-func newBlogStreamerApp() (*stream.Streamer, func(), error) {
+func newBlogStreamerApp() (*consumerApplication, func(), error) {
 	panic(wire.Build(
 		ProviderSet,
 	))

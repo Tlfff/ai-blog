@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
@@ -20,6 +21,8 @@ import (
 type ArticleViewPublisher struct {
 	publisher stream.Publisher     // publisher 是 Leo Kafka 发布器。
 	queue     chan *stream.Message // queue 是 HTTP 请求与 Kafka 网络发送之间的有界队列。
+	mutex     sync.RWMutex         // mutex 协调请求入队和关闭排空。
+	closed    bool                 // closed 表示 Runner 已进入关闭阶段。
 }
 
 const (
@@ -31,6 +34,8 @@ const (
 // ArticleViewDeadLetterPublisher 将处理失败的浏览消息发布到死信主题。
 type ArticleViewDeadLetterPublisher struct {
 	publisher stream.Publisher // publisher 是 Leo Kafka 死信发布器。
+	mutex     sync.RWMutex     // mutex 协调死信发布和关闭。
+	closed    bool             // closed 表示发布器已关闭。
 }
 
 // ArticleViewSubscriber 包装文章浏览 Kafka 订阅器以供 Wire 区分类型。
@@ -39,23 +44,23 @@ type ArticleViewSubscriber struct {
 }
 
 // NewArticleViewPublisher 创建文章浏览事件 Kafka 发布器。
-func NewArticleViewPublisher(config *conf.Config) (*ArticleViewPublisher, func(), error) {
+func NewArticleViewPublisher(config *conf.Config) (*ArticleViewPublisher, error) {
 	// 1. 读取文章浏览生产者配置并创建 Leo Kafka 发布器
 	publisher, err := newPublisher(config.GetData().GetKafka().GetProducer().GetArticleView())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return &ArticleViewPublisher{publisher: publisher, queue: make(chan *stream.Message, articleViewQueueSize)}, publisherCleanup(publisher), nil
+	return &ArticleViewPublisher{publisher: publisher, queue: make(chan *stream.Message, articleViewQueueSize)}, nil
 }
 
 // NewArticleViewDeadLetterPublisher 创建文章浏览死信 Kafka 发布器。
-func NewArticleViewDeadLetterPublisher(config *conf.Config) (*ArticleViewDeadLetterPublisher, func(), error) {
+func NewArticleViewDeadLetterPublisher(config *conf.Config) (*ArticleViewDeadLetterPublisher, error) {
 	// 1. 读取死信主题配置并创建 Leo Kafka 发布器
 	publisher, err := newPublisher(config.GetData().GetKafka().GetProducer().GetArticleViewDeadLetter())
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	return &ArticleViewDeadLetterPublisher{publisher: publisher}, publisherCleanup(publisher), nil
+	return &ArticleViewDeadLetterPublisher{publisher: publisher}, nil
 }
 
 // NewArticleViewSubscriber 创建文章浏览事件 Kafka 订阅器。
@@ -86,6 +91,11 @@ func NewArticleViewSubscriber(config *conf.Config) (*ArticleViewSubscriber, erro
 
 // PublishView 发布一次文章浏览事实。
 func (p *ArticleViewPublisher) PublishView(ctx context.Context, event article.ViewEvent) error {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	if p.closed {
+		return stream.ErrPublisherClosed
+	}
 	// 1. 使用 JSON 保持事件契约可观测且跨语言可消费
 	payload, err := json.Marshal(event)
 	if err != nil {
@@ -110,12 +120,33 @@ func (p *ArticleViewPublisher) Run(ctx context.Context) error {
 	for {
 		select {
 		case <-ctx.Done():
-			return nil
+			return p.shutdown(ctx)
 		case message := <-p.queue:
 			// 2. 单条消息有限重试后记录错误，不阻断后续浏览事件
 			if err := p.publishWithRetry(ctx, message); err != nil {
 				log.L().WithContext(ctx).Error("异步发布文章浏览事件失败", err)
 			}
+		}
+	}
+}
+
+// shutdown 停止入队、排空已接收消息并关闭 Kafka 发布器。
+func (p *ArticleViewPublisher) shutdown(ctx context.Context) error {
+	// 1. 与请求入队互斥地标记关闭，确保不会遗漏已接受消息
+	p.mutex.Lock()
+	p.closed = true
+	p.mutex.Unlock()
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+
+	// 2. 排空队列并汇总发送错误
+	var shutdownErr error
+	for {
+		select {
+		case message := <-p.queue:
+			shutdownErr = errors.Join(shutdownErr, p.publishWithRetry(cleanupCtx, message))
+		default:
+			return errors.Join(shutdownErr, p.publisher.Close(cleanupCtx))
 		}
 	}
 }
@@ -146,10 +177,30 @@ func (p *ArticleViewPublisher) publishWithRetry(ctx context.Context, message *st
 
 // PublishDeadLetter 将失败负载投递到死信主题。
 func (p *ArticleViewDeadLetterPublisher) PublishDeadLetter(ctx context.Context, payload []byte, cause string) error {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
+	if p.closed {
+		return stream.ErrPublisherClosed
+	}
 	// 1. 保留原始负载并添加失败原因，便于人工或自动重放
 	deadLetter := &stream.Message{Payload: append([]byte(nil), payload...), Header: stream.Header{}}
 	deadLetter.Header.Set("x-dead-letter-error", cause)
 	_, err := p.publisher.Publish(ctx, deadLetter)
+	return err
+}
+
+// Run 等待进程退出并返回 Kafka 死信发布器关闭错误。
+func (p *ArticleViewDeadLetterPublisher) Run(ctx context.Context) error {
+	// 1. 等待 Leo 生命周期发出退出信号
+	<-ctx.Done()
+
+	// 2. 等待正在进行的死信发布完成后关闭 Kafka 发布器
+	p.mutex.Lock()
+	p.closed = true
+	cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	err := p.publisher.Close(cleanupCtx)
+	p.mutex.Unlock()
 	return err
 }
 
@@ -167,12 +218,4 @@ func newPublisher(config *conf.KafkaProducer_Config) (stream.Publisher, error) {
 		return confluent.NewProducer(&values)
 	}
 	return leokafka.NewPublisher(config.GetTopic(), factory)
-}
-
-// publisherCleanup 返回由 Wire 生命周期调用的 Kafka 发布器清理函数。
-func publisherCleanup(publisher stream.Publisher) func() {
-	// 1. 使用独立上下文等待 Leo 发布器刷新并关闭
-	return func() {
-		_ = publisher.Close(context.Background())
-	}
 }

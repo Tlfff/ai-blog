@@ -93,7 +93,7 @@ func wireApp() (*httpApplication, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	articleViewPublisher, cleanup5, err := eventstream.NewArticleViewPublisher(config)
+	articleViewPublisher, err := eventstream.NewArticleViewPublisher(config)
 	if err != nil {
 		cleanup4()
 		cleanup3()
@@ -109,7 +109,6 @@ func wireApp() (*httpApplication, func(), error) {
 	articleHotRankJob := job.NewArticleHotRankJob(viewService)
 	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, articleHotRankJob, articleViewPublisher)
 	return serverHttpApplication, func() {
-		cleanup5()
 		cleanup4()
 		cleanup3()
 		cleanup2()
