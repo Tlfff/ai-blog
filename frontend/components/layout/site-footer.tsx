@@ -22,6 +22,9 @@ export function SiteFooter() {
           <Link href="/search" className="hover:text-foreground">
             搜索
           </Link>
+          <Link href="/about" className="hover:text-foreground">
+            关于
+          </Link>
           <Link href="/profile" className="hover:text-foreground">
             个人中心
           </Link>

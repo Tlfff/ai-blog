@@ -24,11 +24,6 @@ export interface UpdateProfileRequest {
   avatar?: string
 }
 
-export interface UpdatePasswordRequest {
-  old_password: string
-  new_password: string
-}
-
 export async function login(data: { account: string; password: string }): Promise<{ access_token: string }> {
   const isNumeric = /^\d+$/.test(data.account)
   const reqBody: LoginRequest = {
@@ -93,17 +88,21 @@ export async function updateProfile(data: UpdateProfileRequest): Promise<void> {
   })
 }
 
-export async function updatePassword(data: UpdatePasswordRequest): Promise<void> {
-  const verifyRes = await request<{ change_token: string }>("/auth/my/password/verify", {
+export async function verifyPassword(oldPassword: string): Promise<string> {
+  const data = await request<{ change_token: string }>("/auth/my/password/verify", {
     method: "POST",
-    body: JSON.stringify({ old_password: data.old_password }),
+    body: JSON.stringify({ old_password: oldPassword }),
   })
-  
+
+  return data.change_token
+}
+
+export async function changePassword(changeToken: string, newPassword: string): Promise<void> {
   await request<void>("/auth/my/password/change", {
     method: "POST",
     body: JSON.stringify({
-      change_token: verifyRes.change_token,
-      new_password: data.new_password,
+      change_token: changeToken,
+      new_password: newPassword,
     }),
   })
 }

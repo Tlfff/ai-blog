@@ -53,15 +53,15 @@ export function NotificationItem({ notification }: NotificationItemProps) {
         notification.read ? "hover:bg-muted" : "bg-muted/50",
       )}
     >
-      <Link href={`/profile?userId=${notification.actor.id}`} className="shrink-0">
+      <span className="shrink-0">
         <Avatar src={notification.actor.avatar} alt={notification.actor.username} size={40} />
-      </Link>
+      </span>
 
       <div className="flex flex-1 flex-col">
         <div className="flex items-start gap-2">
-          <Link href={`/profile?userId=${notification.actor.id}`} className="font-medium hover:text-primary">
+          <span className="font-medium">
             {notification.actor.username}
-          </Link>
+          </span>
           {getIcon()}
         </div>
 

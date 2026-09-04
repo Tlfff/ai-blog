@@ -63,7 +63,7 @@ export function SiteHeader({ overlay = false }: { overlay?: boolean }) {
           {[
             { href: "/", label: "首页" },
             { href: "/#latest", label: "文章" },
-            { href: "/#about", label: "关于" },
+            { href: "/about", label: "关于" },
           ].map((item) => (
             <Link
               key={item.href}

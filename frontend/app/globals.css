@@ -1116,3 +1116,158 @@ body {
   background: var(--sakura);
   color: oklch(0.995 0.003 85);
 }
+
+/* =========================================================
+   作者档案页：蓝天、云白、青绿与珊瑚色
+   ========================================================= */
+.profile-page {
+  --profile-background: #f5fbf8;
+  --profile-card: rgb(255 255 255 / 0.9);
+  --profile-card-soft: rgb(255 255 255 / 0.7);
+  --profile-ink: #123047;
+  --profile-muted: #67838b;
+  --profile-faint: #86a5a8;
+  --profile-border: rgb(42 109 124 / 0.16);
+  --profile-border-strong: rgb(42 109 124 / 0.28);
+  --profile-shadow: rgb(20 85 105 / 0.13);
+  --profile-shadow-soft: rgb(20 85 105 / 0.08);
+  --profile-navy: #184964;
+  --profile-teal: #56c9be;
+  --profile-teal-deep: #2d817d;
+  --profile-teal-wash: #e8f8f5;
+  --profile-sky-wash: #e7f3fb;
+  --profile-sky-deep: #3f91c0;
+  --profile-coral-wash: #fff0e4;
+  --profile-coral-deep: #d9865c;
+  background: var(--profile-background);
+}
+
+.profile-hero-wave {
+  clip-path: ellipse(72% 100% at 50% 100%);
+}
+
+.profile-paper-card,
+.profile-topic-card,
+.profile-identity {
+  backdrop-filter: blur(14px);
+}
+
+.dark .profile-page {
+  --profile-background: #102332;
+  --profile-card: rgb(24 43 58 / 0.9);
+  --profile-card-soft: rgb(24 43 58 / 0.72);
+  --profile-ink: #f2f8fa;
+  --profile-muted: #b0c1c9;
+  --profile-faint: #88a5ae;
+  --profile-border: rgb(146 205 213 / 0.18);
+  --profile-border-strong: rgb(146 205 213 / 0.32);
+  --profile-shadow: rgb(0 0 0 / 0.28);
+  --profile-shadow-soft: rgb(0 0 0 / 0.18);
+  --profile-navy: #8fd3e5;
+  --profile-teal: #66d6cb;
+  --profile-teal-deep: #8fe2d7;
+  --profile-teal-wash: rgb(72 181 171 / 0.16);
+  --profile-sky-wash: rgb(78 167 224 / 0.16);
+  --profile-sky-deep: #8dccf0;
+  --profile-coral-wash: rgb(244 124 120 / 0.16);
+  --profile-coral-deep: #ffaaa0;
+}
+
+.dark .profile-hero-wave {
+  background: var(--profile-background);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .profile-identity {
+    animation: profile-card-in 600ms var(--ease-in-expo) both;
+  }
+}
+
+@keyframes profile-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* =========================================================
+   通用个人中心：蓝天、云白、青绿与藏蓝
+   ========================================================= */
+.personal-center-page {
+  --personal-background: #f1f7f7;
+  --personal-surface: #ffffff;
+  --personal-rail: #f8fbfb;
+  --personal-card: rgb(255 255 255 / 0.96);
+  --personal-input: #f8fbfc;
+  --personal-ink: #17324a;
+  --personal-muted: #617b89;
+  --personal-faint: #8aa0aa;
+  --personal-border: rgb(44 103 122 / 0.15);
+  --personal-border-strong: rgb(44 103 122 / 0.25);
+  --personal-shadow: rgb(18 72 94 / 0.17);
+  --personal-shadow-soft: rgb(18 72 94 / 0.08);
+  --personal-navy: #245e80;
+  --personal-sky: #4ea7e0;
+  --personal-sky-deep: #2f8fc4;
+  --personal-sky-soft: #e7f4fb;
+  --personal-teal: #56c9be;
+  --personal-teal-deep: #31877f;
+  --personal-teal-soft: #e7f7f4;
+  --personal-coral: #df766f;
+  --personal-coral-soft: #fff1e7;
+  --personal-lavender: #8068c9;
+  --personal-lavender-soft: #f2edff;
+  --personal-wave: #e3f3f0;
+}
+
+.personal-center-shell {
+  backdrop-filter: blur(16px);
+}
+
+.dark .personal-center-page {
+  --personal-background: #0e2230;
+  --personal-surface: #172f40;
+  --personal-rail: #142a39;
+  --personal-card: rgb(24 49 66 / 0.96);
+  --personal-input: #102837;
+  --personal-ink: #f1f8fa;
+  --personal-muted: #b4c7cf;
+  --personal-faint: #86a2ad;
+  --personal-border: rgb(145 199 211 / 0.16);
+  --personal-border-strong: rgb(145 199 211 / 0.28);
+  --personal-shadow: rgb(0 0 0 / 0.34);
+  --personal-shadow-soft: rgb(0 0 0 / 0.2);
+  --personal-navy: #3b94bd;
+  --personal-sky: #67b9e7;
+  --personal-sky-deep: #93d6f2;
+  --personal-sky-soft: rgb(78 167 224 / 0.15);
+  --personal-teal: #66d6cb;
+  --personal-teal-deep: #91e2d9;
+  --personal-teal-soft: rgb(72 181 171 / 0.15);
+  --personal-coral: #ffaaa0;
+  --personal-coral-soft: rgb(244 124 120 / 0.15);
+  --personal-lavender: #c2b2f3;
+  --personal-lavender-soft: rgb(184 167 232 / 0.16);
+  --personal-wave: #173443;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .personal-center-shell {
+    animation: personal-center-in 600ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes personal-center-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import Link from "next/link"
 import useSWR from "swr"
 import { ChevronDown, ChevronUp, Reply, ThumbsUp, Trash2 } from "lucide-react"
 import { Avatar } from "@/components/ui/avatar"
@@ -66,15 +65,15 @@ export function CommentItem({ comment, articleId, articleAuthorId, onChanged }: 
   return (
     <div className="border-b border-border py-4">
       <div className="flex gap-3">
-        <Link href={`/profile?userId=${comment.author.id}`} className="shrink-0">
+        <span className="shrink-0">
           <Avatar src={comment.author.avatar} alt={comment.author.username} size={40} />
-        </Link>
+        </span>
 
         <div className="flex flex-1 flex-col">
           <div className="flex flex-wrap items-center gap-2">
-            <Link href={`/profile?userId=${comment.author.id}`} className="font-medium hover:text-primary">
+            <span className="font-medium">
               {comment.author.username}
-            </Link>
+            </span>
             {isArticleAuthor && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">作者</span>}
             {comment.ip && <span className="text-xs text-muted-foreground/70">{comment.ip}</span>}
             <span className="text-sm text-muted-foreground">{formatRelativeTime(comment.createdAt)}</span>
