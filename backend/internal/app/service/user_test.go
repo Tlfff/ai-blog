@@ -15,6 +15,7 @@ import (
 	userdomain "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/entity"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/middleware"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/pkg/identity"
 	"github.com/gin-gonic/gin"
 )
 
@@ -173,7 +174,7 @@ func performUserRequest(useCase userdomain.UseCase, method, path, body string, b
 	if before != nil {
 		router.Use(before)
 	}
-	userapi.RegisterUserServiceHTTPServerController(router.Group(""), &UserService{useCase: useCase})
+	userapi.RegisterUserServiceHTTPServerController(router.Group(""), &UserService{useCase: useCase, regionResolver: fakeRegionResolver{region: "测试地区"}})
 	request := httptest.NewRequest(method, path, bytes.NewBufferString(body))
 	request.Header.Set("Content-Type", "application/json")
 	if before != nil {
@@ -233,4 +234,87 @@ func (f *fakeUserUseCase) GetProfile(context.Context, uint64) (*entity.User, err
 func (f *fakeUserUseCase) UpdateProfile(_ context.Context, command userdomain.UpdateProfileCommand) error {
 	f.updated = command
 	return f.updateErr
+}
+
+// TestUserHTTPAuthRoutes 验证登录与退出由 Proto 生成路由处理，并严格校验 Bearer Token。
+func TestUserHTTPAuthRoutes(t *testing.T) {
+	auth := &fakeAuthUseCase{result: &userdomain.LoginResult{AccessToken: "token"}}
+	server := &UserService{authUseCase: auth, trustedProxyCIDRs: []string{"10.0.0.0/8"}}
+	router := gin.New()
+	router.Use(middleware.UnifiedResponseMiddleware())
+	userapi.RegisterUserServiceHTTPServerController(router.Group(""), server)
+
+	login := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/user/login", bytes.NewBufferString(`{"nickname":"tester","password":"secret1"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("X-Forwarded-For", "203.0.113.9")
+	request.RemoteAddr = "10.0.0.8:1234"
+	router.ServeHTTP(login, request)
+	if envelope := decodeEnvelope(t, login); !envelope.Success || !bytes.Contains(envelope.Data, []byte(`"access_token":"token"`)) {
+		t.Fatalf("login response = %s", login.Body.String())
+	}
+	if auth.command.Nickname != "tester" || auth.command.ClientIP != "203.0.113.9" {
+		t.Fatalf("login command = %#v", auth.command)
+	}
+
+	logout := httptest.NewRecorder()
+	request = httptest.NewRequest(http.MethodPost, "/auth/my/logout", nil)
+	request.Header.Set("Authorization", "Basic token")
+	router.ServeHTTP(logout, request)
+	if envelope := decodeEnvelope(t, logout); envelope.Success || envelope.Code != codeUnauthenticated {
+		t.Fatalf("logout response = %s", logout.Body.String())
+	}
+
+	request = httptest.NewRequest(http.MethodPost, "/auth/my/logout", nil)
+	request.Header.Set("Authorization", "Bearer token")
+	logout = httptest.NewRecorder()
+	router.ServeHTTP(logout, request)
+	if envelope := decodeEnvelope(t, logout); !envelope.Success || auth.logoutToken != "token" {
+		t.Fatalf("logout response = %s token=%q", logout.Body.String(), auth.logoutToken)
+	}
+}
+
+// TestUserProfileRegionDoesNotLeakRawIP 验证资料响应只返回地区文案，不直接暴露原始 IP。
+func TestUserProfileRegionDoesNotLeakRawIP(t *testing.T) {
+	useCase := &fakeUserUseCase{profile: &entity.User{ID: 7, Nickname: "tester", LastLoginIP: "203.0.113.8"}}
+	server := &UserService{useCase: useCase, regionResolver: fakeRegionResolver{region: "广东"}}
+	router := gin.New()
+	router.Use(middleware.UnifiedResponseMiddleware())
+	router.Use(func(ctx *gin.Context) { identity.SetCurrentUser(ctx, identity.CurrentUser{ID: 7}); ctx.Next() })
+	userapi.RegisterUserServiceHTTPServerController(router.Group(""), server)
+	response := httptest.NewRecorder()
+	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/auth/my/profile", nil))
+	if bytes.Contains(response.Body.Bytes(), []byte("203.0.113.8")) || !bytes.Contains(response.Body.Bytes(), []byte(`"last_login_ip":"广东"`)) {
+		t.Fatalf("profile response = %s", response.Body.String())
+	}
+}
+
+type fakeAuthUseCase struct {
+	result      *userdomain.LoginResult // result 是预设登录结果。
+	command     userdomain.LoginCommand // command 记录登录命令。
+	logoutToken string                  // logoutToken 记录退出 Token。
+}
+
+// Login 记录登录命令并返回预设结果。
+func (f *fakeAuthUseCase) Login(_ context.Context, command userdomain.LoginCommand) (*userdomain.LoginResult, error) {
+	// 1. 记录领域命令并返回预设登录结果
+	f.command = command
+	return f.result, nil
+}
+
+// Logout 记录当前设备退出 Token。
+func (f *fakeAuthUseCase) Logout(_ context.Context, token string) error {
+	// 1. 记录当前设备退出使用的 Token
+	f.logoutToken = token
+	return nil
+}
+
+type fakeRegionResolver struct {
+	region string // region 是预设地区文案。
+}
+
+// Resolve 返回测试预设的脱敏地区文案。
+func (f fakeRegionResolver) Resolve(string) string {
+	// 1. 返回预设地区文案，确保测试不会暴露原始 IP
+	return f.region
 }

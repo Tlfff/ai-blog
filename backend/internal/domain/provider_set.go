@@ -17,7 +17,11 @@ var DomainProviderAppSet = wire.NewSet(
 // UserProviderSet 提供用户上下文的仓储、密码摘要和领域服务。
 var UserProviderSet = wire.NewSet(
 	userrepo.NewUserRepository,
+	wire.Bind(new(user.Repository), new(*userrepo.UserRepository)),
+	wire.Bind(new(user.AuthRepository), new(*userrepo.UserRepository)),
 	userrepo.NewSessionRepository,
+	wire.Bind(new(user.SessionManager), new(*userrepo.SessionRepository)),
+	wire.Bind(new(user.SessionRepository), new(*userrepo.SessionRepository)),
 	user.NewPBKDF2PasswordHasher,
-	user.NewService,
+	user.NewServiceWithSession,
 )

@@ -88,4 +88,18 @@ func TestUserRepositoryLifecycle(t *testing.T) {
 	if err != nil || existsForOther {
 		t.Fatalf("NicknameExists() excluding current user = %v, %v", existsForOther, err)
 	}
+
+	// 4. 登录查询支持手机号、昵称组合，并更新原始登录信息
+	account, err := repository.FindNormalByAccount(context.Background(), created.Phone, "updated")
+	if err != nil || account.ID != created.ID {
+		t.Fatalf("FindNormalByAccount() = %#v, %v", account, err)
+	}
+	loginAt := now.Add(time.Hour)
+	if err := repository.UpdateLogin(context.Background(), created.ID, "203.0.113.8", loginAt); err != nil {
+		t.Fatalf("UpdateLogin() error = %v", err)
+	}
+	loggedIn, err := repository.FindNormalByID(context.Background(), created.ID)
+	if err != nil || loggedIn.LastLoginIP != "203.0.113.8" || !loggedIn.LastLoginTime.Equal(loginAt) {
+		t.Fatalf("login metadata = %#v, %v", loggedIn, err)
+	}
 }

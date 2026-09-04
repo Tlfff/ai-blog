@@ -8,3 +8,9 @@ var (
 	ErrUserNotFound    = errors.New("用户不存在")   // ErrUserNotFound 表示正常状态的用户不存在。
 	ErrSessionNotFound = errors.New("登录会话不存在") // ErrSessionNotFound 表示访问 Token 没有有效会话。
 )
+
+// ErrInvalidLogin 表示登录账号字段不符合协议约束。
+var ErrInvalidLogin = errors.New("手机号或昵称至少提供一个，手机号只能为数字且昵称不能全为数字")
+
+// ErrInvalidCredentials 表示账号不存在、已失效或密码错误。
+var ErrInvalidCredentials = errors.New("手机号、昵称或密码错误")

@@ -11,6 +11,9 @@ message Config {
   Logger logger = 4;
   Trace trace = 5;
   Data data = 6;
+  repeated string trusted_proxy_cidrs = 7;
+  string ipv4_xdb_path = 8;
+  string ipv6_xdb_path = 9;
 }
 
 // 服务器配置

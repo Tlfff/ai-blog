@@ -27,11 +27,15 @@ type Response struct {
 }
 
 const OperationUserServiceRegister = "/user.v1.UserService/Register"
+const OperationUserServiceLogin = "/user.v1.UserService/Login"
+const OperationUserServiceLogout = "/user.v1.UserService/Logout"
 const OperationUserServiceGetMyProfile = "/user.v1.UserService/GetMyProfile"
 const OperationUserServiceGetPublicProfile = "/user.v1.UserService/GetPublicProfile"
 const OperationUserServiceUpdateMyProfile = "/user.v1.UserService/UpdateMyProfile"
 
 type UserServiceHTTPServerController interface {
+	Login(*gin.Context, *LoginRequest) (*LoginReply, error)
+	Logout(*gin.Context, *LogoutRequest) (*EmptyReply, error)
 	Register(*gin.Context, *RegisterRequest) (*EmptyReply, error)
 	GetMyProfile(*gin.Context, *GetMyProfileRequest) (*ProfileReply, error)
 	GetPublicProfile(*gin.Context, *GetPublicProfileRequest) (*PublicProfileReply, error)
@@ -40,9 +44,75 @@ type UserServiceHTTPServerController interface {
 
 func RegisterUserServiceHTTPServerController(router *gin.RouterGroup, srv UserServiceHTTPServerController) {
 	router.POST("/user/register", _UserService_Register0_HTTP_Handler(srv))
-	router.GET("/auth/my/profile", _UserService_GetMyProfile1_HTTP_Handler(srv))
-	router.GET("/user/profile", _UserService_GetPublicProfile2_HTTP_Handler(srv))
-	router.POST("/auth/my/profile/update", _UserService_UpdateMyProfile3_HTTP_Handler(srv))
+	router.POST("/user/login", _UserService_Login1_HTTP_Handler(srv))
+	router.POST("/auth/my/logout", _UserService_Logout2_HTTP_Handler(srv))
+	router.GET("/auth/my/profile", _UserService_GetMyProfile3_HTTP_Handler(srv))
+	router.GET("/user/profile", _UserService_GetPublicProfile4_HTTP_Handler(srv))
+	router.POST("/auth/my/profile/update", _UserService_UpdateMyProfile5_HTTP_Handler(srv))
+}
+
+func _UserService_Login1_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in LoginRequest
+		data, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		if len(data) != 0 {
+			codec, _ := code_encoding.CodecForRequest(c.Request, "Content-Type")
+			if err = codec.Unmarshal(data, &in); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+				return
+			}
+		}
+		var candidate interface{} = &in
+		if validatable, ok := candidate.(validator); ok {
+			if err := validatable.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.Login(c, &in)
+		if err != nil {
+			if businessError, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, businessError))
+				return
+			}
+			log.Error("/user.v1.UserService/Login err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		writeUserServiceResponse(c, out)
+	}
+}
+
+func _UserService_Logout2_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		out, err := srv.Logout(c, &LogoutRequest{})
+		if err != nil {
+			if businessError, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, businessError))
+				return
+			}
+			log.Error("/user.v1.UserService/Logout err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		writeUserServiceResponse(c, out)
+	}
+}
+
+func writeUserServiceResponse(c *gin.Context, out any) {
+	payload, err := json.Marshal(Response{Data: out})
+	if err != nil {
+		c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+		return
+	}
+	c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+	if _, err = c.Writer.Write(payload); err != nil {
+		log.Error(err)
+	}
 }
 
 func _UserService_Register0_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
@@ -77,21 +147,11 @@ func _UserService_Register0_HTTP_Handler(srv UserServiceHTTPServerController) gi
 			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
 			return
 		}
-		payload, err := json.Marshal(Response{Data: out})
-		if err != nil {
-			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
-			return
-		}
-		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if _, err = c.Writer.Write(payload); err != nil {
-			log.Error(err)
-			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
-			return
-		}
+		writeUserServiceResponse(c, out)
 	}
 }
 
-func _UserService_GetMyProfile1_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
+func _UserService_GetMyProfile3_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var in GetMyProfileRequest
 		if err := code_encoding.GetCodec(form.Name).Unmarshal([]byte(c.Request.URL.Query().Encode()), &in); err != nil {
@@ -115,21 +175,11 @@ func _UserService_GetMyProfile1_HTTP_Handler(srv UserServiceHTTPServerController
 			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
 			return
 		}
-		payload, err := json.Marshal(Response{Data: out})
-		if err != nil {
-			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
-			return
-		}
-		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if _, err = c.Writer.Write(payload); err != nil {
-			log.Error(err)
-			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
-			return
-		}
+		writeUserServiceResponse(c, out)
 	}
 }
 
-func _UserService_GetPublicProfile2_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
+func _UserService_GetPublicProfile4_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var in GetPublicProfileRequest
 		if err := code_encoding.GetCodec(form.Name).Unmarshal([]byte(c.Request.URL.Query().Encode()), &in); err != nil {
@@ -153,21 +203,11 @@ func _UserService_GetPublicProfile2_HTTP_Handler(srv UserServiceHTTPServerContro
 			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
 			return
 		}
-		payload, err := json.Marshal(Response{Data: out})
-		if err != nil {
-			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
-			return
-		}
-		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if _, err = c.Writer.Write(payload); err != nil {
-			log.Error(err)
-			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
-			return
-		}
+		writeUserServiceResponse(c, out)
 	}
 }
 
-func _UserService_UpdateMyProfile3_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
+func _UserService_UpdateMyProfile5_HTTP_Handler(srv UserServiceHTTPServerController) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var in UpdateMyProfileRequest
 		data, err := io.ReadAll(c.Request.Body)
@@ -199,16 +239,6 @@ func _UserService_UpdateMyProfile3_HTTP_Handler(srv UserServiceHTTPServerControl
 			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
 			return
 		}
-		payload, err := json.Marshal(Response{Data: out})
-		if err != nil {
-			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
-			return
-		}
-		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
-		if _, err = c.Writer.Write(payload); err != nil {
-			log.Error(err)
-			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
-			return
-		}
+		writeUserServiceResponse(c, out)
 	}
 }

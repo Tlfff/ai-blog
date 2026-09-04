@@ -17,6 +17,22 @@ service UserService {
     };
   }
 
+  // Login 使用手机号或昵称登录。
+  rpc Login(LoginRequest) returns (LoginReply) {
+    option (google.api.http) = {
+      post: "/user/login"
+      body: "*"
+    };
+  }
+
+  // Logout 退出当前设备会话。
+  rpc Logout(LogoutRequest) returns (EmptyReply) {
+    option (google.api.http) = {
+      post: "/auth/my/logout"
+      body: "*"
+    };
+  }
+
   // GetMyProfile 查询当前登录用户资料。
   rpc GetMyProfile(GetMyProfileRequest) returns (ProfileReply) {
     option (google.api.http) = {get: "/auth/my/profile"};
@@ -42,6 +58,23 @@ message RegisterRequest {
   string phone = 2 [(validate.rules).string = {min_len: 1, max_len: 50}];
   string password = 3 [(validate.rules).string = {min_len: 6}];
 }
+
+// LoginRequest 是用户登录请求。
+message LoginRequest {
+  string phone = 1 [(validate.rules).string = {max_len: 50}];
+  string nickname = 2 [(validate.rules).string = {max_len: 50}];
+  string password = 3 [(validate.rules).string = {min_len: 1}];
+  bool remember_me = 4;
+  string device = 5 [(validate.rules).string = {max_len: 32}];
+}
+
+// LoginReply 是用户登录响应。
+message LoginReply {
+  string access_token = 1;
+}
+
+// LogoutRequest 是退出当前会话请求。
+message LogoutRequest {}
 
 // GetMyProfileRequest 是当前用户资料查询请求。
 message GetMyProfileRequest {}

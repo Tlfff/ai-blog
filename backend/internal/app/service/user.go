@@ -18,20 +18,24 @@ const (
 	codePhoneExists     = 44020102 // codePhoneExists 表示用户手机号冲突。
 	codeUserNotFound    = 44020103 // codeUserNotFound 表示正常用户不存在。
 	codeUnauthenticated = 44030101 // codeUnauthenticated 表示请求缺少登录身份。
+	codeInvalidLogin    = 44030104 // codeInvalidLogin 表示登录请求账号字段不合法。
 )
 
 // UserService 将用户 HTTP 协议转换为用户领域调用。
 type UserService struct {
-	useCase userdomain.UseCase // useCase 是用户上下文公开业务接口。
+	useCase           userdomain.UseCase          // useCase 是用户上下文公开业务接口。
+	authUseCase       authUseCase                 // authUseCase 是登录和退出业务接口。
+	regionResolver    userdomain.IPRegionResolver // regionResolver 将登录 IP 转换为资料地区文案。
+	trustedProxyCIDRs []string                    // trustedProxyCIDRs 是允许透传客户端 IP 的代理网段。
 }
 
 // NewUserServer 创建用户 HTTP 服务。
-func NewUserServer(useCase *userdomain.Service) userapi.UserServiceHTTPServerController {
+func NewUserServer(useCase *userdomain.Service, resolver userdomain.IPRegionResolver, trustedProxyCIDRs []string) userapi.UserServiceHTTPServerController {
 	// 1. 将用户领域能力暴露为生成的 HTTP Controller
-	if useCase == nil {
-		panic("用户 HTTP 服务缺少领域服务")
+	if useCase == nil || resolver == nil {
+		panic("用户 HTTP 服务缺少领域服务或 IP 地区解析器")
 	}
-	return &UserService{useCase: useCase}
+	return &UserService{useCase: useCase, authUseCase: useCase, regionResolver: resolver, trustedProxyCIDRs: trustedProxyCIDRs}
 }
 
 // Register 注册普通用户账号。
@@ -64,7 +68,7 @@ func (s *UserService) GetMyProfile(ctx *gin.Context, _ *userapi.GetMyProfileRequ
 	if err != nil {
 		return nil, userHTTPError(err)
 	}
-	return profileReply(profile), nil
+	return s.profileReply(profile), nil
 }
 
 // GetPublicProfile 查询指定用户的公开资料。
@@ -107,15 +111,16 @@ func (s *UserService) UpdateMyProfile(ctx *gin.Context, request *userapi.UpdateM
 }
 
 // profileReply 将用户领域对象转换为当前用户资料响应。
-func profileReply(profile *entity.User) *userapi.ProfileReply {
+func (s *UserService) profileReply(profile *entity.User) *userapi.ProfileReply {
 	// 1. 只暴露当前用户接口约定的资料字段
+	region := s.regionResolver.Resolve(profile.LastLoginIP)
 	return &userapi.ProfileReply{
 		Id:            profile.ID,
 		Nickname:      profile.Nickname,
 		Avatar:        profile.Avatar,
 		Role:          int32(profile.Role),
 		LastLoginTime: unixSeconds(profile.LastLoginTime),
-		LastLoginIp:   profile.LastLoginIP,
+		LastLoginIp:   region,
 	}
 }
 
@@ -136,6 +141,10 @@ func userHTTPError(err error) error {
 		return errassets.NewError(codeNicknameExists, err.Error())
 	case errors.Is(err, userdomain.ErrPhoneExists):
 		return errassets.NewError(codePhoneExists, err.Error())
+	case errors.Is(err, userdomain.ErrInvalidCredentials):
+		return errassets.NewError(codeUnauthenticated, err.Error())
+	case errors.Is(err, userdomain.ErrInvalidLogin):
+		return errassets.NewError(codeInvalidLogin, err.Error())
 	case errors.Is(err, userdomain.ErrUserNotFound):
 		return errassets.NewError(codeUserNotFound, err.Error())
 	default:
