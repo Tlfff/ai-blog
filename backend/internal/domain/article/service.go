@@ -134,12 +134,20 @@ type Service struct {
 //   - likes：文章点赞状态查询器。
 //   - guard：文章创建防重复提交仓储。
 //   - allowed：允许上传的正文图片扩展名集合，不能为空。
-func NewService(repository Repository, storage Storage, likes LikeReader, guard SubmissionGuard, allowed AllowedImageExtensions) *Service {
+func NewService(repository Repository, storage Storage, likes LikeReader, guard SubmissionGuard, allowed AllowedImageExtensions) (*Service, error) {
 	// 1. 启动阶段拒绝缺少文章业务必要依赖
 	if repository == nil || storage == nil || likes == nil || guard == nil || len(allowed) == 0 {
 		panic("文章领域服务缺少必要依赖")
 	}
-	return &Service{repository: repository, storage: storage, likes: likes, guard: guard, allowed: allowed, now: time.Now}
+	service := &Service{repository: repository, storage: storage, likes: likes, guard: guard, allowed: allowed, now: time.Now}
+
+	// 2. 启动时恢复进程中断遗留的持久化对象删除记录
+	recoveryCtx, cancel := context.WithTimeout(context.Background(), objectCleanupTTL)
+	defer cancel()
+	if err := service.reconcileStagedDeletions(recoveryCtx); err != nil {
+		return nil, fmt.Errorf("恢复正文图片暂存删除: %w", err)
+	}
+	return service, nil
 }
 
 // UploadImage 校验扩展名并创建正文图片直传凭证。
@@ -299,7 +307,12 @@ func (s *Service) Recover(ctx context.Context, articleID, authorID uint64) error
 
 // Clear 彻底删除当前作者的垃圾箱文章及其绑定对象。
 func (s *Service) Clear(ctx context.Context, articleID, authorID uint64) error {
-	// 1. 查询并校验待删除文章和图片快照，避免无权限操作对象存储
+	// 1. 每次清理前重试恢复超过宽限期的持久化暂存删除记录
+	if err := s.reconcileStagedDeletions(ctx); err != nil {
+		return fmt.Errorf("恢复正文图片暂存删除: %w", err)
+	}
+
+	// 2. 查询并校验待删除文章和图片快照，避免无权限操作对象存储
 	target, err := s.repository.FindClearTarget(ctx, articleID)
 	if err != nil {
 		return err
@@ -308,13 +321,13 @@ func (s *Service) Clear(ctx context.Context, articleID, authorID uint64) error {
 		return err
 	}
 
-	// 2. 在数据库事务外暂存并删除原始对象，任一失败时恢复已处理对象
+	// 3. 在数据库事务外暂存并删除原始对象，任一失败时恢复已处理对象
 	staged, err := s.stageObjectDeletions(ctx, target.Images)
 	if err != nil {
 		return err
 	}
 
-	// 3. 事务内重新校验文章与图片快照后硬删除数据库记录
+	// 4. 事务内重新校验文章与图片快照后硬删除数据库记录
 	err = s.repository.ClearArticle(ctx, articleID, func(current *entity.Article, images []*entity.Image) error {
 		if err := validateClearTarget(&ClearTarget{Article: current, Images: images}, authorID); err != nil {
 			return err
@@ -328,8 +341,36 @@ func (s *Service) Clear(ctx context.Context, articleID, authorID uint64) error {
 		return errors.Join(err, rollbackStagedDeletions(ctx, staged))
 	}
 
-	// 4. 数据库提交成功后清理隔离对象，完成两阶段删除
+	// 5. 数据库提交成功后清理隔离对象，完成两阶段删除
 	return commitStagedDeletions(ctx, staged)
+}
+
+// reconcileStagedDeletions 根据数据库图片关系恢复或提交持久化暂存删除。
+func (s *Service) reconcileStagedDeletions(ctx context.Context) error {
+	// 1. 列出超过安全宽限期的 MinIO 隔离对象
+	deletions, err := s.storage.ListStagedDeletions(ctx)
+	if err != nil {
+		return err
+	}
+
+	// 2. 数据库仍引用原对象时恢复，否则清理已完成删除的隔离副本
+	var recoveryErr error
+	for _, deletion := range deletions {
+		exists, err := s.repository.ImageExistsByObjectKey(ctx, deletion.OriginalKey())
+		if err != nil {
+			recoveryErr = errors.Join(recoveryErr, fmt.Errorf("查询正文图片对象 %q: %w", deletion.OriginalKey(), err))
+			continue
+		}
+		if exists {
+			err = deletion.Rollback(ctx)
+		} else {
+			err = deletion.Commit(ctx)
+		}
+		if err != nil {
+			recoveryErr = errors.Join(recoveryErr, fmt.Errorf("恢复正文图片对象 %q: %w", deletion.OriginalKey(), err))
+		}
+	}
+	return recoveryErr
 }
 
 // stageObjectDeletions 暂存并删除全部正文图片原始对象。

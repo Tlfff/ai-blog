@@ -26,6 +26,7 @@ type fakeRepository struct {
 	clearImages  []*entity.Image          // clearImages 是待彻底删除的正文图片。
 	clearCurrent []*entity.Image          // clearCurrent 是事务复核时的正文图片快照。
 	clearErr     error                    // clearErr 是数据库硬删除预设错误。
+	existingKeys map[string]bool          // existingKeys 是数据库仍引用的稳定对象键。
 	clearedID    uint64                   // clearedID 是已彻底删除的文章标识。
 	deleted      uint64                   // deleted 是被清理的图片标识。
 }
@@ -117,6 +118,12 @@ func (f *fakeRepository) FindClearTarget(_ context.Context, articleID uint64) (*
 	return &ClearTarget{Article: current, Images: f.clearImages}, nil
 }
 
+// ImageExistsByObjectKey 返回数据库是否仍引用指定稳定对象键。
+func (f *fakeRepository) ImageExistsByObjectKey(_ context.Context, objectKey string) (bool, error) {
+	// 1. 使用测试预设的稳定对象键关系
+	return f.existingKeys[objectKey], nil
+}
+
 // ClearArticle 在测试事务快照上执行彻底删除校验。
 func (f *fakeRepository) ClearArticle(_ context.Context, articleID uint64, validate ArticleClearValidation) error {
 	// 1. 使用当前文章和事务复核图片执行领域校验
@@ -163,12 +170,13 @@ func (f *fakeRepository) FindPublicDetail(context.Context, uint64) (*entity.Deta
 
 // fakeStorage 记录预签名有效期。
 type fakeStorage struct {
-	expires    time.Duration // expires 是预签名地址有效期。
-	err        error         // err 是预签名失败。
-	deleteErr  error         // deleteErr 是对象删除预设错误。
-	deletedKey []string      // deletedKey 是已删除对象键集合。
-	committed  []string      // committed 是已完成隔离副本清理的对象键。
-	rolledBack []string      // rolledBack 是数据库失败后恢复的对象键。
+	expires    time.Duration          // expires 是预签名地址有效期。
+	err        error                  // err 是预签名失败。
+	deleteErr  error                  // deleteErr 是对象删除预设错误。
+	deletedKey []string               // deletedKey 是已删除对象键集合。
+	committed  []string               // committed 是已完成隔离副本清理的对象键。
+	rolledBack []string               // rolledBack 是数据库失败后恢复的对象键。
+	existing   []StagedObjectDeletion // existing 是启动恢复可扫描的暂存删除记录。
 }
 
 // PresignPut 返回测试预签名地址。
@@ -197,10 +205,22 @@ func (f *fakeStorage) StageDelete(_ context.Context, objectKey string) (StagedOb
 	return &fakeStagedDeletion{storage: f, objectKey: objectKey}, nil
 }
 
+// ListStagedDeletions 返回测试预设的持久化暂存删除记录。
+func (f *fakeStorage) ListStagedDeletions(context.Context) ([]StagedObjectDeletion, error) {
+	// 1. 返回副本避免测试修改存储夹具
+	return append([]StagedObjectDeletion(nil), f.existing...), nil
+}
+
 // fakeStagedDeletion 记录测试对象删除的提交和回滚。
 type fakeStagedDeletion struct {
 	storage   *fakeStorage // storage 是记录操作结果的测试对象存储。
 	objectKey string       // objectKey 是原始稳定对象键。
+}
+
+// OriginalKey 返回测试对象的原始稳定对象键。
+func (d *fakeStagedDeletion) OriginalKey() string {
+	// 1. 暴露恢复决策使用的对象键
+	return d.objectKey
 }
 
 // Commit 记录对象删除已完成。
@@ -244,7 +264,11 @@ func (f *fakeGuard) Acquire(_ context.Context, _ string, ttl time.Duration) (boo
 // newTestService 创建文章领域服务测试夹具。
 func newTestService(repository Repository, storage Storage, likes LikeReader, guard SubmissionGuard) *Service {
 	// 1. 使用固定图片扩展名白名单
-	return NewService(repository, storage, likes, guard, AllowedImageExtensions{"jpg": {}, "png": {}})
+	service, err := NewService(repository, storage, likes, guard, AllowedImageExtensions{"jpg": {}, "png": {}})
+	if err != nil {
+		panic(err)
+	}
+	return service
 }
 
 // TestUploadImageValidatesExtensionAndExpiration 验证扩展名白名单及十分钟有效期。
@@ -588,6 +612,28 @@ func TestClearArticleRestoresObjectsWhenImageSnapshotChanges(t *testing.T) {
 	err := service.Clear(context.Background(), 9, 7)
 	if !errors.Is(err, ErrArticleChanged) || repository.clearedID != 0 || len(storage.rolledBack) != 1 || storage.rolledBack[0] != "first.png" {
 		t.Fatalf("error = %v, cleared ID = %d, rolled back = %v", err, repository.clearedID, storage.rolledBack)
+	}
+}
+
+// TestNewServiceReconcilesPersistedStagedDeletions 验证启动时恢复进程中断遗留对象。
+func TestNewServiceReconcilesPersistedStagedDeletions(t *testing.T) {
+	// 1. 准备数据库仍引用和已不引用的两类持久化暂存对象
+	storage := &fakeStorage{}
+	storage.existing = []StagedObjectDeletion{
+		&fakeStagedDeletion{storage: storage, objectKey: "restore.png"},
+		&fakeStagedDeletion{storage: storage, objectKey: "commit.png"},
+	}
+	repository := &fakeRepository{existingKeys: map[string]bool{"restore.png": true}}
+
+	// 2. 创建领域服务会同步执行启动恢复
+	if _, err := NewService(repository, storage, &fakeLikeReader{}, &fakeGuard{acquired: true}, AllowedImageExtensions{"png": {}}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 3. 数据库仍引用的对象恢复，已删除记录对应的隔离副本提交清理
+	if len(storage.rolledBack) != 1 || storage.rolledBack[0] != "restore.png" ||
+		len(storage.committed) != 1 || storage.committed[0] != "commit.png" {
+		t.Fatalf("rolled back = %v, committed = %v", storage.rolledBack, storage.committed)
 	}
 }
 

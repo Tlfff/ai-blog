@@ -84,7 +84,14 @@ func wireApp() (*ginhttp.Server, func(), error) {
 	queryRepository := repo4.NewQueryRepository(mysqlClient)
 	submissionGuard := repo3.NewSubmissionGuard(redisClient)
 	allowedImageExtensions := objectstorage.ProvideAllowedImageExtensions(config)
-	articleService := article.NewService(repository, storage, queryRepository, submissionGuard, allowedImageExtensions)
+	articleService, err := article.NewService(repository, storage, queryRepository, submissionGuard, allowedImageExtensions)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
 	articleServiceHTTPServerController := service.NewArticleServer(articleService, storage, resolver)
 	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, sessionRepository)
 	ginhttpServer := newApp(config, registerServer)

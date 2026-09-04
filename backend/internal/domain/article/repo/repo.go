@@ -261,6 +261,12 @@ func (r *Repository) FindClearTarget(ctx context.Context, articleID uint64) (*ar
 	return &article.ClearTarget{Article: factory.ArticleFromPO(articlePO), Images: imageEntities(imagePOs)}, nil
 }
 
+// ImageExistsByObjectKey 查询数据库是否仍引用指定稳定对象键。
+func (r *Repository) ImageExistsByObjectKey(ctx context.Context, objectKey string) (bool, error) {
+	// 1. 恢复流程只关心图片关系记录是否仍存在
+	return r.client.Context(ctx).Where("object_key = ?", objectKey).Exist(new(po.Image))
+}
+
 // ClearArticle 在同一事务中复核文章快照并硬删除数据库记录。
 func (r *Repository) ClearArticle(ctx context.Context, articleID uint64, validate article.ArticleClearValidation) error {
 	// 1. 锁定文章和全部绑定图片，避免数据库清理期间关系发生变化

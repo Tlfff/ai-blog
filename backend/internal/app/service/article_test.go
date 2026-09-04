@@ -151,8 +151,20 @@ func (articleStorageFake) StageDelete(context.Context, string) (article.StagedOb
 	return articleStagedDeletionFake{}, nil
 }
 
+// ListStagedDeletions 返回空的启动恢复记录。
+func (articleStorageFake) ListStagedDeletions(context.Context) ([]article.StagedObjectDeletion, error) {
+	// 1. 应用层测试没有进程中断遗留对象
+	return nil, nil
+}
+
 // articleStagedDeletionFake 模拟对象删除提交和回滚操作。
 type articleStagedDeletionFake struct{}
+
+// OriginalKey 返回空测试对象键。
+func (articleStagedDeletionFake) OriginalKey() string {
+	// 1. 应用层测试不依赖对象恢复决策
+	return ""
+}
 
 // Commit 模拟完成对象删除。
 func (articleStagedDeletionFake) Commit(context.Context) error {

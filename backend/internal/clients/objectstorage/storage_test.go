@@ -13,9 +13,10 @@ import (
 
 // fakePresigner 记录 MinIO SDK 预签名参数。
 type fakePresigner struct {
-	expires     time.Duration // expires 是传入 MinIO SDK 的有效期。
-	removedKeys []string      // removedKeys 是请求删除的对象键。
-	copies      []copyCall    // copies 是请求执行的对象复制操作。
+	expires     time.Duration      // expires 是传入 MinIO SDK 的有效期。
+	removedKeys []string           // removedKeys 是请求删除的对象键。
+	copies      []copyCall         // copies 是请求执行的对象复制操作。
+	objects     []minio.ObjectInfo // objects 是隔离前缀下的测试对象。
 }
 
 // copyCall 记录一次 MinIO 服务端对象复制。
@@ -36,6 +37,22 @@ func (f *fakePresigner) CopyObject(_ context.Context, destination minio.CopyDest
 	// 1. 保存源对象和目标对象键
 	f.copies = append(f.copies, copyCall{source: source.Object, destination: destination.Object})
 	return minio.UploadInfo{}, nil
+}
+
+// ListObjects 返回测试预设的隔离对象列表。
+func (f *fakePresigner) ListObjects(ctx context.Context, _ string, _ minio.ListObjectsOptions) <-chan minio.ObjectInfo {
+	// 1. 使用缓冲通道同步返回测试对象
+	objects := make(chan minio.ObjectInfo, len(f.objects))
+	for _, object := range f.objects {
+		select {
+		case objects <- object:
+		case <-ctx.Done():
+			close(objects)
+			return objects
+		}
+	}
+	close(objects)
+	return objects
 }
 
 // PresignedPutObject 返回带签名参数的测试 URL。
@@ -139,5 +156,24 @@ func TestStorageStagedDeleteCanRollback(t *testing.T) {
 		client.copies[1].destination != "article/202609/image.png" || len(client.removedKeys) != 2 ||
 		client.removedKeys[1] != client.copies[0].destination {
 		t.Fatalf("copies = %#v, removed keys = %v", client.copies, client.removedKeys)
+	}
+}
+
+// TestStorageListsRecoverableStagedDeletions 验证隔离对象可反解原始稳定对象键。
+func TestStorageListsRecoverableStagedDeletions(t *testing.T) {
+	// 1. 准备超过安全宽限期的自描述隔离对象
+	originalKey := "article/202609/image.png"
+	client := &fakePresigner{objects: []minio.ObjectInfo{{
+		Key: stagedObjectKey(originalKey), LastModified: time.Now().Add(-10 * time.Minute),
+	}}}
+	storage := &Storage{client: client, bucket: "article-images"}
+
+	// 2. 扫描结果必须保留可用于数据库查询的原始对象键
+	deletions, err := storage.ListStagedDeletions(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(deletions) != 1 || deletions[0].OriginalKey() != originalKey {
+		t.Fatalf("deletions = %#v", deletions)
 	}
 }

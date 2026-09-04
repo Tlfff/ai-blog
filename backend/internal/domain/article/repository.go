@@ -21,6 +21,8 @@ type ClearTarget struct {
 
 // StagedObjectDeletion 表示可提交或回滚的对象删除操作。
 type StagedObjectDeletion interface {
+	// OriginalKey 返回数据库保存的原始稳定对象键。
+	OriginalKey() string
 	// Commit 清理用于回滚的隔离对象，完成删除。
 	Commit(context.Context) error
 	// Rollback 将隔离对象恢复到原始稳定对象键。
@@ -43,6 +45,8 @@ type Repository interface {
 	ListArticles(context.Context, ListQuery) (*ListResult, error)
 	// FindClearTarget 查询待彻底删除的文章和绑定图片快照。
 	FindClearTarget(context.Context, uint64) (*ClearTarget, error)
+	// ImageExistsByObjectKey 查询数据库是否仍引用指定稳定对象键。
+	ImageExistsByObjectKey(context.Context, string) (bool, error)
 	// ClearArticle 在同一事务中复核快照并硬删除数据库记录。
 	ClearArticle(context.Context, uint64, ArticleClearValidation) error
 	// FindDetail 查询非删除文章、作者快照和正文图片映射。
@@ -59,6 +63,8 @@ type Storage interface {
 	PublicURL(string) string
 	// StageDelete 暂存并删除原始对象，返回可提交或回滚的操作。
 	StageDelete(context.Context, string) (StagedObjectDeletion, error)
+	// ListStagedDeletions 列出超过安全宽限期的持久化暂存删除记录。
+	ListStagedDeletions(context.Context) ([]StagedObjectDeletion, error)
 }
 
 // LikeReader 定义文章上下文读取点赞事实的稳定查询契约。
