@@ -35,6 +35,16 @@ type CreateCommand struct {
 	Status   int8     // Status 是目标状态：0-兼容状态，2-草稿，3-已发表。
 }
 
+// UpdateCommand 表示更新文章及正文图片关系所需的领域输入。
+type UpdateCommand struct {
+	ArticleID uint64   // ArticleID 是待更新文章唯一标识。
+	AuthorID  uint64   // AuthorID 是当前管理员作者标识。
+	Title     string   // Title 是更新后的文章标题。
+	Content   string   // Content 是包含稳定图片引用的 Markdown 正文。
+	Tags      []string // Tags 是更新后的文章标签集合。
+	Status    int8     // Status 是目标状态：0-兼容状态，2-草稿，3-已发表。
+}
+
 // UploadResult 表示正文图片直传凭证和稳定引用信息。
 type UploadResult struct {
 	ImageID   uint64 // ImageID 是前端写入 image:// 引用的图片标识。
@@ -50,9 +60,15 @@ type UseCase interface {
 	Create(context.Context, CreateCommand) error
 	// Detail 查询后台可编辑文章详情。
 	Detail(context.Context, uint64, uint64) (*entity.Detail, error)
+	// Update 更新作者自己的非删除文章并同步正文图片关系。
+	Update(context.Context, UpdateCommand) error
+	// Publish 发布作者自己的非删除文章。
+	Publish(context.Context, uint64, uint64) error
+	// PublicDetail 查询已发表文章详情和当前用户点赞状态。
+	PublicDetail(context.Context, uint64, uint64) (*entity.Detail, error)
 }
 
-// Service 实现文章创建、图片上传和后台详情规则。
+// Service 实现文章创建、更新、发布、图片上传和详情规则。
 type Service struct {
 	repository Repository             // repository 提供文章和正文图片事务持久化能力。
 	storage    Storage                // storage 提供 MinIO 预签名和公开地址能力。
@@ -144,6 +160,73 @@ func (s *Service) Detail(ctx context.Context, articleID, userID uint64) (*entity
 	}
 
 	// 2. 通过点赞上下文稳定查询契约补充当前用户点赞事实
+	detail.IsLiked, err = s.likes.IsArticleLiked(ctx, userID, articleID)
+	if err != nil {
+		return nil, fmt.Errorf("查询当前用户文章点赞状态: %w", err)
+	}
+	return detail, nil
+}
+
+// Update 校验目标状态并原子更新文章和正文图片关系。
+func (s *Service) Update(ctx context.Context, command UpdateCommand) error {
+	// 1. 保留状态 0 兼容行为，只允许更新为草稿或已发表状态
+	if command.Status != 0 && command.Status != StatusDraft && command.Status != StatusPublished {
+		return ErrInvalidStatus
+	}
+
+	// 2. 在仓储锁定文章后执行作者、删除状态和字段更新规则
+	return s.repository.UpdateArticle(ctx, command.ArticleID, referencedImageIDs(command.Content), func(article *entity.Article) error {
+		if err := authorizeArticleMutation(article, command.AuthorID); err != nil {
+			return err
+		}
+		article.Title = command.Title
+		article.Content = command.Content
+		article.Tags = append([]string(nil), command.Tags...)
+		article.Status = command.Status
+		article.UpdatedTime = s.now()
+		return nil
+	})
+}
+
+// Publish 将作者自己的非删除文章更新为已发表状态。
+func (s *Service) Publish(ctx context.Context, articleID, authorID uint64) error {
+	// 1. 在仓储锁定文章后执行作者、删除状态和发布规则
+	return s.repository.PublishArticle(ctx, articleID, func(article *entity.Article) error {
+		if err := authorizeArticleMutation(article, authorID); err != nil {
+			return err
+		}
+		article.Status = StatusPublished
+		article.UpdatedTime = s.now()
+		return nil
+	})
+}
+
+// authorizeArticleMutation 校验文章作者和可修改状态。
+func authorizeArticleMutation(article *entity.Article, authorID uint64) error {
+	// 1. 只有文章作者可以修改内容或发布
+	if article.AuthorID != authorID {
+		return ErrArticleNotOwned
+	}
+
+	// 2. 已移入垃圾箱的文章不能通过更新或发布接口修改
+	if article.Status == StatusDeleted {
+		return ErrArticleDeleted
+	}
+	return nil
+}
+
+// PublicDetail 查询已发表文章详情并补充当前用户点赞状态。
+func (s *Service) PublicDetail(ctx context.Context, articleID, userID uint64) (*entity.Detail, error) {
+	// 1. 查询仅允许公开读取的已发表文章详情
+	detail, err := s.repository.FindPublicDetail(ctx, articleID)
+	if err != nil {
+		return nil, err
+	}
+	if detail == nil || detail.Article == nil {
+		return nil, ErrArticleNotFound
+	}
+
+	// 2. 游客由点赞查询契约固定返回未点赞，登录用户查询实际状态
 	detail.IsLiked, err = s.likes.IsArticleLiked(ctx, userID, articleID)
 	if err != nil {
 		return nil, fmt.Errorf("查询当前用户文章点赞状态: %w", err)

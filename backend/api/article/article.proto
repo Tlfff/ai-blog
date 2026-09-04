@@ -17,6 +17,15 @@ service ArticleService {
   rpc GetMyArticleDetail(GetMyArticleDetailRequest) returns (ArticleDetailReply) {
     option (google.api.http) = { get: "/admin/article/me/detail" };
   }
+  rpc UpdateArticle(UpdateArticleRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/admin/article/update" body: "*" };
+  }
+  rpc PublishArticle(ArticleIDRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/admin/article/publish" body: "*" };
+  }
+  rpc GetArticleDetail(ArticleIDRequest) returns (ArticleDetailReply) {
+    option (google.api.http) = { get: "/optional/article/detail" };
+  }
 }
 message GetImageUploadURLRequest { string file_ext = 1 [(validate.rules).string = {min_len: 1, max_len: 10}]; }
 message ImageUploadURLReply { uint64 image_id = 1; string upload_url = 2; string url = 3; }
@@ -28,6 +37,14 @@ message CreateArticleRequest {
 }
 message EmptyReply {}
 message GetMyArticleDetailRequest { uint64 id = 1 [(validate.rules).uint64 = {gt: 0}]; }
+message UpdateArticleRequest {
+  uint64 id = 1 [(validate.rules).uint64 = {gt: 0}];
+  string title = 2 [(validate.rules).string = {min_len: 1, max_len: 255}];
+  string content = 3 [(validate.rules).string = {min_len: 1}];
+  repeated string tags = 4;
+  int32 status = 5 [(validate.rules).int32 = {in: [0, 2, 3]}];
+}
+message ArticleIDRequest { uint64 id = 1 [(validate.rules).uint64 = {gt: 0}]; }
 message ArticleDetailReply {
   uint64 id = 1; string title = 2; string content = 3; repeated string tags = 4; int32 status = 5;
   string author_nick = 6; string author_avatar = 7; string ip = 8; int64 created_time = 9; int64 updated_time = 10;

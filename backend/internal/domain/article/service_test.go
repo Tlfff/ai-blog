@@ -11,10 +11,17 @@ import (
 
 // fakeRepository 记录文章领域服务的持久化调用。
 type fakeRepository struct {
-	images    map[uint64]*entity.Image // images 是可绑定图片集合。
-	created   *entity.Article          // created 是已创建文章。
-	detailErr error                    // detailErr 是详情查询预设错误。
-	deleted   uint64                   // deleted 是被清理的图片标识。
+	images       map[uint64]*entity.Image // images 是可绑定图片集合。
+	created      *entity.Article          // created 是已创建文章。
+	updated      *entity.Article          // updated 是已更新文章。
+	updatedIDs   []uint64                 // updatedIDs 是更新正文引用的图片标识。
+	publishedID  uint64                   // publishedID 是已发布文章标识。
+	published    *entity.Article          // published 是执行领域规则后的文章。
+	current      *entity.Article          // current 是仓储锁定的当前文章。
+	detailErr    error                    // detailErr 是详情查询预设错误。
+	publicDetail *entity.Detail           // publicDetail 是公开文章详情。
+	publicErr    error                    // publicErr 是公开详情预设错误。
+	deleted      uint64                   // deleted 是被清理的图片标识。
 }
 
 // CreatePendingImage 创建测试图片记录。
@@ -48,6 +55,42 @@ func (f *fakeRepository) CreateArticle(_ context.Context, article *entity.Articl
 	return nil
 }
 
+// UpdateArticle 在测试文章上执行领域规则并记录图片关系。
+func (f *fakeRepository) UpdateArticle(_ context.Context, articleID uint64, imageIDs []uint64, mutate ArticleMutation) error {
+	// 1. 复制仓储锁定的当前文章并执行领域更新规则
+	current := f.current
+	if current == nil {
+		current = &entity.Article{ID: articleID, AuthorID: 7, Status: StatusDraft}
+	}
+	updated := *current
+	if err := mutate(&updated); err != nil {
+		return err
+	}
+
+	// 2. 记录更新结果和正文图片关系
+	f.updated = &updated
+	f.updatedIDs = append([]uint64(nil), imageIDs...)
+	return nil
+}
+
+// PublishArticle 在测试文章上执行领域发布规则。
+func (f *fakeRepository) PublishArticle(_ context.Context, articleID uint64, mutate ArticleMutation) error {
+	// 1. 复制仓储锁定的当前文章并执行领域发布规则
+	current := f.current
+	if current == nil {
+		current = &entity.Article{ID: articleID, AuthorID: 7, Status: StatusDraft}
+	}
+	published := *current
+	if err := mutate(&published); err != nil {
+		return err
+	}
+
+	// 2. 记录文章发布结果
+	f.publishedID = articleID
+	f.published = &published
+	return nil
+}
+
 // FindDetail 返回带互动统计的测试详情。
 func (f *fakeRepository) FindDetail(context.Context, uint64, uint64) (*entity.Detail, error) {
 	// 1. 返回预设归属错误或固定详情
@@ -55,6 +98,18 @@ func (f *fakeRepository) FindDetail(context.Context, uint64, uint64) (*entity.De
 		return nil, f.detailErr
 	}
 	return &entity.Detail{Article: &entity.Article{ID: 1, LikeCount: 4}}, nil
+}
+
+// FindPublicDetail 返回预设公开文章详情。
+func (f *fakeRepository) FindPublicDetail(context.Context, uint64) (*entity.Detail, error) {
+	// 1. 返回预设公开详情或错误
+	if f.publicErr != nil {
+		return nil, f.publicErr
+	}
+	if f.publicDetail != nil {
+		return f.publicDetail, nil
+	}
+	return &entity.Detail{Article: &entity.Article{ID: 1, Status: StatusPublished}}, nil
 }
 
 // fakeStorage 记录预签名有效期。
@@ -205,5 +260,98 @@ func TestUploadImageCleansRecordOnPresignFailure(t *testing.T) {
 	service := newTestService(repository, &fakeStorage{err: errors.New("minio unavailable")}, &fakeLikeReader{}, &fakeGuard{acquired: true})
 	if _, err := service.UploadImage(context.Background(), 7, "png"); err == nil || repository.deleted != 8 {
 		t.Fatalf("error = %v, deleted = %d", err, repository.deleted)
+	}
+}
+
+// TestUpdateArticlePassesOnlyMarkdownImageReferences 验证更新将稳定图片引用交给原子仓储同步。
+func TestUpdateArticlePassesOnlyMarkdownImageReferences(t *testing.T) {
+	// 1. 更新正文同时包含系统图片、外部图片和普通占位文本
+	repository := &fakeRepository{}
+	service := newTestService(repository, &fakeStorage{}, &fakeLikeReader{}, &fakeGuard{acquired: true})
+	err := service.Update(context.Background(), UpdateCommand{
+		ArticleID: 9, AuthorID: 7, Title: "新标题",
+		Content: "![系统图](image://2) ![外部图](https://example.test/a.png) `image://3`",
+		Tags:    []string{"Go"}, Status: StatusDraft,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. 领域服务只传递 Markdown 系统图片引用和更新字段
+	if repository.updated == nil || repository.updated.ID != 9 || repository.updated.AuthorID != 7 ||
+		repository.updated.Title != "新标题" || len(repository.updatedIDs) != 1 || repository.updatedIDs[0] != 2 {
+		t.Fatalf("article = %#v, image IDs = %v", repository.updated, repository.updatedIDs)
+	}
+}
+
+// TestUpdateArticleRejectsInvalidStatus 验证非法状态不会进入文章仓储。
+func TestUpdateArticleRejectsInvalidStatus(t *testing.T) {
+	// 1. 已删除状态不能作为更新接口的目标状态
+	repository := &fakeRepository{}
+	service := newTestService(repository, &fakeStorage{}, &fakeLikeReader{}, &fakeGuard{acquired: true})
+	err := service.Update(context.Background(), UpdateCommand{ArticleID: 9, AuthorID: 7, Title: "标题", Content: "正文", Status: StatusDeleted})
+	if !errors.Is(err, ErrInvalidStatus) || repository.updated != nil {
+		t.Fatalf("error = %v, article = %#v", err, repository.updated)
+	}
+}
+
+// TestPublishArticleAppliesPublishedStatus 验证发布规则写入状态和修改时间。
+func TestPublishArticleAppliesPublishedStatus(t *testing.T) {
+	// 1. 发布作者自己的草稿文章
+	repository := &fakeRepository{}
+	service := newTestService(repository, &fakeStorage{}, &fakeLikeReader{}, &fakeGuard{acquired: true})
+	if err := service.Publish(context.Background(), 9, 7); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. 事务内领域 mutation 必须写入发表状态和修改时间
+	if repository.publishedID != 9 || repository.published == nil || repository.published.Status != StatusPublished || repository.published.UpdatedTime.IsZero() {
+		t.Fatalf("article ID = %d, article = %#v", repository.publishedID, repository.published)
+	}
+}
+
+// TestArticleMutationRejectsNonOwnerAndDeletedArticle 验证更新和发布的作者及删除状态规则。
+func TestArticleMutationRejectsNonOwnerAndDeletedArticle(t *testing.T) {
+	// 1. 定义非作者和已删除文章的领域场景
+	tests := []struct {
+		name      string          // name 是测试场景名称。
+		current   *entity.Article // current 是仓储锁定的当前文章。
+		wantError error           // wantError 是预期领域错误。
+	}{
+		{name: "非作者不能修改", current: &entity.Article{ID: 9, AuthorID: 8, Status: StatusDraft}, wantError: ErrArticleNotOwned},
+		{name: "已删除文章不能修改", current: &entity.Article{ID: 9, AuthorID: 7, Status: StatusDeleted}, wantError: ErrArticleDeleted},
+	}
+
+	// 2. 逐项验证更新和发布复用相同领域规则
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repository := &fakeRepository{current: test.current}
+			service := newTestService(repository, &fakeStorage{}, &fakeLikeReader{}, &fakeGuard{acquired: true})
+			command := UpdateCommand{ArticleID: 9, AuthorID: 7, Title: "标题", Content: "正文", Status: StatusDraft}
+			if err := service.Update(context.Background(), command); !errors.Is(err, test.wantError) {
+				t.Fatalf("Update() error = %v, want %v", err, test.wantError)
+			}
+			if err := service.Publish(context.Background(), 9, 7); !errors.Is(err, test.wantError) {
+				t.Fatalf("Publish() error = %v, want %v", err, test.wantError)
+			}
+		})
+	}
+}
+
+// TestPublicDetailUsesGuestAndLoggedInLikeState 验证游客与登录用户的公开点赞状态。
+func TestPublicDetailUsesGuestAndLoggedInLikeState(t *testing.T) {
+	// 1. 游客查询由点赞契约返回未点赞
+	repository := &fakeRepository{publicDetail: &entity.Detail{Article: &entity.Article{ID: 9, Status: StatusPublished}}}
+	guestService := newTestService(repository, &fakeStorage{}, &fakeLikeReader{liked: false}, &fakeGuard{acquired: true})
+	guestDetail, err := guestService.PublicDetail(context.Background(), 9, 0)
+	if err != nil || guestDetail.IsLiked {
+		t.Fatalf("detail = %#v, error = %v", guestDetail, err)
+	}
+
+	// 2. 登录用户查询返回实际点赞状态
+	userService := newTestService(repository, &fakeStorage{}, &fakeLikeReader{liked: true}, &fakeGuard{acquired: true})
+	userDetail, err := userService.PublicDetail(context.Background(), 9, 7)
+	if err != nil || !userDetail.IsLiked {
+		t.Fatalf("detail = %#v, error = %v", userDetail, err)
 	}
 }

@@ -7,6 +7,9 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/entity"
 )
 
+// ArticleMutation 定义事务内对已锁定文章执行的领域规则。
+type ArticleMutation func(*entity.Article) error
+
 // Repository 定义文章和正文图片所需的数据访问能力。
 type Repository interface {
 	// CreatePendingImage 创建尚未归属文章的正文图片记录。
@@ -15,8 +18,14 @@ type Repository interface {
 	DeletePendingImage(context.Context, uint64) error
 	// CreateArticle 在同一事务中创建文章并绑定全部正文图片。
 	CreateArticle(context.Context, *entity.Article, []uint64) error
+	// UpdateArticle 在同一事务中执行领域更新并同步正文图片关系。
+	UpdateArticle(context.Context, uint64, []uint64, ArticleMutation) error
+	// PublishArticle 在同一事务中执行文章发布领域规则。
+	PublishArticle(context.Context, uint64, ArticleMutation) error
 	// FindDetail 查询非删除文章、作者快照和正文图片映射。
 	FindDetail(context.Context, uint64, uint64) (*entity.Detail, error)
+	// FindPublicDetail 查询已发表文章、作者快照和正文图片映射。
+	FindPublicDetail(context.Context, uint64) (*entity.Detail, error)
 }
 
 // Storage 定义正文图片直传和公开访问所需的对象存储能力。

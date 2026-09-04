@@ -10,9 +10,10 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo/factory"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo/po"
 	"xorm.io/xorm"
+	"xorm.io/xorm/schemas"
 )
 
-// transactionClient 是文章创建必须具备的 MySQL 事务能力。
+// transactionClient 是文章写入必须具备的 MySQL 事务能力。
 type transactionClient interface {
 	// Transaction 在同一数据库事务中执行文章与图片写入。
 	Transaction(func(*xorm.Session) (interface{}, error)) (interface{}, error)
@@ -21,7 +22,7 @@ type transactionClient interface {
 // Repository 使用 MySQL 实现文章领域仓储。
 type Repository struct {
 	client      clients.MysqlClient // client 提供普通文章查询和写入能力。
-	transaction transactionClient   // transaction 提供不可降级的文章图片绑定事务。
+	transaction transactionClient   // transaction 提供不可降级的文章写入和图片关系事务。
 }
 
 // NewRepository 创建文章 MySQL 仓储。
@@ -63,7 +64,7 @@ func (r *Repository) CreateArticle(ctx context.Context, articleEntity *entity.Ar
 		// 1.1 锁定图片行，确保并发创建请求不能同时通过归属检查
 		if len(imageIDs) > 0 {
 			images := make([]*po.Image, 0, len(imageIDs))
-			if err := session.In("id", imageIDs).ForUpdate().Find(&images); err != nil {
+			if err := forUpdate(session.In("id", imageIDs)).Find(&images); err != nil {
 				return nil, err
 			}
 			if len(images) != len(imageIDs) {
@@ -101,6 +102,101 @@ func (r *Repository) CreateArticle(ctx context.Context, articleEntity *entity.Ar
 	return err
 }
 
+// UpdateArticle 在同一事务中执行领域更新并同步正文图片绑定关系。
+func (r *Repository) UpdateArticle(ctx context.Context, articleID uint64, imageIDs []uint64, mutate article.ArticleMutation) error {
+	// 1. 锁定文章和相关图片，确保领域决策、更新、绑定及解绑原子完成
+	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
+		session = session.Context(ctx)
+		currentArticle, err := findArticleForUpdate(session, articleID)
+		if err != nil {
+			return nil, err
+		}
+		articleEntity := factory.ArticleFromPO(currentArticle)
+		if err := mutate(articleEntity); err != nil {
+			return nil, err
+		}
+
+		// 1.1 锁定更新后正文引用的全部图片并拒绝不存在或归属其他文章的记录
+		newImageIDs, err := availableImageIDs(session, articleEntity.ID, imageIDs)
+		if err != nil {
+			return nil, err
+		}
+
+		// 1.2 锁定当前图片关系并找出需要解绑的图片
+		currentImages := make([]*po.Image, 0)
+		if err := forUpdate(session.Where("article_id = ?", articleEntity.ID)).Find(&currentImages); err != nil {
+			return nil, err
+		}
+		desiredImages := make(map[uint64]struct{}, len(imageIDs))
+		for _, imageID := range imageIDs {
+			desiredImages[imageID] = struct{}{}
+		}
+		removedImageIDs := make([]uint64, 0)
+		for _, image := range currentImages {
+			if _, retained := desiredImages[image.ID]; !retained {
+				removedImageIDs = append(removedImageIDs, image.ID)
+			}
+		}
+
+		// 1.3 更新文章主体，显式写入 updated_time 以触发后续 Binlog 同步
+		articlePO := factory.ArticleToPO(articleEntity)
+		if _, err := session.ID(articleEntity.ID).
+			Cols("title", "content", "tags", "status", "updated_time").
+			Update(articlePO); err != nil {
+			return nil, err
+		}
+
+		// 1.4 只绑定原先未归属文章的新增图片
+		if len(newImageIDs) > 0 {
+			rows, err := session.In("id", newImageIDs).
+				And("article_id IS NULL").
+				Cols("article_id").
+				Update(&po.Image{ArticleID: &articleEntity.ID})
+			if err != nil {
+				return nil, err
+			}
+			if rows != int64(len(newImageIDs)) {
+				return nil, article.ErrImageAlreadyBound
+			}
+		}
+
+		// 1.5 只解除正文已移除图片的文章归属，不删除对象和图片记录
+		if len(removedImageIDs) > 0 {
+			if _, err := session.In("id", removedImageIDs).
+				And("article_id = ?", articleEntity.ID).
+				Cols("article_id").
+				Update(&po.Image{ArticleID: nil}); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	})
+	return err
+}
+
+// PublishArticle 在同一事务中执行文章发布领域规则。
+func (r *Repository) PublishArticle(ctx context.Context, articleID uint64, mutate article.ArticleMutation) error {
+	// 1. 锁定文章，在事务内执行领域规则后保存发布字段
+	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
+		session = session.Context(ctx)
+		currentArticle, err := findArticleForUpdate(session, articleID)
+		if err != nil {
+			return nil, err
+		}
+		articleEntity := factory.ArticleFromPO(currentArticle)
+		if err := mutate(articleEntity); err != nil {
+			return nil, err
+		}
+
+		// 2. 显式更新状态和修改时间，由 articles 表 Binlog 驱动搜索同步
+		_, err = session.ID(articleID).
+			Cols("status", "updated_time").
+			Update(&po.Article{Status: articleEntity.Status, UpdatedTime: articleEntity.UpdatedTime})
+		return nil, err
+	})
+	return err
+}
+
 // FindDetail 查询非删除文章、作者公开字段和全部绑定图片。
 func (r *Repository) FindDetail(ctx context.Context, articleID, userID uint64) (*entity.Detail, error) {
 	// 1. 查询非删除文章及当前互动计数投影
@@ -118,7 +214,29 @@ func (r *Repository) FindDetail(ctx context.Context, articleID, userID uint64) (
 		return nil, article.ErrArticleNotOwned
 	}
 
-	// 2. 查询作者公开展示字段
+	return r.detailFromArticle(ctx, articlePO)
+}
+
+// FindPublicDetail 查询已发表文章、作者公开字段和全部绑定图片。
+func (r *Repository) FindPublicDetail(ctx context.Context, articleID uint64) (*entity.Detail, error) {
+	// 1. 查询文章并拒绝公开读取草稿和已删除状态
+	articlePO := new(po.Article)
+	found, err := r.client.Context(ctx).Where("id = ?", articleID).Get(articlePO)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, article.ErrArticleNotFound
+	}
+	if articlePO.Status != article.StatusPublished {
+		return nil, article.ErrArticleNotPublished
+	}
+	return r.detailFromArticle(ctx, articlePO)
+}
+
+// detailFromArticle 查询文章对应的作者公开字段和图片映射。
+func (r *Repository) detailFromArticle(ctx context.Context, articlePO *po.Article) (*entity.Detail, error) {
+	// 1. 查询作者公开展示字段
 	authorPO := new(po.User)
 	if _, err := r.client.Context(ctx).Where("id = ?", articlePO.AuthorID).Get(authorPO); err != nil {
 		return nil, err
@@ -128,15 +246,68 @@ func (r *Repository) FindDetail(ctx context.Context, articleID, userID uint64) (
 		AuthorAvatar: authorPO.Avatar, AuthorIP: authorPO.LastLoginIP,
 	}
 
-	// 3. 查询文章已绑定图片并转换为稳定映射
+	// 2. 查询文章已绑定图片并转换为稳定映射
 	images := make([]*po.Image, 0)
-	if err := r.client.Context(ctx).Where("article_id = ?", articleID).Find(&images); err != nil {
+	if err := r.client.Context(ctx).Where("article_id = ?", articlePO.ID).Find(&images); err != nil {
 		return nil, err
 	}
 	for _, image := range images {
 		detail.Images = append(detail.Images, &entity.Image{ID: image.ID, ArticleID: image.ArticleID, ObjectKey: image.ObjectKey})
 	}
 	return detail, nil
+}
+
+// findArticleForUpdate 锁定并查询待修改文章。
+func findArticleForUpdate(session *xorm.Session, articleID uint64) (*po.Article, error) {
+	// 1. 使用主键锁定文章，避免并发更新绕过状态和作者校验
+	articlePO := new(po.Article)
+	found, err := forUpdate(session.ID(articleID)).Get(articlePO)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, article.ErrArticleNotFound
+	}
+	return articlePO, nil
+}
+
+// availableImageIDs 锁定目标图片并返回本次需要新绑定的图片标识。
+func availableImageIDs(session *xorm.Session, articleID uint64, imageIDs []uint64) ([]uint64, error) {
+	// 1. 空正文图片集合不需要查询或绑定
+	if len(imageIDs) == 0 {
+		return nil, nil
+	}
+
+	// 2. 锁定全部目标图片，避免并发文章同时绑定同一图片
+	images := make([]*po.Image, 0, len(imageIDs))
+	if err := forUpdate(session.In("id", imageIDs)).Find(&images); err != nil {
+		return nil, err
+	}
+	if len(images) != len(imageIDs) {
+		return nil, article.ErrImageNotFound
+	}
+
+	// 3. 已归属当前文章的图片保持绑定，未绑定图片交给更新语句新增关系
+	newImageIDs := make([]uint64, 0, len(images))
+	for _, image := range images {
+		if image.ArticleID == nil {
+			newImageIDs = append(newImageIDs, image.ID)
+			continue
+		}
+		if *image.ArticleID != articleID {
+			return nil, article.ErrImageAlreadyBound
+		}
+	}
+	return newImageIDs, nil
+}
+
+// forUpdate 在支持行锁的生产 MySQL 上启用 FOR UPDATE。
+func forUpdate(session *xorm.Session) *xorm.Session {
+	// 1. SQLite 测试事务依赖数据库级写锁，生产 MySQL 使用显式行锁
+	if session.Engine().Dialect().URI().DBType == schemas.MYSQL {
+		return session.ForUpdate()
+	}
+	return session
 }
 
 // ProvideTransactionClient 将 MySQL 客户端显式暴露为文章事务契约。
