@@ -174,9 +174,9 @@ func (r *Repository) UpdateArticle(ctx context.Context, articleID uint64, imageI
 	return err
 }
 
-// PublishArticle 在同一事务中执行文章发布领域规则。
-func (r *Repository) PublishArticle(ctx context.Context, articleID uint64, mutate article.ArticleMutation) error {
-	// 1. 锁定文章，在事务内执行领域规则后保存发布字段
+// ChangeArticleStatus 在同一事务中执行文章状态变更领域规则。
+func (r *Repository) ChangeArticleStatus(ctx context.Context, articleID uint64, mutate article.ArticleMutation) error {
+	// 1. 锁定文章，在事务内执行领域规则后保存状态字段
 	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
 		session = session.Context(ctx)
 		currentArticle, err := findArticleForUpdate(session, articleID)
@@ -193,6 +193,85 @@ func (r *Repository) PublishArticle(ctx context.Context, articleID uint64, mutat
 			Cols("status", "updated_time").
 			Update(&po.Article{Status: articleEntity.Status, UpdatedTime: articleEntity.UpdatedTime})
 		return nil, err
+	})
+	return err
+}
+
+// ListArticles 分页查询当前作者符合状态筛选的文章。
+func (r *Repository) ListArticles(ctx context.Context, query article.ListQuery) (*article.ListResult, error) {
+	// 1. 统计当前作者符合状态筛选的文章总数
+	total, err := r.listSession(ctx, query).Count(new(po.Article))
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. 游标存在时优先使用游标，否则使用页码计算 Offset
+	session := r.listSession(ctx, query)
+	order := "id ASC"
+	if query.IsDesc {
+		order = "id DESC"
+	}
+	if query.LastID > 0 {
+		operator := ">"
+		if query.IsDesc {
+			operator = "<"
+		}
+		session = session.And("id "+operator+" ?", query.LastID)
+	} else {
+		offset := int((query.Page - 1) * query.PageSize)
+		session = session.Limit(int(query.PageSize), offset)
+	}
+	if query.LastID > 0 {
+		session = session.Limit(int(query.PageSize))
+	}
+
+	// 3. 按文章标识稳定排序并转换为领域列表
+	articlePOs := make([]*po.Article, 0, query.PageSize)
+	if err := session.OrderBy(order).Find(&articlePOs); err != nil {
+		return nil, err
+	}
+	articles := make([]*entity.Article, 0, len(articlePOs))
+	for _, articlePO := range articlePOs {
+		articles = append(articles, factory.ArticleFromPO(articlePO))
+	}
+	lastID := uint64(0)
+	if len(articles) > 0 {
+		lastID = articles[len(articles)-1].ID
+	}
+	return &article.ListResult{Articles: articles, LastID: lastID, Total: uint64(total), Page: query.Page, PageSize: query.PageSize}, nil
+}
+
+// ClearArticle 在同一事务中校验文章、删除对象并硬删除数据库记录。
+func (r *Repository) ClearArticle(ctx context.Context, articleID uint64, remove article.ArticleRemoval) error {
+	// 1. 锁定文章和全部绑定图片，避免清理期间关系发生变化
+	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
+		session = session.Context(ctx)
+		articlePO, err := findArticleForUpdate(session, articleID)
+		if err != nil {
+			return nil, err
+		}
+		imagePOs := make([]*po.Image, 0)
+		if err := forUpdate(session.Where("article_id = ?", articleID)).Find(&imagePOs); err != nil {
+			return nil, err
+		}
+		images := make([]*entity.Image, 0, len(imagePOs))
+		for _, imagePO := range imagePOs {
+			images = append(images, &entity.Image{ID: imagePO.ID, ArticleID: imagePO.ArticleID, ObjectKey: imagePO.ObjectKey})
+		}
+
+		// 2. 先执行领域权限校验和 MinIO 对象删除，失败时回滚数据库事务
+		if err := remove(factory.ArticleFromPO(articlePO), images); err != nil {
+			return nil, err
+		}
+
+		// 3. 对象全部删除成功后，在同一事务中删除图片记录和文章记录
+		if _, err := session.Where("article_id = ?", articleID).Delete(new(po.Image)); err != nil {
+			return nil, err
+		}
+		if _, err := session.ID(articleID).Delete(new(po.Article)); err != nil {
+			return nil, err
+		}
+		return nil, nil
 	})
 	return err
 }
@@ -232,6 +311,22 @@ func (r *Repository) FindPublicDetail(ctx context.Context, articleID uint64) (*e
 		return nil, article.ErrArticleNotPublished
 	}
 	return r.detailFromArticle(ctx, articlePO)
+}
+
+// listSession 创建当前作者和状态筛选对应的查询会话。
+func (r *Repository) listSession(ctx context.Context, query article.ListQuery) *xorm.Session {
+	// 1. 后台文章管理始终只查询当前作者的数据
+	session := r.client.Context(ctx).Where("author_id = ?", query.AuthorID)
+
+	// 2. 根据兼容状态值追加全部、非删除或精确状态条件
+	switch query.Status {
+	case article.StatusAll:
+	case article.StatusNotDeleted:
+		session = session.And("status <> ?", article.StatusDeleted)
+	default:
+		session = session.And("status = ?", query.Status)
+	}
+	return session
 }
 
 // detailFromArticle 查询文章对应的作者公开字段和图片映射。

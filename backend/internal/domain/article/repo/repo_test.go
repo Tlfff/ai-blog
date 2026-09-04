@@ -136,8 +136,8 @@ func TestArticleMutationRollsBackWhenDomainRejects(t *testing.T) {
 	if err := repository.UpdateArticle(context.Background(), 1, nil, rejected); !errors.Is(err, article.ErrArticleNotOwned) {
 		t.Fatalf("UpdateArticle() error = %v", err)
 	}
-	if err := repository.PublishArticle(context.Background(), 1, rejected); !errors.Is(err, article.ErrArticleNotOwned) {
-		t.Fatalf("PublishArticle() error = %v", err)
+	if err := repository.ChangeArticleStatus(context.Background(), 1, rejected); !errors.Is(err, article.ErrArticleNotOwned) {
+		t.Fatalf("ChangeArticleStatus() error = %v", err)
 	}
 
 	// 3. 校验拒绝后文章标题和状态均未改变
@@ -183,7 +183,7 @@ func TestPublishArticleUpdatesStatusAndTimestamp(t *testing.T) {
 	updatedTime := time.Now().Add(time.Hour).Truncate(time.Second)
 
 	// 2. 作者发布自己的草稿文章
-	if err := repository.PublishArticle(context.Background(), 1, publishArticleAt(updatedTime)); err != nil {
+	if err := repository.ChangeArticleStatus(context.Background(), 1, publishArticleAt(updatedTime)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -199,6 +199,100 @@ func TestPublishArticleUpdatesStatusAndTimestamp(t *testing.T) {
 	if persisted.Status != int(article.StatusPublished) || !persisted.UpdatedTime.Equal(updatedTime) {
 		t.Fatalf("status = %d, updated time = %v", persisted.Status, persisted.UpdatedTime)
 	}
+}
+
+// TestListArticlesSupportsStatusCursorAndOffsetPagination 验证作者筛选及两种分页模式。
+func TestListArticlesSupportsStatusCursorAndOffsetPagination(t *testing.T) {
+	// 1. 创建包含多个作者和状态的文章数据库夹具
+	repository, engine := newArticleTestRepository(t)
+	defer closeArticleTestEngine(t, engine)
+
+	// 2. 倒序 Offset 首页只返回当前作者并提供完整筛选总数
+	firstPage, err := repository.ListArticles(context.Background(), article.ListQuery{
+		AuthorID: 7, Status: article.StatusAll, Page: 1, PageSize: 2, IsDesc: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(firstPage.Articles) != 2 || firstPage.Articles[0].ID != 4 || firstPage.Articles[1].ID != 3 || firstPage.LastID != 3 || firstPage.Total != 3 {
+		t.Fatalf("first page = %#v", firstPage)
+	}
+
+	// 3. last_id 大于零时优先使用游标并沿相同方向继续查询
+	cursorPage, err := repository.ListArticles(context.Background(), article.ListQuery{
+		AuthorID: 7, Status: article.StatusAll, LastID: firstPage.LastID, Page: 99, PageSize: 2, IsDesc: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(cursorPage.Articles) != 1 || cursorPage.Articles[0].ID != 1 || cursorPage.Total != 3 {
+		t.Fatalf("cursor page = %#v", cursorPage)
+	}
+
+	// 4. last_id 为空时按 page 计算 Offset
+	offsetPage, err := repository.ListArticles(context.Background(), article.ListQuery{
+		AuthorID: 7, Status: article.StatusAll, Page: 2, PageSize: 2,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(offsetPage.Articles) != 1 || offsetPage.Articles[0].ID != 4 || offsetPage.Total != 3 {
+		t.Fatalf("offset page = %#v", offsetPage)
+	}
+
+	// 5. 非删除筛选遵循兼容状态语义
+	notDeleted, err := repository.ListArticles(context.Background(), article.ListQuery{
+		AuthorID: 7, Status: article.StatusNotDeleted, Page: 1, PageSize: 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(notDeleted.Articles) != 2 || notDeleted.Articles[0].ID != 1 || notDeleted.Articles[1].ID != 4 || notDeleted.Total != 2 {
+		t.Fatalf("not deleted = %#v", notDeleted)
+	}
+}
+
+// TestClearArticleKeepsDatabaseRowsWhenRemovalFails 验证对象删除失败时事务保留数据库记录。
+func TestClearArticleKeepsDatabaseRowsWhenRemovalFails(t *testing.T) {
+	// 1. 创建包含绑定图片的垃圾箱文章数据库夹具
+	repository, engine := newArticleTestRepository(t)
+	defer closeArticleTestEngine(t, engine)
+
+	// 2. 模拟 MinIO 对象删除失败
+	err := repository.ClearArticle(context.Background(), 3, func(_ *entity.Article, images []*entity.Image) error {
+		if len(images) != 1 || images[0].ObjectKey != "trash.png" {
+			t.Fatalf("images = %#v", images)
+		}
+		return errors.New("minio unavailable")
+	})
+	if err == nil {
+		t.Fatal("ClearArticle() error = nil")
+	}
+
+	// 3. 事务回滚后文章和图片记录均存在
+	assertRowCount(t, engine, "articles", "id = ?", 3, 1)
+	assertRowCount(t, engine, "article_images", "id = ?", 13, 1)
+}
+
+// TestClearArticleDeletesImageAndArticleRowsAfterRemoval 验证对象删除成功后事务硬删除数据库记录。
+func TestClearArticleDeletesImageAndArticleRowsAfterRemoval(t *testing.T) {
+	// 1. 创建包含绑定图片的垃圾箱文章数据库夹具
+	repository, engine := newArticleTestRepository(t)
+	defer closeArticleTestEngine(t, engine)
+
+	// 2. 对象删除回调成功后执行数据库硬删除
+	if err := repository.ClearArticle(context.Background(), 3, func(current *entity.Article, images []*entity.Image) error {
+		if current.Status != article.StatusDeleted || len(images) != 1 {
+			t.Fatalf("article = %#v, images = %#v", current, images)
+		}
+		return nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	// 3. 图片记录和文章记录均已删除
+	assertRowCount(t, engine, "articles", "id = ?", 3, 0)
+	assertRowCount(t, engine, "article_images", "id = ?", 13, 0)
 }
 
 // replaceArticleWith 创建覆盖文章可编辑字段的测试领域 mutation。
@@ -255,11 +349,32 @@ func newArticleTestRepository(t *testing.T) (*Repository, *xorm.Engine) {
 		4, 7, "已发表", "正文", article.StatusPublished, now, now); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := engine.Exec("INSERT INTO article_images (id, article_id, object_key, created_time) VALUES (?, ?, ?, ?), (?, NULL, ?, ?), (?, ?, ?, ?)",
-		10, 1, "old.png", now, 11, "new.png", now, 12, 2, "other.png", now); err != nil {
+	if _, err := engine.Exec("INSERT INTO article_images (id, article_id, object_key, created_time) VALUES (?, ?, ?, ?), (?, NULL, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)",
+		10, 1, "old.png", now, 11, "new.png", now, 12, 2, "other.png", now, 13, 3, "trash.png", now); err != nil {
 		t.Fatal(err)
 	}
 	return &Repository{client: engine, transaction: engine}, engine
+}
+
+// assertRowCount 校验指定条件对应的数据库记录数量。
+//
+// 参数说明：
+//   - t：当前测试上下文。
+//   - engine：隔离的测试数据库引擎。
+//   - table：待统计的数据库表名。
+//   - condition：带单个文章或图片标识占位符的查询条件。
+//   - id：查询条件使用的文章或图片标识。
+//   - want：预期记录数量。
+func assertRowCount(t *testing.T, engine *xorm.Engine, table, condition string, id uint64, want int64) {
+	// 1. 查询指定表和条件的记录数量
+	t.Helper()
+	count, err := engine.Table(table).Where(condition, id).Count()
+	if err != nil {
+		t.Fatalf("count %s rows: %v", table, err)
+	}
+	if count != want {
+		t.Fatalf("%s row count = %d, want %d", table, count, want)
+	}
 }
 
 // assertImageOwner 校验正文图片当前文章归属。

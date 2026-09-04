@@ -18,12 +18,19 @@ import (
 )
 
 const (
-	StatusDeleted   int8 = 1 // StatusDeleted 表示文章已移入垃圾箱。
-	StatusDraft     int8 = 2 // StatusDraft 表示文章为草稿。
-	StatusPublished int8 = 3 // StatusPublished 表示文章已发表。
+	StatusAll        int8 = -2 // StatusAll 表示后台列表包含全部文章状态。
+	StatusNotDeleted int8 = -1 // StatusNotDeleted 表示后台列表排除已删除文章。
+	StatusDeleted    int8 = 1  // StatusDeleted 表示文章已移入垃圾箱。
+	StatusDraft      int8 = 2  // StatusDraft 表示文章为草稿。
+	StatusPublished  int8 = 3  // StatusPublished 表示文章已发表。
 
 	uploadURLTTL       = 10 * time.Minute // uploadURLTTL 是正文图片预签名地址有效期。
 	submissionGuardTTL = 2 * time.Second  // submissionGuardTTL 是创建文章防重复窗口。
+)
+
+const (
+	defaultListPage     uint64 = 1  // defaultListPage 是后台列表默认页码。
+	defaultListPageSize uint64 = 10 // defaultListPageSize 是后台列表默认每页数量。
 )
 
 // CreateCommand 表示创建文章所需的领域输入。
@@ -43,6 +50,35 @@ type UpdateCommand struct {
 	Content   string   // Content 是包含稳定图片引用的 Markdown 正文。
 	Tags      []string // Tags 是更新后的文章标签集合。
 	Status    int8     // Status 是目标状态：0-兼容状态，2-草稿，3-已发表。
+}
+
+// ListCommand 表示后台文章列表的筛选和分页输入。
+type ListCommand struct {
+	AuthorID uint64 // AuthorID 是当前管理员作者标识。
+	Status   int8   // Status 是筛选状态：-2-全部，-1-非删除，1-删除，2-草稿，3-发表。
+	LastID   uint64 // LastID 是游标分页的上一页末尾文章标识，大于 0 时优先使用。
+	Page     uint64 // Page 是 Offset 分页页码，从 1 开始，0 使用默认值。
+	PageSize uint64 // PageSize 是每页数量，0 使用默认值，非零时范围为 10～20。
+	IsDesc   bool   // IsDesc 表示是否按文章标识倒序查询。
+}
+
+// ListQuery 表示仓储使用的规范化后台文章查询条件。
+type ListQuery struct {
+	AuthorID uint64 // AuthorID 是当前管理员作者标识。
+	Status   int8   // Status 是规范化后的文章状态筛选。
+	LastID   uint64 // LastID 是可选游标文章标识。
+	Page     uint64 // Page 是规范化后的 Offset 页码。
+	PageSize uint64 // PageSize 是规范化后的每页数量。
+	IsDesc   bool   // IsDesc 表示是否按文章标识倒序查询。
+}
+
+// ListResult 表示后台文章列表和分页元数据。
+type ListResult struct {
+	Articles []*entity.Article // Articles 是当前页文章数据。
+	LastID   uint64            // LastID 是当前页最后一篇文章标识，无数据时为 0。
+	Total    uint64            // Total 是当前作者符合状态筛选的文章总数。
+	Page     uint64            // Page 是规范化后的页码。
+	PageSize uint64            // PageSize 是规范化后的每页数量。
 }
 
 // UploadResult 表示正文图片直传凭证和稳定引用信息。
@@ -66,6 +102,16 @@ type UseCase interface {
 	Publish(context.Context, uint64, uint64) error
 	// PublicDetail 查询已发表文章详情和当前用户点赞状态。
 	PublicDetail(context.Context, uint64, uint64) (*entity.Detail, error)
+	// List 查询当前作者的后台文章列表。
+	List(context.Context, ListCommand) (*ListResult, error)
+	// TrashList 查询当前作者的垃圾箱文章列表。
+	TrashList(context.Context, ListCommand) (*ListResult, error)
+	// MoveToTrash 将当前作者的文章软删除到垃圾箱。
+	MoveToTrash(context.Context, uint64, uint64) error
+	// Recover 将当前作者的垃圾箱文章恢复为草稿。
+	Recover(context.Context, uint64, uint64) error
+	// Clear 彻底删除当前作者的垃圾箱文章及其绑定对象。
+	Clear(context.Context, uint64, uint64) error
 }
 
 // Service 实现文章创建、更新、发布、图片上传和详情规则。
@@ -191,7 +237,7 @@ func (s *Service) Update(ctx context.Context, command UpdateCommand) error {
 // Publish 将作者自己的非删除文章更新为已发表状态。
 func (s *Service) Publish(ctx context.Context, articleID, authorID uint64) error {
 	// 1. 在仓储锁定文章后执行作者、删除状态和发布规则
-	return s.repository.PublishArticle(ctx, articleID, func(article *entity.Article) error {
+	return s.repository.ChangeArticleStatus(ctx, articleID, func(article *entity.Article) error {
 		if err := authorizeArticleMutation(article, authorID); err != nil {
 			return err
 		}
@@ -199,6 +245,95 @@ func (s *Service) Publish(ctx context.Context, articleID, authorID uint64) error
 		article.UpdatedTime = s.now()
 		return nil
 	})
+}
+
+// List 校验筛选条件并查询当前作者的后台文章列表。
+func (s *Service) List(ctx context.Context, command ListCommand) (*ListResult, error) {
+	// 1. 校验状态并规范化分页参数
+	query, err := normalizeListQuery(command)
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. 查询当前作者符合条件的文章
+	return s.repository.ListArticles(ctx, query)
+}
+
+// TrashList 查询当前作者垃圾箱中的文章列表。
+func (s *Service) TrashList(ctx context.Context, command ListCommand) (*ListResult, error) {
+	// 1. 垃圾箱固定筛选已删除状态，忽略兼容请求中的 status
+	command.Status = StatusDeleted
+	return s.List(ctx, command)
+}
+
+// MoveToTrash 将当前作者的文章状态改为已删除。
+func (s *Service) MoveToTrash(ctx context.Context, articleID, authorID uint64) error {
+	// 1. 在事务内校验作者后写入软删除状态和修改时间
+	return s.repository.ChangeArticleStatus(ctx, articleID, func(article *entity.Article) error {
+		if article.AuthorID != authorID {
+			return ErrArticleNotOwned
+		}
+		article.Status = StatusDeleted
+		article.UpdatedTime = s.now()
+		return nil
+	})
+}
+
+// Recover 将当前作者的垃圾箱文章固定恢复为草稿。
+func (s *Service) Recover(ctx context.Context, articleID, authorID uint64) error {
+	// 1. 在事务内校验作者和垃圾箱状态后恢复为草稿
+	return s.repository.ChangeArticleStatus(ctx, articleID, func(article *entity.Article) error {
+		if article.AuthorID != authorID {
+			return ErrArticleNotOwned
+		}
+		if article.Status != StatusDeleted {
+			return ErrArticleNotDeleted
+		}
+		article.Status = StatusDraft
+		article.UpdatedTime = s.now()
+		return nil
+	})
+}
+
+// Clear 彻底删除当前作者的垃圾箱文章及其绑定对象。
+func (s *Service) Clear(ctx context.Context, articleID, authorID uint64) error {
+	// 1. 事务内校验作者和垃圾箱状态，再逐个删除已绑定对象
+	return s.repository.ClearArticle(ctx, articleID, func(article *entity.Article, images []*entity.Image) error {
+		if article.AuthorID != authorID {
+			return ErrArticleNotOwned
+		}
+		if article.Status != StatusDeleted {
+			return ErrArticleNotDeleted
+		}
+		for _, image := range images {
+			if err := s.storage.DeleteObject(ctx, image.ObjectKey); err != nil {
+				return fmt.Errorf("删除正文图片对象 %q: %w", image.ObjectKey, err)
+			}
+		}
+		return nil
+	})
+}
+
+// normalizeListQuery 校验状态并补齐后台列表默认分页参数。
+func normalizeListQuery(command ListCommand) (ListQuery, error) {
+	// 1. 只允许功能文档声明的五种后台状态筛选
+	switch command.Status {
+	case StatusAll, StatusNotDeleted, StatusDeleted, StatusDraft, StatusPublished:
+	default:
+		return ListQuery{}, ErrInvalidListStatus
+	}
+
+	// 2. 缺省页码和每页数量使用兼容默认值
+	if command.Page == 0 {
+		command.Page = defaultListPage
+	}
+	if command.PageSize == 0 {
+		command.PageSize = defaultListPageSize
+	}
+	if command.PageSize < 10 || command.PageSize > 20 {
+		return ListQuery{}, ErrInvalidPagination
+	}
+	return ListQuery(command), nil
 }
 
 // authorizeArticleMutation 校验文章作者和可修改状态。

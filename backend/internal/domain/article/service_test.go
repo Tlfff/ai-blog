@@ -21,6 +21,10 @@ type fakeRepository struct {
 	detailErr    error                    // detailErr 是详情查询预设错误。
 	publicDetail *entity.Detail           // publicDetail 是公开文章详情。
 	publicErr    error                    // publicErr 是公开详情预设错误。
+	listQuery    ListQuery                // listQuery 是收到的后台列表查询。
+	listResult   *ListResult              // listResult 是后台列表预设结果。
+	clearImages  []*entity.Image          // clearImages 是待彻底删除的正文图片。
+	clearedID    uint64                   // clearedID 是已彻底删除的文章标识。
 	deleted      uint64                   // deleted 是被清理的图片标识。
 }
 
@@ -73,8 +77,8 @@ func (f *fakeRepository) UpdateArticle(_ context.Context, articleID uint64, imag
 	return nil
 }
 
-// PublishArticle 在测试文章上执行领域发布规则。
-func (f *fakeRepository) PublishArticle(_ context.Context, articleID uint64, mutate ArticleMutation) error {
+// ChangeArticleStatus 在测试文章上执行领域状态变更规则。
+func (f *fakeRepository) ChangeArticleStatus(_ context.Context, articleID uint64, mutate ArticleMutation) error {
 	// 1. 复制仓储锁定的当前文章并执行领域发布规则
 	current := f.current
 	if current == nil {
@@ -88,6 +92,32 @@ func (f *fakeRepository) PublishArticle(_ context.Context, articleID uint64, mut
 	// 2. 记录文章发布结果
 	f.publishedID = articleID
 	f.published = &published
+	return nil
+}
+
+// ListArticles 记录后台文章列表查询并返回预设结果。
+func (f *fakeRepository) ListArticles(_ context.Context, query ListQuery) (*ListResult, error) {
+	// 1. 保存规范化查询并返回预设分页结果
+	f.listQuery = query
+	if f.listResult != nil {
+		return f.listResult, nil
+	}
+	return &ListResult{Page: query.Page, PageSize: query.PageSize}, nil
+}
+
+// ClearArticle 在测试文章上执行彻底删除领域规则。
+func (f *fakeRepository) ClearArticle(_ context.Context, articleID uint64, remove ArticleRemoval) error {
+	// 1. 使用当前文章和待删除图片执行领域规则
+	current := f.current
+	if current == nil {
+		current = &entity.Article{ID: articleID, AuthorID: 7, Status: StatusDeleted}
+	}
+	if err := remove(current, f.clearImages); err != nil {
+		return err
+	}
+
+	// 2. 只有领域规则和对象删除成功后才记录数据库清理
+	f.clearedID = articleID
 	return nil
 }
 
@@ -114,8 +144,10 @@ func (f *fakeRepository) FindPublicDetail(context.Context, uint64) (*entity.Deta
 
 // fakeStorage 记录预签名有效期。
 type fakeStorage struct {
-	expires time.Duration // expires 是预签名地址有效期。
-	err     error         // err 是预签名失败。
+	expires    time.Duration // expires 是预签名地址有效期。
+	err        error         // err 是预签名失败。
+	deleteErr  error         // deleteErr 是对象删除预设错误。
+	deletedKey []string      // deletedKey 是已删除对象键集合。
 }
 
 // PresignPut 返回测试预签名地址。
@@ -132,6 +164,16 @@ func (f *fakeStorage) PresignPut(_ context.Context, _ string, expires time.Durat
 func (*fakeStorage) PublicURL(string) string {
 	// 1. 返回固定地址
 	return "https://cdn.test/image"
+}
+
+// DeleteObject 记录测试对象删除操作。
+func (f *fakeStorage) DeleteObject(_ context.Context, objectKey string) error {
+	// 1. 预设失败时不记录成功删除对象
+	if f.deleteErr != nil {
+		return f.deleteErr
+	}
+	f.deletedKey = append(f.deletedKey, objectKey)
+	return nil
 }
 
 // fakeLikeReader 返回预设点赞状态。
@@ -353,5 +395,147 @@ func TestPublicDetailUsesGuestAndLoggedInLikeState(t *testing.T) {
 	userDetail, err := userService.PublicDetail(context.Background(), 9, 7)
 	if err != nil || !userDetail.IsLiked {
 		t.Fatalf("detail = %#v, error = %v", userDetail, err)
+	}
+}
+
+// TestArticleListNormalizesPaginationAndTrashStatus 验证后台列表默认分页和垃圾箱固定状态。
+func TestArticleListNormalizesPaginationAndTrashStatus(t *testing.T) {
+	// 1. 普通列表补齐默认页码和每页数量
+	repository := &fakeRepository{}
+	service := newTestService(repository, &fakeStorage{}, &fakeLikeReader{}, &fakeGuard{acquired: true})
+	if _, err := service.List(context.Background(), ListCommand{AuthorID: 7, Status: StatusNotDeleted, IsDesc: true}); err != nil {
+		t.Fatal(err)
+	}
+	if repository.listQuery.AuthorID != 7 || repository.listQuery.Status != StatusNotDeleted ||
+		repository.listQuery.Page != 1 || repository.listQuery.PageSize != 10 || !repository.listQuery.IsDesc {
+		t.Fatalf("list query = %#v", repository.listQuery)
+	}
+
+	// 2. 垃圾箱忽略请求 status 并固定筛选已删除文章
+	if _, err := service.TrashList(context.Background(), ListCommand{AuthorID: 7, Status: StatusPublished, Page: 2, PageSize: 20}); err != nil {
+		t.Fatal(err)
+	}
+	if repository.listQuery.Status != StatusDeleted || repository.listQuery.Page != 2 || repository.listQuery.PageSize != 20 {
+		t.Fatalf("trash query = %#v", repository.listQuery)
+	}
+}
+
+// TestArticleListRejectsInvalidFilters 验证后台列表拒绝非法状态和分页数量。
+func TestArticleListRejectsInvalidFilters(t *testing.T) {
+	// 1. 定义非法状态和每页数量场景
+	tests := []struct {
+		name    string      // name 是测试场景名称。
+		command ListCommand // command 是后台列表请求。
+		wantErr error       // wantErr 是预期领域错误。
+	}{
+		{name: "非法状态", command: ListCommand{AuthorID: 7, Status: 0}, wantErr: ErrInvalidListStatus},
+		{name: "每页数量过小", command: ListCommand{AuthorID: 7, Status: StatusAll, PageSize: 9}, wantErr: ErrInvalidPagination},
+		{name: "每页数量过大", command: ListCommand{AuthorID: 7, Status: StatusAll, PageSize: 21}, wantErr: ErrInvalidPagination},
+	}
+
+	// 2. 逐项验证非法请求不会进入仓储查询
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repository := &fakeRepository{}
+			service := newTestService(repository, &fakeStorage{}, &fakeLikeReader{}, &fakeGuard{acquired: true})
+			if _, err := service.List(context.Background(), test.command); !errors.Is(err, test.wantErr) {
+				t.Fatalf("List() error = %v, want %v", err, test.wantErr)
+			}
+		})
+	}
+}
+
+// TestMoveAndRecoverArticleStatusRules 验证软删除与恢复的作者和状态规则。
+func TestMoveAndRecoverArticleStatusRules(t *testing.T) {
+	// 1. 作者可以将草稿移入垃圾箱
+	repository := &fakeRepository{current: &entity.Article{ID: 9, AuthorID: 7, Status: StatusDraft}}
+	service := newTestService(repository, &fakeStorage{}, &fakeLikeReader{}, &fakeGuard{acquired: true})
+	if err := service.MoveToTrash(context.Background(), 9, 7); err != nil {
+		t.Fatal(err)
+	}
+	if repository.published == nil || repository.published.Status != StatusDeleted {
+		t.Fatalf("moved article = %#v", repository.published)
+	}
+
+	// 2. 垃圾箱文章只能由作者恢复，并固定恢复为草稿
+	repository.current = &entity.Article{ID: 9, AuthorID: 7, Status: StatusDeleted}
+	if err := service.Recover(context.Background(), 9, 8); !errors.Is(err, ErrArticleNotOwned) {
+		t.Fatalf("Recover() non-owner error = %v", err)
+	}
+	if err := service.Recover(context.Background(), 9, 7); err != nil {
+		t.Fatal(err)
+	}
+	if repository.published == nil || repository.published.Status != StatusDraft {
+		t.Fatalf("recovered article = %#v", repository.published)
+	}
+
+	// 3. 非垃圾箱文章不能通过恢复接口改变状态
+	repository.current = &entity.Article{ID: 9, AuthorID: 7, Status: StatusPublished}
+	if err := service.Recover(context.Background(), 9, 7); !errors.Is(err, ErrArticleNotDeleted) {
+		t.Fatalf("Recover() active article error = %v", err)
+	}
+}
+
+// TestClearArticleKeepsDatabaseRecordWhenObjectDeletionFails 验证对象删除失败时不执行数据库清理。
+func TestClearArticleKeepsDatabaseRecordWhenObjectDeletionFails(t *testing.T) {
+	// 1. 为垃圾箱文章准备两张绑定图片，并令 MinIO 删除失败
+	repository := &fakeRepository{
+		current:     &entity.Article{ID: 9, AuthorID: 7, Status: StatusDeleted},
+		clearImages: []*entity.Image{{ID: 1, ObjectKey: "first.png"}, {ID: 2, ObjectKey: "second.png"}},
+	}
+	storage := &fakeStorage{deleteErr: errors.New("minio unavailable")}
+	service := newTestService(repository, storage, &fakeLikeReader{}, &fakeGuard{acquired: true})
+
+	// 2. 对象删除错误必须阻止仓储记录硬删除成功
+	if err := service.Clear(context.Background(), 9, 7); err == nil || repository.clearedID != 0 {
+		t.Fatalf("Clear() error = %v, cleared ID = %d", err, repository.clearedID)
+	}
+}
+
+// TestClearArticleDeletesAllObjectsBeforeDatabaseRecords 验证对象全部删除后才完成数据库清理。
+func TestClearArticleDeletesAllObjectsBeforeDatabaseRecords(t *testing.T) {
+	// 1. 为当前作者的垃圾箱文章准备全部绑定图片
+	repository := &fakeRepository{
+		current:     &entity.Article{ID: 9, AuthorID: 7, Status: StatusDeleted},
+		clearImages: []*entity.Image{{ID: 1, ObjectKey: "first.png"}, {ID: 2, ObjectKey: "second.png"}},
+	}
+	storage := &fakeStorage{}
+	service := newTestService(repository, storage, &fakeLikeReader{}, &fakeGuard{acquired: true})
+
+	// 2. 全部对象删除成功后仓储才记录文章硬删除
+	if err := service.Clear(context.Background(), 9, 7); err != nil {
+		t.Fatal(err)
+	}
+	if repository.clearedID != 9 || len(storage.deletedKey) != 2 || storage.deletedKey[0] != "first.png" || storage.deletedKey[1] != "second.png" {
+		t.Fatalf("cleared ID = %d, deleted keys = %v", repository.clearedID, storage.deletedKey)
+	}
+}
+
+// TestClearArticleRejectsNonOwnerAndActiveArticle 验证彻底删除的作者和垃圾箱状态规则。
+func TestClearArticleRejectsNonOwnerAndActiveArticle(t *testing.T) {
+	// 1. 定义非作者和非垃圾箱文章场景
+	tests := []struct {
+		name      string          // name 是测试场景名称。
+		current   *entity.Article // current 是仓储锁定的当前文章。
+		authorID  uint64          // authorID 是当前操作人标识。
+		wantError error           // wantError 是预期领域错误。
+	}{
+		{name: "非作者不能彻底删除", current: &entity.Article{ID: 9, AuthorID: 8, Status: StatusDeleted}, authorID: 7, wantError: ErrArticleNotOwned},
+		{name: "非垃圾箱文章不能彻底删除", current: &entity.Article{ID: 9, AuthorID: 7, Status: StatusDraft}, authorID: 7, wantError: ErrArticleNotDeleted},
+	}
+
+	// 2. 逐项验证对象和数据库均不删除
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			repository := &fakeRepository{current: test.current, clearImages: []*entity.Image{{ID: 1, ObjectKey: "image.png"}}}
+			storage := &fakeStorage{}
+			service := newTestService(repository, storage, &fakeLikeReader{}, &fakeGuard{acquired: true})
+			if err := service.Clear(context.Background(), 9, test.authorID); !errors.Is(err, test.wantError) {
+				t.Fatalf("Clear() error = %v, want %v", err, test.wantError)
+			}
+			if repository.clearedID != 0 || len(storage.deletedKey) != 0 {
+				t.Fatalf("cleared ID = %d, deleted keys = %v", repository.clearedID, storage.deletedKey)
+			}
+		})
 	}
 }

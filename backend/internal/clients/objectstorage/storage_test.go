@@ -7,11 +7,20 @@ import (
 	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
+	minio "github.com/minio/minio-go/v7"
 )
 
 // fakePresigner 记录 MinIO SDK 预签名参数。
 type fakePresigner struct {
-	expires time.Duration // expires 是传入 MinIO SDK 的有效期。
+	expires    time.Duration // expires 是传入 MinIO SDK 的有效期。
+	removedKey string        // removedKey 是请求删除的对象键。
+}
+
+// RemoveObject 记录测试对象删除请求。
+func (f *fakePresigner) RemoveObject(_ context.Context, _ string, objectKey string, _ minio.RemoveObjectOptions) error {
+	// 1. 保存 MinIO SDK 收到的稳定对象键
+	f.removedKey = objectKey
+	return nil
 }
 
 // PresignedPutObject 返回带签名参数的测试 URL。
@@ -73,5 +82,20 @@ func TestNewStorageRequiresCredentials(t *testing.T) {
 	}}})
 	if err == nil {
 		t.Fatal("NewStorage() error = nil")
+	}
+}
+
+// TestStorageDeleteObjectUsesStableObjectKey 验证适配器按稳定对象键删除 MinIO 图片。
+func TestStorageDeleteObjectUsesStableObjectKey(t *testing.T) {
+	// 1. 注入 MinIO SDK 接缝并删除正文图片对象
+	client := &fakePresigner{}
+	storage := &Storage{client: client, bucket: "article-images"}
+	if err := storage.DeleteObject(context.Background(), "article/202609/image.png"); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. SDK 必须收到数据库保存的稳定对象键
+	if client.removedKey != "article/202609/image.png" {
+		t.Fatalf("removed key = %q", client.removedKey)
 	}
 }

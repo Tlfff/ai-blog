@@ -10,6 +10,9 @@ import (
 // ArticleMutation 定义事务内对已锁定文章执行的领域规则。
 type ArticleMutation func(*entity.Article) error
 
+// ArticleRemoval 定义事务内校验文章并删除已绑定对象的领域规则。
+type ArticleRemoval func(*entity.Article, []*entity.Image) error
+
 // Repository 定义文章和正文图片所需的数据访问能力。
 type Repository interface {
 	// CreatePendingImage 创建尚未归属文章的正文图片记录。
@@ -20,8 +23,12 @@ type Repository interface {
 	CreateArticle(context.Context, *entity.Article, []uint64) error
 	// UpdateArticle 在同一事务中执行领域更新并同步正文图片关系。
 	UpdateArticle(context.Context, uint64, []uint64, ArticleMutation) error
-	// PublishArticle 在同一事务中执行文章发布领域规则。
-	PublishArticle(context.Context, uint64, ArticleMutation) error
+	// ChangeArticleStatus 在同一事务中执行文章状态变更领域规则。
+	ChangeArticleStatus(context.Context, uint64, ArticleMutation) error
+	// ListArticles 分页查询当前作者的文章。
+	ListArticles(context.Context, ListQuery) (*ListResult, error)
+	// ClearArticle 在同一事务中校验文章、删除对象并硬删除数据库记录。
+	ClearArticle(context.Context, uint64, ArticleRemoval) error
 	// FindDetail 查询非删除文章、作者快照和正文图片映射。
 	FindDetail(context.Context, uint64, uint64) (*entity.Detail, error)
 	// FindPublicDetail 查询已发表文章、作者快照和正文图片映射。
@@ -34,6 +41,8 @@ type Storage interface {
 	PresignPut(context.Context, string, time.Duration) (string, error)
 	// PublicURL 根据稳定对象键生成公开访问地址。
 	PublicURL(string) string
+	// DeleteObject 删除指定稳定对象键对应的正文图片。
+	DeleteObject(context.Context, string) error
 }
 
 // LikeReader 定义文章上下文读取点赞事实的稳定查询契约。

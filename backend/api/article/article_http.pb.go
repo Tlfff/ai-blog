@@ -43,19 +43,29 @@ type ArticleServiceResponse struct {
 	Data any `json:"data"`
 }
 
+const OperationArticleServiceClearArticle = "/article.v1.ArticleService/ClearArticle"
 const OperationArticleServiceCreateArticle = "/article.v1.ArticleService/CreateArticle"
 const OperationArticleServiceGetArticleDetail = "/article.v1.ArticleService/GetArticleDetail"
 const OperationArticleServiceGetImageUploadURL = "/article.v1.ArticleService/GetImageUploadURL"
 const OperationArticleServiceGetMyArticleDetail = "/article.v1.ArticleService/GetMyArticleDetail"
+const OperationArticleServiceListMyArticles = "/article.v1.ArticleService/ListMyArticles"
+const OperationArticleServiceListTrashArticles = "/article.v1.ArticleService/ListTrashArticles"
+const OperationArticleServiceMoveArticleToTrash = "/article.v1.ArticleService/MoveArticleToTrash"
 const OperationArticleServicePublishArticle = "/article.v1.ArticleService/PublishArticle"
+const OperationArticleServiceRecoverArticle = "/article.v1.ArticleService/RecoverArticle"
 const OperationArticleServiceUpdateArticle = "/article.v1.ArticleService/UpdateArticle"
 
 type ArticleServiceHTTPServerController interface {
+	ClearArticle(*gin.Context, *ArticleIDRequest) (*EmptyReply, error)
 	CreateArticle(*gin.Context, *CreateArticleRequest) (*EmptyReply, error)
 	GetArticleDetail(*gin.Context, *ArticleIDRequest) (*ArticleDetailReply, error)
 	GetImageUploadURL(*gin.Context, *GetImageUploadURLRequest) (*ImageUploadURLReply, error)
 	GetMyArticleDetail(*gin.Context, *GetMyArticleDetailRequest) (*ArticleDetailReply, error)
+	ListMyArticles(*gin.Context, *ArticleListRequest) (*ArticleListReply, error)
+	ListTrashArticles(*gin.Context, *ArticleListRequest) (*ArticleListReply, error)
+	MoveArticleToTrash(*gin.Context, *DeleteArticleRequest) (*EmptyReply, error)
 	PublishArticle(*gin.Context, *ArticleIDRequest) (*EmptyReply, error)
+	RecoverArticle(*gin.Context, *ArticleIDRequest) (*EmptyReply, error)
 	UpdateArticle(*gin.Context, *UpdateArticleRequest) (*EmptyReply, error)
 }
 
@@ -66,6 +76,11 @@ func RegisterArticleServiceHTTPServerController(router *gin.RouterGroup, srv Art
 	router.POST("/admin/article/update", _ArticleService_UpdateArticle0_HTTP_Handler(srv))
 	router.POST("/admin/article/publish", _ArticleService_PublishArticle0_HTTP_Handler(srv))
 	router.GET("/optional/article/detail", _ArticleService_GetArticleDetail0_HTTP_Handler(srv))
+	router.GET("/admin/article/list", _ArticleService_ListMyArticles0_HTTP_Handler(srv))
+	router.POST("/admin/article/delete", _ArticleService_MoveArticleToTrash0_HTTP_Handler(srv))
+	router.GET("/admin/article/trash/list", _ArticleService_ListTrashArticles0_HTTP_Handler(srv))
+	router.POST("/admin/article/trash/recover", _ArticleService_RecoverArticle0_HTTP_Handler(srv))
+	router.POST("/admin/article/trash/clear", _ArticleService_ClearArticle0_HTTP_Handler(srv))
 }
 
 func _ArticleService_GetImageUploadURL0_HTTP_Handler(srv ArticleServiceHTTPServerController) gin.HandlerFunc {
@@ -357,6 +372,250 @@ func _ArticleService_GetArticleDetail0_HTTP_Handler(srv ArticleServiceHTTPServer
 		_, err = c.Writer.Write(b)
 		if err != nil {
 			log.Errorf("/article.v1.ArticleService/GetArticleDetail err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _ArticleService_ListMyArticles0_HTTP_Handler(srv ArticleServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in ArticleListRequest
+		if err := code_encoding.GetCodec(form.Name).Unmarshal([]byte(c.Request.URL.Query().Encode()), &in); err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.ListMyArticles(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/article.v1.ArticleService/ListMyArticles err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := ArticleServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/article.v1.ArticleService/ListMyArticles err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _ArticleService_MoveArticleToTrash0_HTTP_Handler(srv ArticleServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in DeleteArticleRequest
+		data, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		if len(data) != 0 {
+			codec, _ := code_encoding.CodecForRequest(c.Request, "Content-Type")
+			if err = codec.Unmarshal(data, &in); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+				return
+			}
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.MoveArticleToTrash(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/article.v1.ArticleService/MoveArticleToTrash err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := ArticleServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/article.v1.ArticleService/MoveArticleToTrash err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _ArticleService_ListTrashArticles0_HTTP_Handler(srv ArticleServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in ArticleListRequest
+		if err := code_encoding.GetCodec(form.Name).Unmarshal([]byte(c.Request.URL.Query().Encode()), &in); err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.ListTrashArticles(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/article.v1.ArticleService/ListTrashArticles err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := ArticleServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/article.v1.ArticleService/ListTrashArticles err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _ArticleService_RecoverArticle0_HTTP_Handler(srv ArticleServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in ArticleIDRequest
+		data, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		if len(data) != 0 {
+			codec, _ := code_encoding.CodecForRequest(c.Request, "Content-Type")
+			if err = codec.Unmarshal(data, &in); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+				return
+			}
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.RecoverArticle(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/article.v1.ArticleService/RecoverArticle err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := ArticleServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/article.v1.ArticleService/RecoverArticle err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _ArticleService_ClearArticle0_HTTP_Handler(srv ArticleServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in ArticleIDRequest
+		data, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		if len(data) != 0 {
+			codec, _ := code_encoding.CodecForRequest(c.Request, "Content-Type")
+			if err = codec.Unmarshal(data, &in); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+				return
+			}
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.ClearArticle(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/article.v1.ArticleService/ClearArticle err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := ArticleServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/article.v1.ArticleService/ClearArticle err: %+v", err)
 			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
 			return
 		}

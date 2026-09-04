@@ -23,6 +23,8 @@ const (
 	codeArticleInvalidStatus  = 44010102 // codeArticleInvalidStatus 表示文章状态请求参数不合法。
 	codeArticleDeleted        = 44050107 // codeArticleDeleted 表示已删除文章不能更新或发布。
 	codeArticleNotPublished   = 44050108 // codeArticleNotPublished 表示文章尚未发表，不能公开读取。
+	codeArticleNotDeleted     = 44050109 // codeArticleNotDeleted 表示文章不在垃圾箱中。
+	codeArticleInvalidList    = 44050110 // codeArticleInvalidList 表示后台列表筛选或分页参数不合法。
 )
 
 // ArticleService 将文章 HTTP 协议转换为文章领域调用。
@@ -154,6 +156,98 @@ func (s *ArticleService) GetArticleDetail(ctx *gin.Context, request *articleapi.
 	return s.detailReply(detail), nil
 }
 
+// ListMyArticles 分页查询当前管理员作者的文章。
+func (s *ArticleService) ListMyArticles(ctx *gin.Context, request *articleapi.ArticleListRequest) (*articleapi.ArticleListReply, error) {
+	// 1. 读取管理员认证中间件注入的当前用户
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+
+	// 2. 将协议筛选和分页参数转换为领域命令
+	result, err := s.useCase.List(ctx.Request.Context(), article.ListCommand{
+		AuthorID: currentUser.ID, Status: int8(request.GetStatus()), LastID: request.GetLastId(),
+		Page: request.GetPage(), PageSize: request.GetPageSize(), IsDesc: request.GetIsDesc(),
+	})
+	if err != nil {
+		return nil, articleHTTPError(err)
+	}
+	return articleListReply(result), nil
+}
+
+// MoveArticleToTrash 将当前管理员作者的文章移入垃圾箱。
+func (s *ArticleService) MoveArticleToTrash(ctx *gin.Context, request *articleapi.DeleteArticleRequest) (*articleapi.EmptyReply, error) {
+	// 1. 读取管理员认证中间件注入的当前用户
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+
+	// 2. 调用领域服务执行作者校验和软删除状态变更
+	if err := s.useCase.MoveToTrash(ctx.Request.Context(), request.GetId(), currentUser.ID); err != nil {
+		return nil, articleHTTPError(err)
+	}
+
+	// 3. 保持删除接口 data=null 的成功契约
+	httpresponse.SetSuccess(ctx, "文章删除成功", true)
+	return &articleapi.EmptyReply{}, nil
+}
+
+// ListTrashArticles 分页查询当前管理员作者的垃圾箱文章。
+func (s *ArticleService) ListTrashArticles(ctx *gin.Context, request *articleapi.ArticleListRequest) (*articleapi.ArticleListReply, error) {
+	// 1. 读取管理员认证中间件注入的当前用户
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+
+	// 2. 保留请求 status 字段但由领域服务固定筛选垃圾箱状态
+	result, err := s.useCase.TrashList(ctx.Request.Context(), article.ListCommand{
+		AuthorID: currentUser.ID, Status: int8(request.GetStatus()), LastID: request.GetLastId(),
+		Page: request.GetPage(), PageSize: request.GetPageSize(), IsDesc: request.GetIsDesc(),
+	})
+	if err != nil {
+		return nil, articleHTTPError(err)
+	}
+	return articleListReply(result), nil
+}
+
+// RecoverArticle 将当前管理员作者的垃圾箱文章恢复为草稿。
+func (s *ArticleService) RecoverArticle(ctx *gin.Context, request *articleapi.ArticleIDRequest) (*articleapi.EmptyReply, error) {
+	// 1. 读取管理员认证中间件注入的当前用户
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+
+	// 2. 调用领域服务校验作者和垃圾箱状态后恢复
+	if err := s.useCase.Recover(ctx.Request.Context(), request.GetId(), currentUser.ID); err != nil {
+		return nil, articleHTTPError(err)
+	}
+
+	// 3. 保持恢复接口 data=null 的成功契约
+	httpresponse.SetSuccess(ctx, "文章恢复成功", true)
+	return &articleapi.EmptyReply{}, nil
+}
+
+// ClearArticle 彻底删除当前管理员作者的垃圾箱文章及其绑定对象。
+func (s *ArticleService) ClearArticle(ctx *gin.Context, request *articleapi.ArticleIDRequest) (*articleapi.EmptyReply, error) {
+	// 1. 读取管理员认证中间件注入的当前用户
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+
+	// 2. 调用领域服务删除 MinIO 对象和数据库记录
+	if err := s.useCase.Clear(ctx.Request.Context(), request.GetId(), currentUser.ID); err != nil {
+		return nil, articleHTTPError(err)
+	}
+
+	// 3. 保持彻底删除接口 data=null 的成功契约
+	httpresponse.SetSuccess(ctx, "文章彻底删除成功", true)
+	return &articleapi.EmptyReply{}, nil
+}
+
 // detailReply 将文章领域详情转换为协议响应。
 func (s *ArticleService) detailReply(detail *entity.Detail) *articleapi.ArticleDetailReply {
 	// 1. 转换文章、作者、时间和互动字段
@@ -167,6 +261,24 @@ func (s *ArticleService) detailReply(detail *entity.Detail) *articleapi.ArticleD
 	// 2. 将稳定对象键转换为当前公开图片地址
 	for _, image := range detail.Images {
 		reply.Images = append(reply.Images, &articleapi.ArticleImage{Id: image.ID, Url: s.storage.PublicURL(image.ObjectKey)})
+	}
+	return reply
+}
+
+// articleListReply 将领域文章列表转换为协议分页响应。
+func articleListReply(result *article.ListResult) *articleapi.ArticleListReply {
+	// 1. 转换分页元数据并预分配文章列表
+	reply := &articleapi.ArticleListReply{
+		List:   make([]*articleapi.ArticleListItem, 0, len(result.Articles)),
+		LastId: result.LastID, Total: result.Total, Page: result.Page, PageSize: result.PageSize,
+	}
+
+	// 2. 只暴露后台列表契约声明的文章字段
+	for _, item := range result.Articles {
+		reply.List = append(reply.List, &articleapi.ArticleListItem{
+			Id: item.ID, Title: item.Title, Tags: item.Tags, Status: int32(item.Status),
+			CreatedTime: item.CreatedTime.Unix(), UpdatedTime: item.UpdatedTime.Unix(),
+		})
 	}
 	return reply
 }
@@ -193,6 +305,10 @@ func articleHTTPError(err error) error {
 		return errassets.NewError(codeArticleDeleted, err.Error())
 	case errors.Is(err, article.ErrArticleNotPublished):
 		return errassets.NewError(codeArticleNotPublished, err.Error())
+	case errors.Is(err, article.ErrArticleNotDeleted):
+		return errassets.NewError(codeArticleNotDeleted, err.Error())
+	case errors.Is(err, article.ErrInvalidListStatus), errors.Is(err, article.ErrInvalidPagination):
+		return errassets.NewError(codeArticleInvalidList, err.Error())
 	default:
 		return err
 	}

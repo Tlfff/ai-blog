@@ -872,6 +872,504 @@ var _ interface {
 	ErrorName() string
 } = ArticleIDRequestValidationError{}
 
+// Validate checks the field values on DeleteArticleRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *DeleteArticleRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on DeleteArticleRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// DeleteArticleRequestMultiError, or nil if none found.
+func (m *DeleteArticleRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *DeleteArticleRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	if len(errors) > 0 {
+		return DeleteArticleRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// DeleteArticleRequestMultiError is an error wrapping multiple validation
+// errors returned by DeleteArticleRequest.ValidateAll() if the designated
+// constraints aren't met.
+type DeleteArticleRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m DeleteArticleRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m DeleteArticleRequestMultiError) AllErrors() []error { return m }
+
+// DeleteArticleRequestValidationError is the validation error returned by
+// DeleteArticleRequest.Validate if the designated constraints aren't met.
+type DeleteArticleRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e DeleteArticleRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e DeleteArticleRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e DeleteArticleRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e DeleteArticleRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e DeleteArticleRequestValidationError) ErrorName() string {
+	return "DeleteArticleRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e DeleteArticleRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sDeleteArticleRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = DeleteArticleRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = DeleteArticleRequestValidationError{}
+
+// Validate checks the field values on ArticleListRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *ArticleListRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ArticleListRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ArticleListRequestMultiError, or nil if none found.
+func (m *ArticleListRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ArticleListRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if _, ok := _ArticleListRequest_Status_InLookup[m.GetStatus()]; !ok {
+		err := ArticleListRequestValidationError{
+			field:  "Status",
+			reason: "value must be in list [-2 -1 1 2 3]",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	// no validation rules for LastId
+
+	// no validation rules for Page
+
+	if m.GetPageSize() != 0 {
+
+		if val := m.GetPageSize(); val < 10 || val > 20 {
+			err := ArticleListRequestValidationError{
+				field:  "PageSize",
+				reason: "value must be inside range [10, 20]",
+			}
+			if !all {
+				return err
+			}
+			errors = append(errors, err)
+		}
+
+	}
+
+	// no validation rules for IsDesc
+
+	if len(errors) > 0 {
+		return ArticleListRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// ArticleListRequestMultiError is an error wrapping multiple validation errors
+// returned by ArticleListRequest.ValidateAll() if the designated constraints
+// aren't met.
+type ArticleListRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ArticleListRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ArticleListRequestMultiError) AllErrors() []error { return m }
+
+// ArticleListRequestValidationError is the validation error returned by
+// ArticleListRequest.Validate if the designated constraints aren't met.
+type ArticleListRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ArticleListRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ArticleListRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ArticleListRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ArticleListRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ArticleListRequestValidationError) ErrorName() string {
+	return "ArticleListRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e ArticleListRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sArticleListRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ArticleListRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ArticleListRequestValidationError{}
+
+var _ArticleListRequest_Status_InLookup = map[int32]struct{}{
+	-2: {},
+	-1: {},
+	1:  {},
+	2:  {},
+	3:  {},
+}
+
+// Validate checks the field values on ArticleListReply with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *ArticleListReply) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ArticleListReply with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ArticleListReplyMultiError, or nil if none found.
+func (m *ArticleListReply) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ArticleListReply) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	for idx, item := range m.GetList() {
+		_, _ = idx, item
+
+		if all {
+			switch v := interface{}(item).(type) {
+			case interface{ ValidateAll() error }:
+				if err := v.ValidateAll(); err != nil {
+					errors = append(errors, ArticleListReplyValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			case interface{ Validate() error }:
+				if err := v.Validate(); err != nil {
+					errors = append(errors, ArticleListReplyValidationError{
+						field:  fmt.Sprintf("List[%v]", idx),
+						reason: "embedded message failed validation",
+						cause:  err,
+					})
+				}
+			}
+		} else if v, ok := interface{}(item).(interface{ Validate() error }); ok {
+			if err := v.Validate(); err != nil {
+				return ArticleListReplyValidationError{
+					field:  fmt.Sprintf("List[%v]", idx),
+					reason: "embedded message failed validation",
+					cause:  err,
+				}
+			}
+		}
+
+	}
+
+	// no validation rules for LastId
+
+	// no validation rules for Total
+
+	// no validation rules for Page
+
+	// no validation rules for PageSize
+
+	if len(errors) > 0 {
+		return ArticleListReplyMultiError(errors)
+	}
+
+	return nil
+}
+
+// ArticleListReplyMultiError is an error wrapping multiple validation errors
+// returned by ArticleListReply.ValidateAll() if the designated constraints
+// aren't met.
+type ArticleListReplyMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ArticleListReplyMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ArticleListReplyMultiError) AllErrors() []error { return m }
+
+// ArticleListReplyValidationError is the validation error returned by
+// ArticleListReply.Validate if the designated constraints aren't met.
+type ArticleListReplyValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ArticleListReplyValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ArticleListReplyValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ArticleListReplyValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ArticleListReplyValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ArticleListReplyValidationError) ErrorName() string { return "ArticleListReplyValidationError" }
+
+// Error satisfies the builtin error interface
+func (e ArticleListReplyValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sArticleListReply.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ArticleListReplyValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ArticleListReplyValidationError{}
+
+// Validate checks the field values on ArticleListItem with the rules defined
+// in the proto definition for this message. If any rules are violated, the
+// first error encountered is returned, or nil if there are no violations.
+func (m *ArticleListItem) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on ArticleListItem with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// ArticleListItemMultiError, or nil if none found.
+func (m *ArticleListItem) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *ArticleListItem) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	// no validation rules for Id
+
+	// no validation rules for Title
+
+	// no validation rules for Status
+
+	// no validation rules for CreatedTime
+
+	// no validation rules for UpdatedTime
+
+	if len(errors) > 0 {
+		return ArticleListItemMultiError(errors)
+	}
+
+	return nil
+}
+
+// ArticleListItemMultiError is an error wrapping multiple validation errors
+// returned by ArticleListItem.ValidateAll() if the designated constraints
+// aren't met.
+type ArticleListItemMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m ArticleListItemMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m ArticleListItemMultiError) AllErrors() []error { return m }
+
+// ArticleListItemValidationError is the validation error returned by
+// ArticleListItem.Validate if the designated constraints aren't met.
+type ArticleListItemValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e ArticleListItemValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e ArticleListItemValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e ArticleListItemValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e ArticleListItemValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e ArticleListItemValidationError) ErrorName() string { return "ArticleListItemValidationError" }
+
+// Error satisfies the builtin error interface
+func (e ArticleListItemValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sArticleListItem.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = ArticleListItemValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = ArticleListItemValidationError{}
+
 // Validate checks the field values on ArticleDetailReply with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.

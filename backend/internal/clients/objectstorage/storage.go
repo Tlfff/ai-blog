@@ -14,17 +14,19 @@ import (
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
 
-// minioPresigner 定义生成 PUT 预签名地址所需的 MinIO SDK 能力。
-type minioPresigner interface {
+// minioClient 定义正文图片预签名和对象删除所需的 MinIO SDK 能力。
+type minioClient interface {
 	// PresignedPutObject 生成指定对象的 PUT 预签名地址。
 	PresignedPutObject(context.Context, string, string, time.Duration) (*url.URL, error)
+	// RemoveObject 删除指定存储桶中的对象。
+	RemoveObject(context.Context, string, string, minio.RemoveObjectOptions) error
 }
 
 // Storage 封装 MinIO PUT 预签名和公开对象地址拼接。
 type Storage struct {
-	client        minioPresigner // client 是 MinIO SDK 预签名客户端。
-	bucket        string         // bucket 是正文图片存储桶。
-	publicBaseURL string         // publicBaseURL 是图片公开访问域名。
+	client        minioClient // client 是 MinIO SDK 正文图片客户端。
+	bucket        string      // bucket 是正文图片存储桶。
+	publicBaseURL string      // publicBaseURL 是图片公开访问域名。
 }
 
 // NewStorage 根据应用配置创建 MinIO 对象存储适配器。
@@ -63,6 +65,12 @@ func (s *Storage) PresignPut(ctx context.Context, objectKey string, expires time
 func (s *Storage) PublicURL(objectKey string) string {
 	// 1. 公开域名只参与读取地址拼接，不进入文章正文或图片记录
 	return strings.TrimRight(s.publicBaseURL, "/") + "/" + strings.TrimLeft(objectKey, "/")
+}
+
+// DeleteObject 删除指定稳定对象键对应的正文图片。
+func (s *Storage) DeleteObject(ctx context.Context, objectKey string) error {
+	// 1. 使用 MinIO SDK 删除对象，不修改任何数据库状态
+	return s.client.RemoveObject(ctx, s.bucket, objectKey, minio.RemoveObjectOptions{})
 }
 
 // ProvideAllowedImageExtensions 将配置白名单转换为文章领域值。
