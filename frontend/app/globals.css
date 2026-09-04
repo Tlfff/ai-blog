@@ -208,6 +208,20 @@
   --article-code-surface: #f4f4f2;
   --article-code-text: #3e3a43;
   --article-code-border: rgb(36 34 42 / 0.1);
+
+  --editor-workspace: #eef7fb;
+  --editor-surface: #ffffff;
+  --editor-surface-muted: #f2f7fa;
+  --editor-ink: #24324a;
+  --editor-muted: #728197;
+  --editor-border: #dce7ef;
+  --editor-border-strong: #b9cbd8;
+  --editor-shadow: rgb(40 91 126 / 0.12);
+  --editor-sky: #4ea7e0;
+  --editor-teal: #43bdb2;
+  --editor-coral: #f47c78;
+  --editor-yellow: #eebf4d;
+  --editor-lavender: #a995df;
 }
 
 .dark {
@@ -275,6 +289,20 @@
   --article-code-surface: #17171d;
   --article-code-text: #fffaf3;
   --article-code-border: rgb(255 255 255 / 0.12);
+
+  --editor-workspace: #132131;
+  --editor-surface: #1b2a3b;
+  --editor-surface-muted: #213448;
+  --editor-ink: #f5f8fb;
+  --editor-muted: #a2b2c4;
+  --editor-border: #30465b;
+  --editor-border-strong: #486178;
+  --editor-shadow: rgb(0 0 0 / 0.24);
+  --editor-sky: #67b8ea;
+  --editor-teal: #56c9be;
+  --editor-coral: #ff8d87;
+  --editor-yellow: #f2c96d;
+  --editor-lavender: #b8a7e8;
 }
 
 html {
@@ -396,6 +424,334 @@ body {
   font-weight: 700;
   line-height: 1.05;
   letter-spacing: -0.02em;
+}
+
+.article-reader-surface {
+  background: var(--article-surface);
+}
+
+/* =========================================================
+   青春色调所见即所得编辑器
+   ========================================================= */
+
+.editor-workspace {
+  background:
+    radial-gradient(circle at 10% 8%, color-mix(in srgb, var(--editor-sky) 10%, transparent), transparent 28%),
+    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--editor-teal) 8%, transparent), transparent 24%),
+    var(--editor-workspace);
+  transition: background-color var(--dur-base) ease;
+}
+
+.wysiwyg-editor {
+  overflow: hidden;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.75rem;
+  background: var(--editor-surface);
+}
+
+.wysiwyg-editor-toolbar {
+  display: flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border-bottom: 1px solid var(--editor-border);
+  padding: 0.35rem 0.6rem;
+  background: color-mix(in srgb, var(--editor-surface-muted) 72%, transparent);
+}
+
+.wysiwyg-toolbar-button {
+  display: inline-grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 0.5rem;
+  color: var(--editor-muted);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.wysiwyg-toolbar-button:hover,
+.wysiwyg-toolbar-button.is-active {
+  background: color-mix(in srgb, var(--editor-sky) 13%, transparent);
+  color: var(--editor-sky);
+}
+
+.wysiwyg-editor-content {
+  min-height: 32rem;
+  padding: 1.75rem 1.5rem 4rem;
+  color: var(--editor-ink);
+  font-size: 1rem;
+  line-height: 1.85;
+  outline: none;
+}
+
+.wysiwyg-editor-content > *:first-child {
+  margin-top: 0;
+}
+
+.wysiwyg-editor-content p {
+  margin: 0.8rem 0;
+}
+
+.wysiwyg-editor-content h1,
+.wysiwyg-editor-content h2,
+.wysiwyg-editor-content h3 {
+  color: var(--editor-ink);
+  font-family: var(--font-playful);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.wysiwyg-editor-content h1 {
+  margin: 2rem 0 0.9rem;
+  font-size: 2rem;
+}
+
+.wysiwyg-editor-content h2 {
+  margin: 1.75rem 0 0.75rem;
+  padding-left: 0.75rem;
+  border-left: 3px solid var(--editor-sky);
+  font-size: 1.5rem;
+}
+
+.wysiwyg-editor-content h3 {
+  margin: 1.4rem 0 0.6rem;
+  font-size: 1.2rem;
+}
+
+.wysiwyg-editor-content strong {
+  color: var(--editor-coral);
+  font-weight: 700;
+}
+
+.wysiwyg-editor-content blockquote {
+  margin: 1.25rem 0;
+  border-left: 3px solid var(--editor-teal);
+  border-radius: 0 0.65rem 0.65rem 0;
+  background: color-mix(in srgb, var(--editor-teal) 8%, transparent);
+  padding: 0.65rem 1rem;
+  color: var(--editor-muted);
+}
+
+.wysiwyg-editor-content ul,
+.wysiwyg-editor-content ol {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+  list-style-position: outside;
+}
+
+.wysiwyg-editor-content ul {
+  list-style-type: disc;
+}
+
+.wysiwyg-editor-content ol {
+  list-style-type: decimal;
+}
+
+.wysiwyg-editor-content ul ul {
+  list-style-type: circle;
+}
+
+.wysiwyg-editor-content ul ul ul {
+  list-style-type: square;
+}
+
+.wysiwyg-editor-content li {
+  margin: 0.35rem 0;
+}
+
+.wysiwyg-editor-content li::marker {
+  color: var(--editor-sky);
+}
+
+.wysiwyg-editor-content code:not(pre code) {
+  border: 1px solid var(--editor-border);
+  border-radius: 0.35rem;
+  background: var(--editor-surface-muted);
+  padding: 0.12em 0.38em;
+  color: var(--editor-coral);
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+}
+
+.wysiwyg-editor-content pre {
+  overflow-x: auto;
+  margin: 1.25rem 0;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.75rem;
+  background: var(--editor-surface-muted);
+  padding: 1rem 1.15rem;
+  color: var(--editor-ink);
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  line-height: 1.7;
+}
+
+.wysiwyg-editor-content pre code {
+  background: transparent;
+  color: inherit;
+}
+
+.wysiwyg-editor-content hr {
+  height: 1px;
+  margin: 1.75rem 0;
+  border: 0;
+  background: var(--editor-border);
+}
+
+.wysiwyg-editor-content .is-empty::before {
+  float: left;
+  height: 0;
+  pointer-events: none;
+  color: color-mix(in srgb, var(--editor-muted) 72%, transparent);
+  content: attr(data-placeholder);
+}
+
+.wysiwyg-image-node {
+  overflow: hidden;
+  margin: 1.25rem 0;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.75rem;
+  background: var(--editor-surface-muted);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.wysiwyg-image-node.is-selected {
+  border-color: var(--editor-sky);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--editor-sky) 18%, transparent);
+}
+
+.wysiwyg-image-node > img {
+  display: block;
+  width: 100%;
+  max-height: 34rem;
+  object-fit: contain;
+}
+
+.wysiwyg-image-node figcaption {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  border-top: 1px solid var(--editor-border);
+  padding: 0.45rem 0.75rem;
+  color: var(--editor-muted);
+  font-size: 0.75rem;
+}
+
+.wysiwyg-image-node figcaption button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  color: var(--editor-muted);
+}
+
+.wysiwyg-image-node figcaption button:hover {
+  color: var(--editor-coral);
+}
+
+.editor-upload-status {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--editor-teal) 12%, transparent);
+  padding: 0.12rem 0.5rem;
+  color: var(--editor-teal);
+}
+
+.editor-upload-status.is-error {
+  background: color-mix(in srgb, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+
+.wysiwyg-bubble-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.65rem;
+  background: var(--editor-surface);
+  padding: 0.25rem;
+  box-shadow: 0 10px 30px var(--editor-shadow);
+}
+
+.wysiwyg-slash-menu {
+  position: fixed;
+  z-index: 90;
+  width: 17.5rem;
+  overflow: hidden;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.85rem;
+  background: var(--editor-surface);
+  padding: 0.25rem;
+  color: var(--editor-ink);
+  box-shadow: 0 18px 48px var(--editor-shadow);
+}
+
+.wysiwyg-slash-menu > button {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.7rem;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.65rem;
+}
+
+.wysiwyg-slash-menu > button:hover,
+.wysiwyg-slash-menu > button.is-selected {
+  background: var(--editor-surface-muted);
+}
+
+.wysiwyg-slash-menu strong,
+.wysiwyg-slash-menu small {
+  display: block;
+}
+
+.wysiwyg-slash-menu strong {
+  font-size: 0.875rem;
+}
+
+.wysiwyg-slash-menu small {
+  margin-top: 0.1rem;
+  color: var(--editor-muted);
+  font-size: 0.7rem;
+}
+
+.editor-sheet kbd,
+.editor-workspace kbd {
+  display: inline-flex;
+  min-width: 2.5rem;
+  justify-content: center;
+  border: 1px solid var(--editor-border);
+  border-radius: 0.45rem;
+  background: var(--editor-surface-muted);
+  padding: 0.18rem 0.45rem;
+  color: var(--editor-ink);
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+}
+
+@media (max-width: 767px) {
+  .wysiwyg-editor-toolbar {
+    overflow-x: auto;
+  }
+
+  .wysiwyg-editor-toolbar > span {
+    display: none;
+  }
+
+  .wysiwyg-editor-content {
+    min-height: 26rem;
+    padding: 1.25rem 1rem 3rem;
+  }
+
+  .wysiwyg-image-node figcaption {
+    align-items: flex-start;
+    flex-direction: column;
+  }
 }
 
 /* Homepage adaptation of astro-koharu's alternating clipped article cards. */

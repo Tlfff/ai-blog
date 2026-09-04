@@ -1,17 +1,19 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
+import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
-import { ArrowLeft, ImagePlus, Save, Send, Sparkles } from "lucide-react"
+import { ArrowLeft, CheckCircle2, FileText, ImagePlus, Save, Send, Tag } from "lucide-react"
 import useSWR from "swr"
 import { Container } from "@/components/layout/container"
 import { SiteShell } from "@/components/layout/site-shell"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
-  MarkdownImageEditor,
-  type ImagePreview,
-} from "@/components/editor/markdown-image-editor"
+  WysiwygMarkdownEditor,
+  type PreparedEditorImage,
+  type WysiwygImagePreview,
+  type WysiwygMarkdownEditorHandle,
+} from "@/components/editor/wysiwyg-markdown-editor"
 import { useAuth } from "@/hooks/use-auth"
 import {
   createArticle,
@@ -29,6 +31,8 @@ const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp",
 }
+
+const DEFAULT_TAGS = ["Go", "后端", "前端", "数据库", "AI", "工程实践", "生活随笔"]
 
 type PendingImageStatus = "uploading" | "success" | "failed" | "saved"
 
@@ -72,6 +76,7 @@ export default function EditorPage() {
   const [submissionProgress, setSubmissionProgress] = useState<SubmissionProgress | null>(null)
   const [uploadMessage, setUploadMessage] = useState("")
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const editorRef = useRef<WysiwygMarkdownEditorHandle>(null)
   const previewUrlsRef = useRef(new Set<string>())
   const isSubmitting = saving || publishing
   const uploadingImageCount = pendingImages.filter(
@@ -86,7 +91,7 @@ export default function EditorPage() {
   )
 
   const { data: availableTags = [] } = useSWR("editor-tags", () => getTags())
-  const imagePreviews = new Map<string, ImagePreview>(
+  const imagePreviews = new Map<string, WysiwygImagePreview>(
     (article?.images ?? []).map((image) => [
       `image://${image.id}`,
       { previewUrl: image.url, fileName: `文章图片 #${image.id}`, status: "saved" as const },
@@ -100,6 +105,11 @@ export default function EditorPage() {
       error: image.error,
     })
   })
+  const displayedTags = Array.from(
+    new Set([...DEFAULT_TAGS, ...availableTags.map((tag) => tag.name), ...selectedTags]),
+  )
+  const wordCount = content.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\s/g, "").length
+  const contentImageCount = (content.match(/!\[[^\]]*\]\([^)]*\)/g) ?? []).length
 
   useEffect(() => {
     if (!isLoggedIn) {
@@ -134,6 +144,17 @@ export default function EditorPage() {
       previewUrls.clear()
     }
   }, [])
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+        event.preventDefault()
+        if (!isSubmitting && uploadingImageCount === 0) void handleSaveDraft()
+      }
+    }
+    window.addEventListener("keydown", handleShortcut)
+    return () => window.removeEventListener("keydown", handleShortcut)
+  }, [content, isSubmitting, selectedTags, title, uploadingImageCount])
 
   if (!isLoggedIn) {
     return null
@@ -204,11 +225,11 @@ export default function EditorPage() {
     }
   }
 
-  function insertImage(file: File, start?: number, end?: number) {
+  function prepareImageUpload(file: File): PreparedEditorImage | null {
     const fileExt = getImageFileExtension(file)
     if (!fileExt) {
       setUploadMessage("仅支持 JPG、JPEG、PNG 和 WebP 图片")
-      return
+      return null
     }
 
     const clientId = crypto.randomUUID()
@@ -216,7 +237,6 @@ export default function EditorPage() {
     const previewUrl = URL.createObjectURL(file)
     previewUrlsRef.current.add(previewUrl)
     const imageName = (file.name || "文章图片").replace(/[\[\]]/g, "")
-    const markdown = `\n\n![${imageName}](${temporarySource})\n\n`
     const pendingImage: PendingImage = {
       clientId,
       file,
@@ -227,12 +247,13 @@ export default function EditorPage() {
     }
 
     setPendingImages((current) => [...current, pendingImage])
-    setContent((current) => {
-      const insertionStart = start ?? current.length
-      const insertionEnd = end ?? insertionStart
-      return `${current.slice(0, insertionStart)}${markdown}${current.slice(insertionEnd)}`
-    })
     void uploadPendingImage(pendingImage)
+    return {
+      source: temporarySource,
+      previewUrl,
+      fileName: file.name || "文章图片",
+      alt: imageName,
+    }
   }
 
   function removePendingImage(source: string) {
@@ -344,184 +365,239 @@ export default function EditorPage() {
   }
 
   return (
-    <SiteShell>
-      <Container className="py-8 md:py-12">
-        <div className="mx-auto max-w-6xl">
-          <div className="mb-8 flex flex-col gap-5 border-b border-border pb-6 md:flex-row md:items-end md:justify-between">
-            <div className="flex items-center gap-3">
-              <button
-                onClick={handleBack}
-                disabled={isSubmitting}
-                className="label-meta inline-flex items-center gap-2 text-ink transition-colors hover:text-sakura-deep disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                <ArrowLeft className="size-4" />
-                back
-              </button>
-              <div>
-                <p className="label-meta text-sakura-deep">studio / writing desk</p>
-                <h1 className="title-display mt-2 text-3xl text-ink">{articleId ? "编辑文章" : "写文章"}</h1>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleSaveDraft}
-                disabled={isSubmitting || uploadingImageCount > 0}
-              >
-                <Save className="size-4" />
-                {saving ? "保存中..." : "保存草稿"}
-              </Button>
-              <Button
-                size="sm"
-                onClick={handlePublish}
-                disabled={isSubmitting || uploadingImageCount > 0}
-              >
-                <Send className="size-4" />
-                {publishing ? "发布中..." : articleId ? "更新" : "发布"}
-              </Button>
+    <SiteShell immersiveHeader>
+      <section className="editor-hero relative min-h-52 overflow-hidden">
+        <Image
+          src="/kv/bq-1.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover object-[center_48%]"
+        />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(20,55,92,0.42),rgba(25,73,111,0.3),rgba(238,247,251,0.94))] dark:bg-[linear-gradient(180deg,rgba(8,20,36,0.6),rgba(15,36,55,0.5),rgba(19,31,45,0.96))]" />
+        <Container className="relative z-10 flex max-w-[1320px] flex-col gap-5 pb-10 pt-24 text-white sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <button
+              type="button"
+              onClick={handleBack}
+              disabled={isSubmitting}
+              className="inline-flex items-center gap-2 text-sm font-medium text-white/85 transition-colors hover:text-white disabled:opacity-50"
+            >
+              <ArrowLeft className="size-4" />
+              返回
+            </button>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <h1 className="font-playful text-4xl font-bold tracking-wide [text-shadow:0_2px_12px_rgba(0,0,0,0.28)]">
+                {articleId ? "编辑文章" : "写文章"}
+              </h1>
+              <span className="inline-flex items-center gap-2 text-sm text-white/82">
+                <span className="size-2 rounded-full bg-[#56c9be]" />
+                所见即所得 · Markdown 保存
+              </span>
             </div>
           </div>
 
-          {isSubmitting && submissionProgress && (
-            <div className="mb-8 border border-sakura/60 bg-sakura-wash px-4 py-4 sm:px-5" aria-live="polite">
-              <div className="mb-2 flex items-center justify-between gap-4 text-sm">
-                <span className="font-medium text-ink">{submissionProgress.label}</span>
-                <span className="label-meta text-sakura-deep">{submissionProgress.value}%</span>
-              </div>
-              <div
-                role="progressbar"
-                aria-label={submissionProgress.label}
-                aria-valuemin={0}
-                aria-valuemax={100}
-                aria-valuenow={submissionProgress.value}
-                className="h-2 overflow-hidden rounded-full bg-paper-deep"
-              >
-                <div
-                  className="h-full rounded-full bg-sakura-deep transition-[width] duration-300 ease-out"
-                  style={{ width: `${submissionProgress.value}%` }}
-                />
-              </div>
-              <p className="mt-2 text-xs text-ink-soft">上传和保存完成前请不要刷新或关闭页面。</p>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <Button
+              variant="outline"
+              onClick={handleSaveDraft}
+              disabled={isSubmitting || uploadingImageCount > 0}
+              className="rounded-full border-white/70 bg-white/12 text-white backdrop-blur-sm hover:bg-white hover:text-[#24405f]"
+            >
+              <Save className="size-4" />
+              {saving ? "保存中..." : "保存草稿"}
+            </Button>
+            <Button
+              onClick={handlePublish}
+              disabled={isSubmitting || uploadingImageCount > 0}
+              className="rounded-full bg-[#f47c78] px-6 text-white shadow-[0_8px_24px_rgba(244,124,120,0.28)] hover:bg-[#e86b68]"
+            >
+              <Send className="size-4" />
+              {publishing ? "发布中..." : articleId ? "更新" : "发布"}
+            </Button>
+          </div>
+        </Container>
+      </section>
 
-          <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_260px]">
-            <div className="card-paper overflow-hidden rounded-sm">
-              <div className="border-b border-border bg-paper-deep px-5 py-4 sm:px-7">
-                <p className="label-meta text-sakura-deep">draft / untitled note</p>
+      <section className="editor-workspace min-h-[calc(100vh-13rem)] pb-16">
+        <Container className="relative z-20 max-w-[1320px] -translate-y-5">
+          {isSubmitting && submissionProgress ? (
+            <div className="mb-5 rounded-xl border border-[var(--editor-border)] bg-[var(--editor-surface)] px-5 py-4 shadow-[0_14px_40px_var(--editor-shadow)]" aria-live="polite">
+              <div className="mb-2 flex items-center justify-between text-sm">
+                <span className="font-medium text-[var(--editor-ink)]">{submissionProgress.label}</span>
+                <span className="text-[var(--editor-sky)]">{submissionProgress.value}%</span>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-[var(--editor-surface-muted)]">
+                <div className="h-full rounded-full bg-[var(--editor-sky)] transition-[width] duration-300" style={{ width: `${submissionProgress.value}%` }} />
+              </div>
+            </div>
+          ) : null}
+
+          <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_286px]">
+            <main className="editor-sheet min-w-0 overflow-hidden rounded-2xl border border-[var(--editor-border)] bg-[var(--editor-surface)] shadow-[0_18px_55px_var(--editor-shadow)]">
+              <div className="px-5 pb-5 pt-7 sm:px-8 sm:pt-9">
+                <p className="font-mono text-[11px] font-medium uppercase tracking-[0.2em] text-[var(--editor-muted)]">
+                  draft / {articleId ? `article ${articleId}` : "untitled note"}
+                </p>
                 <input
                   type="text"
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(event) => setTitle(event.target.value)}
                   disabled={isSubmitting}
                   placeholder="文章标题"
-                  className="title-display mt-3 w-full bg-transparent text-3xl text-ink outline-none placeholder:text-ink-soft/50 disabled:cursor-not-allowed disabled:opacity-60 md:text-4xl"
+                  className="font-playful mt-3 w-full border-0 bg-transparent text-3xl font-bold leading-tight text-[var(--editor-ink)] outline-none placeholder:text-[var(--editor-muted)]/55 disabled:opacity-60 sm:text-4xl"
                 />
               </div>
 
-              <div className="flex flex-col gap-7 p-5 sm:p-7">
-                <div>
-                  <label className="label-meta mb-3 block text-sakura-deep">tags / 标签</label>
-                  <div className="flex flex-wrap gap-2">
-                    {availableTags.map((tag) => (
-                      <button
-                        key={tag.id}
-                        type="button"
-                        onClick={() => toggleTag(tag.name)}
-                        disabled={isSubmitting}
-                        className={cn(
-                          "rounded-sm border px-3 py-1.5 text-sm transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                          selectedTags.includes(tag.name)
-                            ? "border-sakura-deep bg-sakura-deep text-primary-foreground"
-                            : "border-border bg-transparent text-ink-soft hover:border-sakura-deep hover:text-sakura-deep",
-                        )}
-                      >
-                        {tag.name}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div>
-                  <div className="mb-3 flex items-center justify-between">
-                    <label className="label-meta whitespace-nowrap text-sakura-deep">body / markdown</label>
-                    <div className="flex items-center gap-3">
-                      <span className="label-meta hidden text-ink-soft sm:inline">paste or select image</span>
-                      <input
-                        ref={fileInputRef}
-                        type="file"
-                        accept="image/jpeg,image/png,image/webp"
-                        multiple
-                        className="hidden"
-                        onChange={(event) => {
-                          Array.from(event.target.files ?? []).forEach((file) => insertImage(file))
-                          event.target.value = ""
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isSubmitting}
-                        className="inline-flex shrink-0 items-center gap-1 text-xs text-sakura-deep transition-colors hover:text-ink disabled:cursor-not-allowed disabled:opacity-50"
-                      >
-                        <ImagePlus className="size-3.5 sm:hidden" />
-                        选择图片
-                      </button>
+              <div className="border-y border-[var(--editor-border)] px-5 py-5 sm:px-8">
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-[var(--editor-muted)]">标签</p>
+                    <div className="flex flex-wrap gap-2">
+                      {displayedTags.map((tagName, index) => {
+                        const selected = selectedTags.includes(tagName)
+                        return (
+                          <button
+                            key={tagName}
+                            type="button"
+                            onClick={() => toggleTag(tagName)}
+                            disabled={isSubmitting}
+                            className={cn(
+                              "rounded-full border px-3 py-1 text-sm transition-colors disabled:opacity-50",
+                              selected
+                                ? index % 2 === 0
+                                  ? "border-[var(--editor-sky)] bg-[var(--editor-sky)] text-white"
+                                  : "border-[var(--editor-teal)] bg-[var(--editor-teal)] text-white"
+                                : "border-[var(--editor-border)] text-[var(--editor-muted)] hover:border-[var(--editor-sky)] hover:text-[var(--editor-sky)]",
+                            )}
+                          >
+                            {tagName}
+                            {selected ? " ×" : ""}
+                          </button>
+                        )
+                      })}
                     </div>
                   </div>
-                  <MarkdownImageEditor
-                    value={content}
-                    onChange={setContent}
-                    disabled={isSubmitting}
-                    imagePreviews={imagePreviews}
-                    onPasteImage={insertImage}
-                    onRemoveImage={removePendingImage}
-                    onRetryImage={retryPendingImage}
-                  />
-                  <div className="mt-3 flex items-center gap-2 text-xs text-ink-soft">
-                    <ImagePlus className="size-3.5 text-sakura-deep" />
-                    <span>图片会立即上传，正文保存稳定的 image:// 图片引用</span>
-                    {uploadingImageCount > 0 && !isSubmitting && (
-                      <span className="text-sakura-deep">上传中 {uploadingImageCount} 张</span>
-                    )}
-                    {failedImageCount > 0 && !isSubmitting && (
-                      <span className="text-destructive">失败 {failedImageCount} 张</span>
-                    )}
-                    {uploadMessage && <span>{uploadMessage}</span>}
-                  </div>
-                </div>
-
-                <div className="border-l-2 border-sakura bg-sakura-wash px-4 py-3">
-                  <p className="text-xs leading-6 text-ink-soft">
-                    支持 Markdown 语法：标题、列表、代码块、引用等。使用 # 表示标题，**粗体**，*斜体*。
-                  </p>
+                  <p className="text-xs text-[var(--editor-muted)]">摘要将在发布后根据正文自动生成</p>
                 </div>
               </div>
-            </div>
 
-            <aside className="hidden lg:block">
-              <div className="sticky top-24 space-y-5">
-                <div className="border-y border-border py-5">
-                  <p className="label-meta text-sakura-deep">writing notes</p>
-                  <div className="mt-4 space-y-3 text-sm leading-7 text-ink-soft">
-                    <p>标题先说清楚，再让正文慢慢展开。</p>
-                    <p>摘要会根据正文自动生成，无需单独填写。</p>
-                    <p>图片粘贴或选择后立即上传，文章正文只保存稳定图片引用。</p>
+              <div className="px-5 py-5 sm:px-8">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="font-mono text-xs font-medium uppercase tracking-[0.16em] text-[var(--editor-muted)]">正文 / wysiwyg</p>
+                    <p className="mt-1 text-xs text-[var(--editor-muted)]">输入 ##、-、&gt; 或 ``` 后按空格即可转换，也可以输入 / 打开命令</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      multiple
+                      className="hidden"
+                      onChange={(event) => {
+                        Array.from(event.target.files ?? []).forEach((file) => editorRef.current?.insertImage(file))
+                        event.target.value = ""
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={isSubmitting}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-[var(--editor-sky)] transition-colors hover:text-[var(--editor-coral)] disabled:opacity-50"
+                    >
+                      <ImagePlus className="size-4" />
+                      选择图片
+                    </button>
                   </div>
                 </div>
-                <div className="bg-sakura-wash p-5">
-                  <Sparkles className="size-5 text-sakura-deep" />
-                  <p className="mt-3 text-sm leading-7 text-ink-soft">
-                    一篇好文章不必一次完成，先保存下来，之后再回来继续连接。
-                  </p>
+
+                <WysiwygMarkdownEditor
+                  ref={editorRef}
+                  value={content}
+                  onChange={setContent}
+                  disabled={isSubmitting}
+                  imagePreviews={imagePreviews}
+                  onPrepareImage={prepareImageUpload}
+                  onRemoveImage={removePendingImage}
+                  onRetryImage={retryPendingImage}
+                />
+
+                <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-[var(--editor-muted)]">
+                  <span className="inline-flex items-center gap-1.5"><ImagePlus className="size-3.5 text-[var(--editor-sky)]" />图片会立即上传，正文保存稳定的 image:// 图片引用</span>
+                  {uploadingImageCount > 0 ? <span className="text-[var(--editor-sky)]">上传中 {uploadingImageCount} 张</span> : null}
+                  {failedImageCount > 0 ? <span className="text-destructive">失败 {failedImageCount} 张</span> : null}
+                  {uploadMessage ? <span>{uploadMessage}</span> : null}
+                </div>
+              </div>
+            </main>
+
+            <aside className="space-y-5 lg:sticky lg:top-20">
+              <div className="overflow-hidden rounded-2xl border border-[var(--editor-border)] bg-[var(--editor-surface)] shadow-[0_14px_40px_var(--editor-shadow)]">
+                <div className="relative aspect-[16/10] overflow-hidden">
+                  <Image src="/kv/bq-1.png" alt="蓝天与云朵" fill sizes="286px" className="object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-[#173652]/75 via-transparent to-transparent" />
+                  <span className="absolute bottom-3 left-4 font-mono text-xs font-semibold tracking-[0.14em] text-white">TODAY / SUMMER BLUE</span>
+                </div>
+
+                <div className="space-y-6 p-5">
+                  <EditorRailSection title="写作状态">
+                    <RailRow icon={<FileText className="size-4" />} color="sky" label="正文" value={`${wordCount.toLocaleString()} 字`} />
+                    <RailRow icon={<ImagePlus className="size-4" />} color="teal" label="图片" value={`${contentImageCount} 张`} />
+                    <RailRow icon={<Tag className="size-4" />} color="yellow" label="标签" value={`${selectedTags.length} 个`} />
+                  </EditorRailSection>
+
+                  <EditorRailSection title="发布检查">
+                    <CheckRow done={Boolean(title.trim())} label="标题已填写" />
+                    <CheckRow done={uploadingImageCount === 0 && failedImageCount === 0} label="图片上传完成" />
+                    <CheckRow done={Boolean(content.trim())} label="正文内容完整" />
+                    <CheckRow done label="摘要将自动生成" />
+                  </EditorRailSection>
+
+                  <EditorRailSection title="快捷键提示">
+                    <p className="text-sm text-[var(--editor-muted)]"><kbd>⌘ S</kbd><span className="ml-3">保存草稿</span></p>
+                    <p className="text-sm text-[var(--editor-muted)]"><kbd>/</kbd><span className="ml-3">打开内容命令</span></p>
+                    <p className="text-sm text-[var(--editor-muted)]"><kbd>粘贴</kbd><span className="ml-3">图片即可上传</span></p>
+                  </EditorRailSection>
                 </div>
               </div>
             </aside>
           </div>
-        </div>
-      </Container>
+        </Container>
+      </section>
     </SiteShell>
+  )
+}
+
+function EditorRailSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section>
+      <div className="mb-3 flex items-center gap-3">
+        <h2 className="font-playful shrink-0 text-lg font-bold text-[var(--editor-ink)]">{title}</h2>
+        <span className="h-px flex-1 bg-[var(--editor-border)]" />
+      </div>
+      <div className="space-y-3">{children}</div>
+    </section>
+  )
+}
+
+function RailRow({ icon, color, label, value }: { icon: React.ReactNode; color: "sky" | "teal" | "yellow"; label: string; value: string }) {
+  const colors = { sky: "text-[var(--editor-sky)]", teal: "text-[var(--editor-teal)]", yellow: "text-[var(--editor-yellow)]" }
+  return (
+    <div className="flex items-center gap-3 text-sm">
+      <span className={colors[color]}>{icon}</span>
+      <span className="text-[var(--editor-muted)]">{label}</span>
+      <strong className="ml-auto text-[var(--editor-ink)]">{value}</strong>
+    </div>
+  )
+}
+
+function CheckRow({ done, label }: { done: boolean; label: string }) {
+  return (
+    <div className="flex items-center gap-2.5 text-sm text-[var(--editor-muted)]">
+      <CheckCircle2 className={cn("size-4", done ? "text-[var(--editor-teal)]" : "text-[var(--editor-border-strong)]")} />
+      {label}
+    </div>
   )
 }

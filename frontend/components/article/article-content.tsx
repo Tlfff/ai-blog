@@ -30,27 +30,27 @@ export function ArticleContent({ content, images = [] }: ArticleContentProps) {
         remarkPlugins={[remarkGfm]}
         components={{
           h1: ({ children }) => (
-            <h1 id={slugifyHeading(String(children))} className="scroll-mt-24 font-title mt-10 mb-6 text-3xl font-bold text-foreground pb-3 border-b-2 border-transparent border-image-gradient">
+            <h1 id={slugifyHeading(String(children))} className="scroll-mt-24 font-playful mt-10 mb-6 text-3xl font-bold text-foreground pb-3 border-b border-primary/40">
               {children}
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 id={slugifyHeading(String(children))} className="scroll-mt-24 font-title mt-8 mb-4 text-2xl font-semibold text-foreground pb-2 border-b border-primary/30">
+            <h2 id={slugifyHeading(String(children))} className="scroll-mt-24 font-playful mt-8 mb-4 text-2xl font-bold text-foreground pb-2 border-b border-primary/30">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 id={slugifyHeading(String(children))} className="scroll-mt-24 font-title mt-6 mb-3 text-xl font-semibold text-foreground">
+            <h3 id={slugifyHeading(String(children))} className="scroll-mt-24 font-playful mt-6 mb-3 text-xl font-bold text-foreground">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="font-title mt-5 mb-2 text-lg font-semibold text-foreground">
+            <h4 className="font-playful mt-5 mb-2 text-lg font-bold text-foreground">
               {children}
             </h4>
           ),
           h5: ({ children }) => (
-            <h5 className="mt-4 mb-2 text-base font-semibold text-foreground">
+            <h5 className="font-playful mt-4 mb-2 text-base font-bold text-foreground">
               {children}
             </h5>
           ),
@@ -60,7 +60,7 @@ export function ArticleContent({ content, images = [] }: ArticleContentProps) {
             </h6>
           ),
           p: ({ children }) => (
-            <p className="my-5 text-base leading-relaxed text-foreground text-indent-8">
+            <p className="my-5 text-base leading-8 text-foreground">
               {children}
             </p>
           ),
@@ -74,7 +74,7 @@ export function ArticleContent({ content, images = [] }: ArticleContentProps) {
             const isInline = !className
             if (isInline) {
               return (
-                <code className="px-2 py-0.5 text-sm font-mono rounded-md bg-gradient-to-br from-primary/10 to-accent/10 text-accent border border-primary/20">
+                <code className="rounded-md border border-[var(--article-code-border)] bg-[var(--article-code-surface)] px-2 py-0.5 font-mono text-sm text-[var(--article-accent)]">
                   {children}
                 </code>
               )
@@ -104,7 +104,7 @@ export function ArticleContent({ content, images = [] }: ArticleContentProps) {
             <li className="my-3 text-foreground">{children}</li>
           ),
           blockquote: ({ children }) => (
-            <blockquote className="my-5 pl-5 border-l-4 border-transparent border-image-gradient-vertical bg-gradient-to-br from-primary/5 to-accent/5 py-3 rounded-r-lg italic text-muted-foreground backdrop-blur-sm">
+            <blockquote className="my-5 rounded-r-lg border-l-4 border-[var(--article-accent)] bg-[var(--article-summary)] py-3 pl-5 italic text-muted-foreground">
               {children}
             </blockquote>
           ),
@@ -122,21 +122,21 @@ export function ArticleContent({ content, images = [] }: ArticleContentProps) {
             <img
               src={src}
               alt={alt}
-              className="my-5 max-w-full rounded-xl shadow-xl shadow-black/30"
+              className="my-6 max-w-full rounded-lg border border-[var(--article-divider)] shadow-none"
             />
           ),
           hr: () => (
-            <hr className="my-10 border-none h-px bg-gradient-to-r from-transparent via-primary/50 to-transparent" />
+            <hr className="my-10 h-px border-none bg-[var(--article-divider)]" />
           ),
           table: ({ children }) => (
             <div className="my-5 overflow-x-auto rounded-xl border border-border overflow-hidden">
-              <table className="w-full border-collapse text-sm bg-card">
+                <table className="w-full border-collapse bg-[var(--article-surface)] text-sm">
                 {children}
               </table>
             </div>
           ),
           th: ({ children }) => (
-            <th className="px-4 py-3 bg-gradient-to-br from-secondary to-secondary/50 font-semibold text-left border border-border text-foreground">
+            <th className="border border-border bg-secondary px-4 py-3 text-left font-semibold text-foreground">
               {children}
             </th>
           ),

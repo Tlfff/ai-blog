@@ -62,6 +62,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
   const readingMinutes = Math.max(1, Math.ceil(wordCount / 400))
   const cover = article.cover || "/kv/bocchi-lace.jpg"
   const articleId = article.id
+  const summary = cleanArticleSummary(article.summary)
 
   async function handleLike() {
     if (!isLoggedIn) return
@@ -141,10 +142,10 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
                   </span>
                 </div>
 
-                {article.summary && (
+                {summary && (
                   <section className="mt-6 rounded-lg border-l-4 border-[var(--article-accent)] bg-[var(--article-summary)] px-4 py-4 sm:px-5">
                     <p className="font-playful text-sm font-bold text-[var(--article-accent)]">摘要</p>
-                    <p className="mt-2 text-sm leading-7 text-[var(--article-muted)]">{article.summary}</p>
+                    <p className="mt-2 text-sm leading-7 text-[var(--article-muted)]">{summary}</p>
                   </section>
                 )}
 
@@ -211,7 +212,7 @@ function ArticleCover({
   category: string
 }) {
   return (
-    <section className="relative h-[54svh] min-h-[500px] max-h-[720px] overflow-hidden bg-[#17171d]">
+    <section data-article-cover className="relative h-[54svh] min-h-[500px] max-h-[720px] overflow-hidden bg-[#17171d]">
       <Image
         src={cover}
         alt=""
@@ -224,7 +225,7 @@ function ArticleCover({
       <div className="absolute inset-0 bg-[linear-gradient(180deg,rgba(12,13,20,0.48),rgba(12,13,20,0.2)_48%,rgba(12,13,20,0.7))]" aria-hidden />
       <div className="relative z-10 flex h-full items-center justify-center px-5 pb-10 pt-16 text-center text-white sm:pb-16">
         <div className="max-w-5xl">
-          <h1 className="font-playful text-[clamp(2rem,5vw,4.8rem)] font-bold leading-tight tracking-wide [text-shadow:0_3px_16px_rgba(0,0,0,0.45)]">
+          <h1 className="max-w-[1150px] font-playful text-[clamp(2rem,3.6vw,3.75rem)] font-bold leading-tight tracking-wide [text-shadow:0_3px_16px_rgba(0,0,0,0.45)] lg:max-w-none lg:whitespace-nowrap">
             {title}
           </h1>
           <div className="mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs text-white/85 sm:text-sm">
@@ -255,6 +256,17 @@ function ArticleCover({
       </div>
     </section>
   )
+}
+
+function cleanArticleSummary(summary: string): string {
+  return summary
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_`~]/g, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 220)
 }
 
 function ArticleSidebar({
