@@ -63,6 +63,7 @@ func (articleStorageFake) PublicURL(string) string {
 
 // TestArticleCreateHTTPContract 验证创建成功和重复提交的完整 HTTP 契约。
 func TestArticleCreateHTTPContract(t *testing.T) {
+	// 1. 定义创建成功和可预期领域错误的响应场景
 	tests := []struct {
 		name        string // name 是接口场景。
 		createError error  // createError 是领域层创建结果。
@@ -74,6 +75,7 @@ func TestArticleCreateHTTPContract(t *testing.T) {
 		{name: "两秒内重复提交", createError: article.ErrDuplicateSubmission, wantCode: codeArticleDuplicate, wantMessage: "请勿重复提交"},
 		{name: "领域拒绝非法状态", createError: article.ErrInvalidStatus, wantCode: codeArticleInvalidStatus, wantMessage: "文章状态不合法"},
 	}
+	// 2. 逐项通过生成路由验证统一 HTTP 契约
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// 1. 通过生成路由执行管理员创建请求

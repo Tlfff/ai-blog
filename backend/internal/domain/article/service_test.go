@@ -130,6 +130,7 @@ func TestUploadImageValidatesExtensionAndExpiration(t *testing.T) {
 
 // TestCreateArticleRejectsUnavailableImages 验证图片不可用时文章整体不创建。
 func TestCreateArticleRejectsUnavailableImages(t *testing.T) {
+	// 1. 定义正文图片不存在和已绑定的失败场景
 	boundArticleID := uint64(9)
 	tests := []struct {
 		name    string                   // name 是场景名称。
@@ -139,6 +140,7 @@ func TestCreateArticleRejectsUnavailableImages(t *testing.T) {
 		{name: "图片不存在", images: map[uint64]*entity.Image{1: {ID: 1}}, wantErr: ErrImageNotFound},
 		{name: "图片已绑定", images: map[uint64]*entity.Image{1: {ID: 1}, 2: {ID: 2, ArticleID: &boundArticleID}}, wantErr: ErrImageAlreadyBound},
 	}
+	// 2. 逐项验证任一图片不可用时不记录文章
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			// 1. 创建请求同时引用两张图片
