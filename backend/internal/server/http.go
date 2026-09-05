@@ -3,6 +3,7 @@ package server
 import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/api/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/api/book"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/api/comment"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/api/helloworld"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/api/user"
 	userdomain "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
@@ -18,16 +19,18 @@ import (
 //   - bookServer：图书示例 HTTP 服务。
 //   - userServer：用户上下文 HTTP 服务。
 //   - articleServer：文章上下文 HTTP 服务。
+//   - commentServer：评论上下文 HTTP 服务。
 //   - sessions：用户会话仓储，用于认证受保护路由。
-func NewHTTPServer(helloworldServer helloworld.GreeterHTTPServerController, bookServer book.BookHTTPServerController, userServer user.UserServiceHTTPServerController, articleServer article.ArticleServiceHTTPServerController, sessions userdomain.SessionRepository) ginhttp.RegisterServer {
+func NewHTTPServer(helloworldServer helloworld.GreeterHTTPServerController, bookServer book.BookHTTPServerController, userServer user.UserServiceHTTPServerController, articleServer article.ArticleServiceHTTPServerController, commentServer comment.CommentServiceHTTPServerController, sessions userdomain.SessionRepository) ginhttp.RegisterServer {
 	// 1. 聚合 Controller 并创建共享认证中间件
-	if helloworldServer == nil || bookServer == nil || userServer == nil || articleServer == nil || sessions == nil {
+	if helloworldServer == nil || bookServer == nil || userServer == nil || articleServer == nil || commentServer == nil || sessions == nil {
 		panic("HTTP 服务注册器缺少必要依赖")
 	}
 	return &httpServer{
 		helloworldServer: helloworldServer,
 		bookServer:       bookServer,
 		articleServer:    articleServer,
+		commentServer:    commentServer,
 		userServer:       userServer,
 		userAuth:         middleware.UserAuthMiddleware(sessions),
 	}
@@ -38,6 +41,7 @@ type httpServer struct {
 	helloworldServer helloworld.GreeterHTTPServerController     // helloworldServer 是脚手架示例服务。
 	bookServer       book.BookHTTPServerController              // bookServer 是脚手架图书示例服务。
 	articleServer    article.ArticleServiceHTTPServerController // articleServer 是文章上下文 HTTP 服务。
+	commentServer    comment.CommentServiceHTTPServerController // commentServer 是评论上下文 HTTP 服务。
 	userServer       user.UserServiceHTTPServerController       // userServer 是用户上下文 HTTP 服务。
 	userAuth         gonicgin.HandlerFunc                       // userAuth 为受保护路由注入当前用户身份。
 }
@@ -53,6 +57,7 @@ func (srv *httpServer) Register(engine *gonicgin.Engine) {
 	helloworld.RegisterGreeterHTTPServerController(routerGroup, srv.helloworldServer)
 	book.RegisterBookHTTPServerController(routerGroup, srv.bookServer)
 	article.RegisterArticleServiceHTTPServerController(routerGroup, srv.articleServer)
+	comment.RegisterCommentServiceHTTPServerController(routerGroup, srv.commentServer)
 	user.RegisterUserServiceHTTPServerController(routerGroup, srv.userServer)
 
 }

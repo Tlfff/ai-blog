@@ -5,6 +5,8 @@ import (
 	articlerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
+	comment "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
+	commentrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
 	likerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	userrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
@@ -16,7 +18,6 @@ var DomainProviderAppSet = wire.NewSet(
 	repo.NewHdRepo,
 	book.NewHelloworld,
 	ArticleRepositoryProviderSet,
-	articlerepo.NewSubmissionGuard,
 	likerepo.NewQueryRepository,
 	wire.Bind(new(article.LikeReader), new(*likerepo.QueryRepository)),
 	wire.Bind(new(article.Repository), new(*articlerepo.Repository)),
@@ -24,6 +25,22 @@ var DomainProviderAppSet = wire.NewSet(
 	article.NewService,
 	wire.Bind(new(article.UseCase), new(*article.Service)),
 	wire.Bind(new(article.DeletionRecovery), new(*article.Service)),
+	CommentProviderSet,
+)
+
+// CommentProviderSet 提供评论上下文的仓储、查询适配器和领域服务。
+var CommentProviderSet = wire.NewSet(
+	articlerepo.NewSubmissionGuard,
+	commentrepo.ProvideTransactionClient,
+	commentrepo.NewRepository,
+	wire.Bind(new(comment.Repository), new(*commentrepo.Repository)),
+	commentrepo.NewArticleReader,
+	wire.Bind(new(comment.ArticleReader), new(*commentrepo.ArticleReaderAdapter)),
+	commentrepo.NewUserReader,
+	wire.Bind(new(comment.UserReader), new(*commentrepo.UserReaderAdapter)),
+	wire.Bind(new(comment.SubmissionGuard), new(*articlerepo.SubmissionGuard)),
+	comment.NewService,
+	wire.Bind(new(comment.UseCase), new(*comment.Service)),
 )
 
 // ArticleRepositoryProviderSet 提供文章 MySQL 仓储及事务能力。
@@ -53,6 +70,7 @@ var UserProviderSet = wire.NewSet(
 	userrepo.NewSessionRepository,
 	wire.Bind(new(user.SessionManager), new(*userrepo.SessionRepository)),
 	wire.Bind(new(user.SessionRepository), new(*userrepo.SessionRepository)),
+	wire.Bind(new(user.UseCase), new(*user.Service)),
 	user.NewPBKDF2PasswordHasher,
 	user.NewServiceWithSecurity,
 	wire.Bind(new(user.PasswordChangeTokenStore), new(*userrepo.SessionRepository)),

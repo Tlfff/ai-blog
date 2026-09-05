@@ -1,0 +1,76 @@
+syntax = "proto3";
+
+package comment.v1;
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/comment;comment";
+
+service CommentService {
+  rpc CreateComment(CreateCommentRequest) returns (CreateCommentReply) {
+    option (google.api.http) = { post: "/auth/comment/create" body: "*" };
+  }
+  rpc ListRootComments(RootCommentListRequest) returns (CommentListReply) {
+    option (google.api.http) = { get: "/comment/list/roots" };
+  }
+  rpc ListReplies(ReplyListRequest) returns (CommentListReply) {
+    option (google.api.http) = { get: "/comment/list/replies" };
+  }
+}
+
+message CreateCommentRequest {
+  uint64 article_id = 1 [(validate.rules).uint64 = {gt: 0}];
+  uint64 root_id = 2;
+  uint64 reply_to_user_id = 3;
+  string content = 4 [(validate.rules).string = {min_len: 1}];
+}
+
+message CreateCommentReply {
+  uint64 id = 1;
+  int64 created_time = 2;
+}
+
+message RootCommentListRequest {
+  uint64 article_id = 1 [(validate.rules).uint64 = {gt: 0}];
+  uint64 last_id = 2;
+  uint64 page = 3;
+  uint64 page_size = 4 [(validate.rules).uint64 = {ignore_empty: true, gte: 10, lte: 20}];
+  bool is_desc = 5;
+  uint64 author_id = 6;
+}
+
+message ReplyListRequest {
+  uint64 root_id = 1 [(validate.rules).uint64 = {gt: 0}];
+  uint64 last_id = 2;
+  uint64 page = 3;
+  uint64 page_size = 4 [(validate.rules).uint64 = {ignore_empty: true, gte: 10, lte: 20}];
+}
+
+message CommentListReply {
+  repeated CommentItem list = 1;
+  uint64 last_id = 2;
+  uint64 total = 3;
+  uint64 page = 4;
+  uint64 page_size = 5;
+}
+
+message CommentItem {
+  uint64 id = 1;
+  uint64 article_id = 2;
+  uint64 root_id = 3;
+  PublicUser user = 4;
+  PublicUser reply_to_user = 5;
+  string content = 6;
+  uint64 reply_count = 7;
+  string ip = 8;
+  int64 created_time = 9;
+  int32 status = 10;
+  int64 like_count = 11;
+}
+
+message PublicUser {
+  uint64 user_id = 1;
+  string username = 2;
+  string avatar = 3;
+}
