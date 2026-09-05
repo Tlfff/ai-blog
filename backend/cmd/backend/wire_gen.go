@@ -18,6 +18,8 @@ import (
 	repo3 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
+	repo5 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
 	repo4 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
@@ -105,7 +107,13 @@ func wireApp() (*httpApplication, func(), error) {
 	readingCache := repo3.NewReadingCache(redisClient)
 	viewService := article.NewViewService(repository, articleViewPublisher, readingCache, readingCache)
 	articleServiceHTTPServerController := service.NewArticleServer(articleService, viewService, storage, resolver)
-	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, sessionRepository)
+	transactionClient2 := repo5.ProvideTransactionClient(mysqlClient)
+	repoRepository := repo5.NewRepository(mysqlClient, transactionClient2)
+	articleReaderAdapter := repo5.NewArticleReader(articleService)
+	userReaderAdapter := repo5.NewUserReader(userService)
+	commentService := comment.NewService(repoRepository, articleReaderAdapter, userReaderAdapter, submissionGuard)
+	commentServiceHTTPServerController := service.NewCommentServer(commentService, resolver)
+	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, sessionRepository)
 	articleDeletionReconciler := job.NewArticleDeletionReconciler(articleService)
 	userSessionCleanupJob := job.NewUserSessionCleanupJob(userService)
 	articleHotRankJob := job.NewArticleHotRankJob(viewService)
