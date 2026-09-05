@@ -115,6 +115,7 @@ func (f *fakeSessionWriter) Get(context.Context, string) *redis.StringCmd {
 
 // Eval 返回测试用 Redis 脚本结果。
 func (f *fakeSessionWriter) Eval(context.Context, string, []string, ...interface{}) *redis.Cmd {
+	// 1. 模拟会话收敛 Lua 脚本执行成功
 	return redis.NewCmdResult(int64(1), nil)
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"path"
 	"strings"
@@ -37,7 +38,9 @@ type PasswordChangeTokenStore interface {
 	// Create 创建带有效期的用户改密凭证。
 	CreatePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error
 	// Consume 原子消费改密凭证并返回其所属用户。
-	ConsumePasswordChangeToken(ctx context.Context, token string) (uint64, error)
+	ConsumePasswordChangeToken(ctx context.Context, token string) (uint64, time.Duration, error)
+	// Restore 在密码事务失败时按剩余有效期恢复凭证。
+	RestorePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error
 }
 
 // AvatarStorage 定义头像预签名上传和公开地址能力。
@@ -109,14 +112,14 @@ func (s *Service) ChangePassword(ctx context.Context, command ChangePasswordComm
 	if err != nil {
 		return fmt.Errorf("摘要新密码: %w", err)
 	}
-	ownerID, err := s.passwordTokens.ConsumePasswordChangeToken(ctx, command.ChangeToken)
+	ownerID, remainingTTL, err := s.passwordTokens.ConsumePasswordChangeToken(ctx, command.ChangeToken)
 	if err != nil || ownerID != command.UserID {
 		return ErrPasswordChangeTokenInvalid
 	}
 
-	// 3. 更新密码；凭证保持 GETDEL 一次性消费语义
+	// 3. 更新密码；MySQL 失败时按原剩余有效期恢复凭证
 	if err := s.repository.UpdatePasswordWithCleanupTask(ctx, command.UserID, hash, command.CurrentToken); err != nil {
-		return err
+		return errors.Join(err, s.passwordTokens.RestorePasswordChangeToken(ctx, command.ChangeToken, command.UserID, remainingTTL))
 	}
 
 	// 4. 立即收敛其他设备会话；失败时事务已留下可重试的持久化补偿任务

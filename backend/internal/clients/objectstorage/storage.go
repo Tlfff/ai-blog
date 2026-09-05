@@ -244,6 +244,7 @@ func ProvideAllowedImageExtensions(config *conf.Config) article.AllowedImageExte
 
 // ProvideAllowedAvatarExtensions 将配置白名单转换为用户头像扩展名集合。
 func ProvideAllowedAvatarExtensions(config *conf.Config) userdomain.AllowedImageExtensions {
+	// 1. 将对象存储配置中的扩展名白名单转换为用户领域值
 	allowed := make(userdomain.AllowedImageExtensions)
 	if config == nil || config.GetData().GetObjectStorage() == nil {
 		return allowed

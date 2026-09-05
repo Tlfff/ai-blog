@@ -18,6 +18,7 @@ type UserSessionCleanupJob struct {
 
 // NewUserSessionCleanupJob 创建用户会话收敛补偿 Runner。
 func NewUserSessionCleanupJob(reconciler userdomain.SessionCleanupReconciler) *UserSessionCleanupJob {
+	// 1. 启动阶段拒绝缺少会话补偿能力的任务
 	if reconciler == nil {
 		panic("用户会话收敛任务缺少必要依赖")
 	}

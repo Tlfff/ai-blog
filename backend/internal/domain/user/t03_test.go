@@ -33,6 +33,35 @@ func TestServicePasswordChangeConsumesCredentialAndConvergesSessions(t *testing.
 	}
 }
 
+// TestServicePasswordChangeRestoresCredentialAfterDatabaseFailure 验证密码事务失败后凭证按剩余有效期恢复。
+func TestServicePasswordChangeRestoresCredentialAfterDatabaseFailure(t *testing.T) {
+	// 1. 构造 MySQL 密码更新失败但改密凭证已被原子消费的场景
+	repository := &t03Repository{
+		user:        &entity.User{ID: 7, Password: "old", Status: StatusNormal},
+		passwordErr: errors.New("database unavailable"),
+	}
+	tokens := &t03PasswordTokens{userID: 7, remaining: 9 * time.Minute}
+	service := NewServiceWithSecurity(repository, repository, &t03Hasher{}, &t03Sessions{}, tokens, nil, nil)
+	credential, err := service.VerifyOldPassword(context.Background(), 7, "old")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. 数据库失败时恢复凭证且不报告成功
+	if err := service.ChangePassword(context.Background(), ChangePasswordCommand{UserID: 7, CurrentToken: "current", ChangeToken: credential, NewPassword: "new-password"}); err == nil || !tokens.restored || tokens.remaining != 9*time.Minute {
+		t.Fatalf("ChangePassword() error = %v, restored = %v, ttl = %s", err, tokens.restored, tokens.remaining)
+	}
+
+	// 3. 数据库恢复后同一凭证可以重试并在成功后保持消费状态
+	repository.passwordErr = nil
+	if err := service.ChangePassword(context.Background(), ChangePasswordCommand{UserID: 7, CurrentToken: "current", ChangeToken: credential, NewPassword: "new-password"}); err != nil {
+		t.Fatal(err)
+	}
+	if tokens.restored {
+		t.Fatal("credential should remain consumed after successful retry")
+	}
+}
+
 // TestServiceChangePhoneEnforcesBusinessAndRepositoryUniqueness 验证手机号格式和仓储唯一性校验。
 func TestServiceChangePhoneEnforcesBusinessAndRepositoryUniqueness(t *testing.T) {
 	// 1. 正常手机号可以更新，重复手机号返回稳定领域错误
@@ -76,6 +105,7 @@ type t03Repository struct {
 	phone       string       // phone 是已保存的手机号。
 	avatar      string       // avatar 是已保存的头像对象 Key。
 	phoneExists bool         // phoneExists 是手机号唯一性预设结果。
+	passwordErr error        // passwordErr 是密码事务预设错误。
 }
 
 // NicknameExists 模拟昵称唯一性查询。
@@ -98,6 +128,7 @@ func (r *t03Repository) Create(context.Context, *entity.User) error {
 
 // FindNormalByID 返回测试用户资料。
 func (r *t03Repository) FindNormalByID(context.Context, uint64) (*entity.User, error) {
+	// 1. 返回正常用户副本，避免测试修改共享夹具
 	if r.user == nil {
 		return nil, ErrUserNotFound
 	}
@@ -113,6 +144,7 @@ func (r *t03Repository) UpdateProfile(context.Context, *entity.User) error {
 
 // UpdatePassword 模拟密码摘要更新。
 func (r *t03Repository) UpdatePassword(context.Context, uint64, string) error {
+	// 1. 记录测试密码摘要更新结果
 	r.password = "hashed"
 	return nil
 }
@@ -127,6 +159,9 @@ func (r *t03Repository) UpdatePhone(context.Context, uint64, string) error {
 // UpdatePasswordWithCleanupTask 模拟密码与会话补偿任务事务写入。
 func (r *t03Repository) UpdatePasswordWithCleanupTask(_ context.Context, _ uint64, password, _ string) error {
 	// 1. 记录数据库事务成功写入的密码摘要
+	if r.passwordErr != nil {
+		return r.passwordErr
+	}
 	r.password = password
 	return nil
 }
@@ -188,9 +223,11 @@ func (*t03Hasher) Compare(encoded, password string) (bool, error) {
 
 // t03PasswordTokens 模拟一次性改密凭证的消费和失败恢复。
 type t03PasswordTokens struct {
-	userID   uint64        // userID 是凭证所属用户标识。
-	ttl      time.Duration // ttl 是签发时设置的有效期。
-	consumed bool          // consumed 表示凭证已被消费。
+	userID    uint64        // userID 是凭证所属用户标识。
+	ttl       time.Duration // ttl 是签发时设置的有效期。
+	remaining time.Duration // remaining 是原子消费返回的剩余有效期。
+	consumed  bool          // consumed 表示凭证已被消费。
+	restored  bool          // restored 表示失败后凭证已恢复。
 }
 
 // CreatePasswordChangeToken 记录改密凭证有效期。
@@ -201,14 +238,28 @@ func (t *t03PasswordTokens) CreatePasswordChangeToken(context.Context, string, u
 }
 
 // ConsumePasswordChangeToken 原子模拟消费改密凭证。
-func (t *t03PasswordTokens) ConsumePasswordChangeToken(context.Context, string) (uint64, error) {
+func (t *t03PasswordTokens) ConsumePasswordChangeToken(context.Context, string) (uint64, time.Duration, error) {
 	// 1. 已消费且未恢复的凭证不可再次使用
 	if t.consumed {
-		return 0, ErrPasswordChangeTokenInvalid
+		if !t.restored {
+			return 0, 0, ErrPasswordChangeTokenInvalid
+		}
 	}
 	// 2. 首次使用凭证进入消费状态
 	t.consumed = true
-	return t.userID, nil
+	t.restored = false
+	if t.remaining == 0 {
+		t.remaining = 9 * time.Minute
+	}
+	return t.userID, t.remaining, nil
+}
+
+// RestorePasswordChangeToken 按剩余有效期恢复失败事务的凭证。
+func (t *t03PasswordTokens) RestorePasswordChangeToken(_ context.Context, _ string, _ uint64, ttl time.Duration) error {
+	// 1. 记录恢复状态和原剩余有效期
+	t.restored = true
+	t.remaining = ttl
+	return nil
 }
 
 // t03Sessions 记录改密后的其他设备会话收敛。

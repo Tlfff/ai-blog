@@ -26,7 +26,7 @@ type sessionGetter interface {
 // sessionWriter 定义会话创建和删除所需的 Redis 原子流水线能力。
 type passwordChangeClient interface {
 	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
-	GetDel(context.Context, string) *redis.StringCmd
+	Eval(context.Context, string, []string, ...interface{}) *redis.Cmd
 }
 
 type sessionWriter interface {
@@ -128,6 +128,7 @@ return #tokens
 
 // CreatePasswordChangeToken 保存十分钟有效的一次性改密凭证。
 func (r *SessionRepository) CreatePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error {
+	// 1. 以用户标识为值保存十分钟有效的一次性凭证
 	if r.passwordClient == nil {
 		return errors.New("改密凭证仓储不支持写入")
 	}
@@ -135,21 +136,47 @@ func (r *SessionRepository) CreatePasswordChangeToken(ctx context.Context, token
 }
 
 // ConsumePasswordChangeToken 原子消费改密凭证并返回所属用户。
-func (r *SessionRepository) ConsumePasswordChangeToken(ctx context.Context, token string) (uint64, error) {
+func (r *SessionRepository) ConsumePasswordChangeToken(ctx context.Context, token string) (uint64, time.Duration, error) {
+	// 1. Lua 在同一原子边界读取所属用户和剩余 TTL 后删除凭证
 	if r.passwordClient == nil {
-		return 0, errors.New("改密凭证仓储不支持消费")
+		return 0, 0, errors.New("改密凭证仓储不支持消费")
 	}
-	// 1. GETDEL 原子读取并删除一次性改密凭证
-	payload, err := r.passwordClient.GetDel(ctx, passwordChangeKeyPrefix+token).Result()
+	const script = `
+local value = redis.call('GET', KEYS[1])
+if not value then return nil end
+local ttl = redis.call('PTTL', KEYS[1])
+redis.call('DEL', KEYS[1])
+return {value, ttl}
+`
+	values, err := r.passwordClient.Eval(ctx, script, []string{passwordChangeKeyPrefix + token}).Slice()
 	if err != nil {
 		if errors.Is(err, redis.Nil) {
-			return 0, user.ErrPasswordChangeTokenInvalid
+			return 0, 0, user.ErrPasswordChangeTokenInvalid
 		}
-		return 0, err
+		return 0, 0, err
+	}
+	if len(values) != 2 {
+		return 0, 0, user.ErrPasswordChangeTokenInvalid
 	}
 	var userID uint64
-	if _, err := fmt.Sscan(payload, &userID); err != nil || userID == 0 {
-		return 0, user.ErrPasswordChangeTokenInvalid
+	if _, err := fmt.Sscan(fmt.Sprint(values[0]), &userID); err != nil || userID == 0 {
+		return 0, 0, user.ErrPasswordChangeTokenInvalid
 	}
-	return userID, nil
+	var ttlMilliseconds int64
+	if _, err := fmt.Sscan(fmt.Sprint(values[1]), &ttlMilliseconds); err != nil || ttlMilliseconds <= 0 {
+		return 0, 0, user.ErrPasswordChangeTokenInvalid
+	}
+	return userID, time.Duration(ttlMilliseconds) * time.Millisecond, nil
+}
+
+// RestorePasswordChangeToken 在密码事务失败时恢复凭证剩余有效期。
+func (r *SessionRepository) RestorePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error {
+	// 1. 只恢复已经验证归属且仍有剩余有效期的凭证
+	if r.passwordClient == nil {
+		return errors.New("改密凭证仓储不支持恢复")
+	}
+	if token == "" || userID == 0 || ttl <= 0 {
+		return user.ErrPasswordChangeTokenInvalid
+	}
+	return r.passwordClient.Set(ctx, passwordChangeKeyPrefix+token, userID, ttl).Err()
 }

@@ -236,6 +236,7 @@ func (r *UserRepository) CompleteSessionCleanupTask(ctx context.Context, taskID 
 
 // ProvideTransactionClient 将 MySQL 客户端暴露为用户密码更新事务契约。
 func ProvideTransactionClient(client clients.MysqlClient) transactionClient {
+	// 1. 启动阶段拒绝不支持事务的数据库客户端
 	transaction, ok := client.(transactionClient)
 	if !ok {
 		panic("用户仓储要求 MySQL 客户端支持事务")
