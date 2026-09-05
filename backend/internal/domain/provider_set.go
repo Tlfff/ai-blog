@@ -46,6 +46,7 @@ var ArticleReadingProviderSet = wire.NewSet(
 
 // UserProviderSet 提供用户上下文的仓储、密码摘要和领域服务。
 var UserProviderSet = wire.NewSet(
+	userrepo.ProvideTransactionClient,
 	userrepo.NewUserRepository,
 	wire.Bind(new(user.Repository), new(*userrepo.UserRepository)),
 	wire.Bind(new(user.AuthRepository), new(*userrepo.UserRepository)),
@@ -53,5 +54,7 @@ var UserProviderSet = wire.NewSet(
 	wire.Bind(new(user.SessionManager), new(*userrepo.SessionRepository)),
 	wire.Bind(new(user.SessionRepository), new(*userrepo.SessionRepository)),
 	user.NewPBKDF2PasswordHasher,
-	user.NewServiceWithSession,
+	user.NewServiceWithSecurity,
+	wire.Bind(new(user.PasswordChangeTokenStore), new(*userrepo.SessionRepository)),
+	wire.Bind(new(user.SessionCleanupReconciler), new(*user.Service)),
 )

@@ -236,6 +236,36 @@ func (f *fakeUserUseCase) UpdateProfile(_ context.Context, command userdomain.Up
 	return f.updateErr
 }
 
+// VerifyOldPassword 返回固定测试改密凭证。
+func (f *fakeUserUseCase) VerifyOldPassword(context.Context, uint64, string) (string, error) {
+	// 1. 返回固定凭证供 HTTP 协议测试
+	return "change-token", nil
+}
+
+// ChangePassword 模拟成功修改密码。
+func (f *fakeUserUseCase) ChangePassword(context.Context, userdomain.ChangePasswordCommand) error {
+	// 1. HTTP 测试默认领域改密成功
+	return nil
+}
+
+// UpdatePhone 模拟成功修改手机号。
+func (f *fakeUserUseCase) UpdatePhone(context.Context, userdomain.UpdatePhoneCommand) error {
+	// 1. HTTP 测试默认领域手机号更新成功
+	return nil
+}
+
+// GetAvatarUploadURL 返回固定头像直传凭证。
+func (f *fakeUserUseCase) GetAvatarUploadURL(context.Context, uint64, string) (*userdomain.AvatarUploadResult, error) {
+	// 1. 返回固定上传地址和当前用户对象 Key
+	return &userdomain.AvatarUploadResult{UploadURL: "signed", ObjectKey: "avatar/7/a.png"}, nil
+}
+
+// ConfirmAvatar 返回固定头像公开地址。
+func (f *fakeUserUseCase) ConfirmAvatar(context.Context, uint64, string) (string, error) {
+	// 1. 返回固定公开地址供响应转换测试
+	return "https://public/avatar/7/a.png", nil
+}
+
 // TestUserHTTPAuthRoutes 验证登录与退出由 Proto 生成路由处理，并严格校验 Bearer Token。
 func TestUserHTTPAuthRoutes(t *testing.T) {
 	auth := &fakeAuthUseCase{result: &userdomain.LoginResult{AccessToken: "token"}}

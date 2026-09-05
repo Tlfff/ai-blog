@@ -12,6 +12,7 @@ import (
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	article "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
+	userdomain "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	minio "github.com/minio/minio-go/v7"
 	"github.com/minio/minio-go/v7/pkg/credentials"
 )
@@ -229,6 +230,22 @@ func retryMinIOOperation(ctx context.Context, operation func() error) error {
 func ProvideAllowedImageExtensions(config *conf.Config) article.AllowedImageExtensions {
 	// 1. 规范化扩展名并忽略空配置项
 	allowed := make(article.AllowedImageExtensions)
+	if config == nil || config.GetData().GetObjectStorage() == nil {
+		return allowed
+	}
+	for _, extension := range config.GetData().GetObjectStorage().GetImageExtensions() {
+		extension = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(extension)), ".")
+		if extension != "" {
+			allowed[extension] = struct{}{}
+		}
+	}
+	return allowed
+}
+
+// ProvideAllowedAvatarExtensions 将配置白名单转换为用户头像扩展名集合。
+func ProvideAllowedAvatarExtensions(config *conf.Config) userdomain.AllowedImageExtensions {
+	// 1. 将对象存储配置中的扩展名白名单转换为用户领域值
+	allowed := make(userdomain.AllowedImageExtensions)
 	if config == nil || config.GetData().GetObjectStorage() == nil {
 		return allowed
 	}

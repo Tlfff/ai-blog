@@ -19,12 +19,17 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	UserService_Register_FullMethodName         = "/user.v1.UserService/Register"
-	UserService_Login_FullMethodName            = "/user.v1.UserService/Login"
-	UserService_Logout_FullMethodName           = "/user.v1.UserService/Logout"
-	UserService_GetMyProfile_FullMethodName     = "/user.v1.UserService/GetMyProfile"
-	UserService_GetPublicProfile_FullMethodName = "/user.v1.UserService/GetPublicProfile"
-	UserService_UpdateMyProfile_FullMethodName  = "/user.v1.UserService/UpdateMyProfile"
+	UserService_Register_FullMethodName           = "/user.v1.UserService/Register"
+	UserService_Login_FullMethodName              = "/user.v1.UserService/Login"
+	UserService_Logout_FullMethodName             = "/user.v1.UserService/Logout"
+	UserService_GetMyProfile_FullMethodName       = "/user.v1.UserService/GetMyProfile"
+	UserService_GetPublicProfile_FullMethodName   = "/user.v1.UserService/GetPublicProfile"
+	UserService_UpdateMyProfile_FullMethodName    = "/user.v1.UserService/UpdateMyProfile"
+	UserService_VerifyOldPassword_FullMethodName  = "/user.v1.UserService/VerifyOldPassword"
+	UserService_ChangePassword_FullMethodName     = "/user.v1.UserService/ChangePassword"
+	UserService_UpdateMyAccount_FullMethodName    = "/user.v1.UserService/UpdateMyAccount"
+	UserService_GetAvatarUploadURL_FullMethodName = "/user.v1.UserService/GetAvatarUploadURL"
+	UserService_ConfirmAvatar_FullMethodName      = "/user.v1.UserService/ConfirmAvatar"
 )
 
 // UserServiceClient is the client API for UserService service.
@@ -45,6 +50,16 @@ type UserServiceClient interface {
 	GetPublicProfile(ctx context.Context, in *GetPublicProfileRequest, opts ...grpc.CallOption) (*PublicProfileReply, error)
 	// UpdateMyProfile 修改当前登录用户资料。
 	UpdateMyProfile(ctx context.Context, in *UpdateMyProfileRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	// VerifyOldPassword 验证旧密码并获取一次性改密凭证。
+	VerifyOldPassword(ctx context.Context, in *VerifyOldPasswordRequest, opts ...grpc.CallOption) (*PasswordChangeTokenReply, error)
+	// ChangePassword 使用一次性凭证修改密码。
+	ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	// UpdateMyAccount 修改当前用户手机号。
+	UpdateMyAccount(ctx context.Context, in *UpdateMyAccountRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	// GetAvatarUploadURL 获取头像直传凭证。
+	GetAvatarUploadURL(ctx context.Context, in *GetAvatarUploadURLRequest, opts ...grpc.CallOption) (*AvatarUploadReply, error)
+	// ConfirmAvatar 确认头像对象。
+	ConfirmAvatar(ctx context.Context, in *ConfirmAvatarRequest, opts ...grpc.CallOption) (*AvatarUploadReply, error)
 }
 
 type userServiceClient struct {
@@ -115,6 +130,56 @@ func (c *userServiceClient) UpdateMyProfile(ctx context.Context, in *UpdateMyPro
 	return out, nil
 }
 
+func (c *userServiceClient) VerifyOldPassword(ctx context.Context, in *VerifyOldPasswordRequest, opts ...grpc.CallOption) (*PasswordChangeTokenReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PasswordChangeTokenReply)
+	err := c.cc.Invoke(ctx, UserService_VerifyOldPassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) ChangePassword(ctx context.Context, in *ChangePasswordRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EmptyReply)
+	err := c.cc.Invoke(ctx, UserService_ChangePassword_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) UpdateMyAccount(ctx context.Context, in *UpdateMyAccountRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(EmptyReply)
+	err := c.cc.Invoke(ctx, UserService_UpdateMyAccount_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) GetAvatarUploadURL(ctx context.Context, in *GetAvatarUploadURLRequest, opts ...grpc.CallOption) (*AvatarUploadReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AvatarUploadReply)
+	err := c.cc.Invoke(ctx, UserService_GetAvatarUploadURL_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *userServiceClient) ConfirmAvatar(ctx context.Context, in *ConfirmAvatarRequest, opts ...grpc.CallOption) (*AvatarUploadReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(AvatarUploadReply)
+	err := c.cc.Invoke(ctx, UserService_ConfirmAvatar_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // UserServiceServer is the server API for UserService service.
 // All implementations must embed UnimplementedUserServiceServer
 // for forward compatibility.
@@ -133,6 +198,16 @@ type UserServiceServer interface {
 	GetPublicProfile(context.Context, *GetPublicProfileRequest) (*PublicProfileReply, error)
 	// UpdateMyProfile 修改当前登录用户资料。
 	UpdateMyProfile(context.Context, *UpdateMyProfileRequest) (*EmptyReply, error)
+	// VerifyOldPassword 验证旧密码并获取一次性改密凭证。
+	VerifyOldPassword(context.Context, *VerifyOldPasswordRequest) (*PasswordChangeTokenReply, error)
+	// ChangePassword 使用一次性凭证修改密码。
+	ChangePassword(context.Context, *ChangePasswordRequest) (*EmptyReply, error)
+	// UpdateMyAccount 修改当前用户手机号。
+	UpdateMyAccount(context.Context, *UpdateMyAccountRequest) (*EmptyReply, error)
+	// GetAvatarUploadURL 获取头像直传凭证。
+	GetAvatarUploadURL(context.Context, *GetAvatarUploadURLRequest) (*AvatarUploadReply, error)
+	// ConfirmAvatar 确认头像对象。
+	ConfirmAvatar(context.Context, *ConfirmAvatarRequest) (*AvatarUploadReply, error)
 	mustEmbedUnimplementedUserServiceServer()
 }
 
@@ -160,6 +235,21 @@ func (UnimplementedUserServiceServer) GetPublicProfile(context.Context, *GetPubl
 }
 func (UnimplementedUserServiceServer) UpdateMyProfile(context.Context, *UpdateMyProfileRequest) (*EmptyReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateMyProfile not implemented")
+}
+func (UnimplementedUserServiceServer) VerifyOldPassword(context.Context, *VerifyOldPasswordRequest) (*PasswordChangeTokenReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method VerifyOldPassword not implemented")
+}
+func (UnimplementedUserServiceServer) ChangePassword(context.Context, *ChangePasswordRequest) (*EmptyReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ChangePassword not implemented")
+}
+func (UnimplementedUserServiceServer) UpdateMyAccount(context.Context, *UpdateMyAccountRequest) (*EmptyReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateMyAccount not implemented")
+}
+func (UnimplementedUserServiceServer) GetAvatarUploadURL(context.Context, *GetAvatarUploadURLRequest) (*AvatarUploadReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAvatarUploadURL not implemented")
+}
+func (UnimplementedUserServiceServer) ConfirmAvatar(context.Context, *ConfirmAvatarRequest) (*AvatarUploadReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ConfirmAvatar not implemented")
 }
 func (UnimplementedUserServiceServer) mustEmbedUnimplementedUserServiceServer() {}
 func (UnimplementedUserServiceServer) testEmbeddedByValue()                     {}
@@ -290,6 +380,96 @@ func _UserService_UpdateMyProfile_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _UserService_VerifyOldPassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(VerifyOldPasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).VerifyOldPassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_VerifyOldPassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).VerifyOldPassword(ctx, req.(*VerifyOldPasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_ChangePassword_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ChangePasswordRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).ChangePassword(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_ChangePassword_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).ChangePassword(ctx, req.(*ChangePasswordRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_UpdateMyAccount_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateMyAccountRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).UpdateMyAccount(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_UpdateMyAccount_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).UpdateMyAccount(ctx, req.(*UpdateMyAccountRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_GetAvatarUploadURL_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetAvatarUploadURLRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).GetAvatarUploadURL(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_GetAvatarUploadURL_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).GetAvatarUploadURL(ctx, req.(*GetAvatarUploadURLRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _UserService_ConfirmAvatar_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ConfirmAvatarRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(UserServiceServer).ConfirmAvatar(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: UserService_ConfirmAvatar_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(UserServiceServer).ConfirmAvatar(ctx, req.(*ConfirmAvatarRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // UserService_ServiceDesc is the grpc.ServiceDesc for UserService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -320,6 +500,26 @@ var UserService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateMyProfile",
 			Handler:    _UserService_UpdateMyProfile_Handler,
+		},
+		{
+			MethodName: "VerifyOldPassword",
+			Handler:    _UserService_VerifyOldPassword_Handler,
+		},
+		{
+			MethodName: "ChangePassword",
+			Handler:    _UserService_ChangePassword_Handler,
+		},
+		{
+			MethodName: "UpdateMyAccount",
+			Handler:    _UserService_UpdateMyAccount_Handler,
+		},
+		{
+			MethodName: "GetAvatarUploadURL",
+			Handler:    _UserService_GetAvatarUploadURL_Handler,
+		},
+		{
+			MethodName: "ConfirmAvatar",
+			Handler:    _UserService_ConfirmAvatar_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

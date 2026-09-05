@@ -174,6 +174,48 @@ func (f *fakeRepository) UpdateProfile(_ context.Context, user *entity.User) err
 	return nil
 }
 
+// UpdatePassword 模拟更新密码摘要。
+func (f *fakeRepository) UpdatePassword(context.Context, uint64, string) error {
+	// 1. 通用用户测试默认更新成功
+	return nil
+}
+
+// UpdatePhone 模拟更新手机号。
+func (f *fakeRepository) UpdatePhone(context.Context, uint64, string) error {
+	// 1. 通用用户测试默认更新成功
+	return nil
+}
+
+// UpdateAvatar 模拟更新头像对象 Key。
+func (f *fakeRepository) UpdateAvatar(context.Context, uint64, string) error {
+	// 1. 通用用户测试默认更新成功
+	return nil
+}
+
+// UpdatePasswordWithCleanupTask 模拟密码和会话补偿任务事务写入。
+func (f *fakeRepository) UpdatePasswordWithCleanupTask(context.Context, uint64, string, string) error {
+	// 1. 通用用户测试默认事务写入成功
+	return nil
+}
+
+// ListSessionCleanupTasks 返回空的待处理补偿任务。
+func (f *fakeRepository) ListSessionCleanupTasks(context.Context, int) ([]*SessionCleanupTask, error) {
+	// 1. 通用用户测试默认没有补偿任务
+	return nil, nil
+}
+
+// CompleteSessionCleanupTask 模拟完成补偿任务。
+func (f *fakeRepository) CompleteSessionCleanupTask(context.Context, uint64) error {
+	// 1. 通用用户测试默认完成成功
+	return nil
+}
+
+// CompleteSessionCleanupTaskForSession 模拟完成当前会话补偿任务。
+func (f *fakeRepository) CompleteSessionCleanupTaskForSession(context.Context, uint64, string) error {
+	// 1. 通用用户测试默认完成成功
+	return nil
+}
+
 type fakePasswordHasher struct {
 	input    string // input 记录收到的明文密码。
 	hashed   string // hashed 是预设密码摘要。
@@ -357,5 +399,12 @@ func (f *fakeSessionManager) Delete(_ context.Context, token string, userID uint
 	// 1. 只删除指定 Token 并保留其他设备会话
 	f.deletedToken, f.deletedUserID = token, userID
 	delete(f.byToken, token)
+	return nil
+}
+
+// DeleteOtherSessions 保持既有会话测试的当前设备兼容行为。
+func (f *fakeSessionManager) DeleteOtherSessions(_ context.Context, token string, userID uint64) error {
+	// 1. 记录密码修改后需要保留的当前会话
+	f.deletedToken, f.deletedUserID = token, userID
 	return nil
 }

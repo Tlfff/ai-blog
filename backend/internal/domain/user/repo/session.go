@@ -15,6 +15,7 @@ import (
 const (
 	authTokenKeyPrefix      = "auth:token:"
 	authUserTokensKeyPrefix = "auth:user-tokens:"
+	passwordChangeKeyPrefix = "user:password-change:"
 )
 
 type sessionGetter interface {
@@ -22,20 +23,36 @@ type sessionGetter interface {
 	Get(context.Context, string) *redis.StringCmd
 }
 
+// passwordChangeClient 定义改密凭证写入、原子消费和恢复所需的 Redis 能力。
+type passwordChangeClient interface {
+	// Set 保存带有效期的改密凭证。
+	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
+	// Eval 原子执行改密凭证消费脚本。
+	Eval(context.Context, string, []string, ...interface{}) *redis.Cmd
+}
+
 // sessionWriter 定义会话创建和删除所需的 Redis 原子流水线能力。
 type sessionWriter interface {
 	sessionGetter
+	// Set 保存带有效期的登录会话。
 	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
+	// Del 删除指定登录会话或集合成员。
 	Del(context.Context, ...string) *redis.IntCmd
+	// SAdd 将 Token 加入用户会话集合。
 	SAdd(context.Context, string, ...interface{}) *redis.IntCmd
+	// SRem 将 Token 从用户会话集合移除。
 	SRem(context.Context, string, ...interface{}) *redis.IntCmd
+	// Eval 原子执行多设备会话收敛脚本。
+	Eval(context.Context, string, []string, ...interface{}) *redis.Cmd
+	// TxPipeline 创建会话写入事务流水线。
 	TxPipeline() redis.Pipeliner
 }
 
 // SessionRepository 使用 Redis 保存用户登录会话。
 type SessionRepository struct {
-	client sessionGetter // client 提供登录会话查询能力。
-	writer sessionWriter // writer 提供登录会话原子写入能力。
+	client         sessionGetter        // client 提供登录会话查询能力。
+	writer         sessionWriter        // writer 提供登录会话原子写入能力。
+	passwordClient passwordChangeClient // passwordClient 提供改密凭证原子消费能力。
 }
 
 // NewSessionRepository 创建用户会话 Redis 仓储。
@@ -44,7 +61,7 @@ func NewSessionRepository(client clients.RedisClient) *SessionRepository {
 	if client == nil {
 		panic("用户会话仓储缺少 Redis 客户端")
 	}
-	return &SessionRepository{client: client, writer: client}
+	return &SessionRepository{client: client, writer: client, passwordClient: client}
 }
 
 // FindByToken 查询访问 Token 对应的用户身份。
@@ -97,4 +114,78 @@ func (r *SessionRepository) Delete(ctx context.Context, token string, userID uin
 	pipe.SRem(ctx, authUserTokensKeyPrefix+fmt.Sprint(userID), token)
 	_, err := pipe.Exec(ctx)
 	return err
+}
+
+// DeleteOtherSessions 原子删除用户除当前 Token 外的所有登录会话。
+func (r *SessionRepository) DeleteOtherSessions(ctx context.Context, currentToken string, userID uint64) error {
+	if r.writer == nil {
+		return errors.New("会话仓储不支持写入")
+	}
+	// 1. 在同一个 Redis Lua 原子边界内读取用户 Token 集合并删除非当前会话
+	const script = `
+local tokens = redis.call('SMEMBERS', KEYS[1])
+for _, token in ipairs(tokens) do
+  if token ~= ARGV[1] then
+    redis.call('DEL', ARGV[2] .. token)
+    redis.call('SREM', KEYS[1], token)
+  end
+end
+return #tokens
+`
+	return r.writer.Eval(ctx, script, []string{authUserTokensKeyPrefix + fmt.Sprint(userID)}, currentToken, authTokenKeyPrefix).Err()
+}
+
+// CreatePasswordChangeToken 保存十分钟有效的一次性改密凭证。
+func (r *SessionRepository) CreatePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error {
+	// 1. 以用户标识为值保存十分钟有效的一次性凭证
+	if r.passwordClient == nil {
+		return errors.New("改密凭证仓储不支持写入")
+	}
+	return r.passwordClient.Set(ctx, passwordChangeKeyPrefix+token, userID, ttl).Err()
+}
+
+// ConsumePasswordChangeToken 原子消费改密凭证并返回所属用户。
+func (r *SessionRepository) ConsumePasswordChangeToken(ctx context.Context, token string) (uint64, time.Duration, error) {
+	// 1. Lua 在同一原子边界读取所属用户和剩余 TTL 后删除凭证
+	if r.passwordClient == nil {
+		return 0, 0, errors.New("改密凭证仓储不支持消费")
+	}
+	const script = `
+local value = redis.call('GET', KEYS[1])
+if not value then return nil end
+local ttl = redis.call('PTTL', KEYS[1])
+redis.call('DEL', KEYS[1])
+return {value, ttl}
+`
+	values, err := r.passwordClient.Eval(ctx, script, []string{passwordChangeKeyPrefix + token}).Slice()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			return 0, 0, user.ErrPasswordChangeTokenInvalid
+		}
+		return 0, 0, err
+	}
+	if len(values) != 2 {
+		return 0, 0, user.ErrPasswordChangeTokenInvalid
+	}
+	var userID uint64
+	if _, err := fmt.Sscan(fmt.Sprint(values[0]), &userID); err != nil || userID == 0 {
+		return 0, 0, user.ErrPasswordChangeTokenInvalid
+	}
+	var ttlMilliseconds int64
+	if _, err := fmt.Sscan(fmt.Sprint(values[1]), &ttlMilliseconds); err != nil || ttlMilliseconds <= 0 {
+		return 0, 0, user.ErrPasswordChangeTokenInvalid
+	}
+	return userID, time.Duration(ttlMilliseconds) * time.Millisecond, nil
+}
+
+// RestorePasswordChangeToken 在密码事务失败时恢复凭证剩余有效期。
+func (r *SessionRepository) RestorePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error {
+	// 1. 只恢复已经验证归属且仍有剩余有效期的凭证
+	if r.passwordClient == nil {
+		return errors.New("改密凭证仓储不支持恢复")
+	}
+	if token == "" || userID == 0 || ttl <= 0 {
+		return user.ErrPasswordChangeTokenInvalid
+	}
+	return r.passwordClient.Set(ctx, passwordChangeKeyPrefix+token, userID, ttl).Err()
 }

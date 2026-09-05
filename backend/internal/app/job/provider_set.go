@@ -12,4 +12,5 @@ var ProviderJobSet = wire.NewSet(
 var ArticleHTTPJobProviderSet = wire.NewSet(
 	NewArticleDeletionReconciler,
 	NewArticleHotRankJob,
+	NewUserSessionCleanupJob,
 )

@@ -2,6 +2,7 @@ package service
 
 import (
 	"errors"
+	"strings"
 	"time"
 
 	userapi "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/user"
@@ -14,11 +15,14 @@ import (
 )
 
 const (
-	codeNicknameExists  = 44020101 // codeNicknameExists 表示用户昵称冲突。
-	codePhoneExists     = 44020102 // codePhoneExists 表示用户手机号冲突。
-	codeUserNotFound    = 44020103 // codeUserNotFound 表示正常用户不存在。
-	codeUnauthenticated = 44030101 // codeUnauthenticated 表示请求缺少登录身份。
-	codeInvalidLogin    = 44030104 // codeInvalidLogin 表示登录请求账号字段不合法。
+	codeNicknameExists     = 44020101 // codeNicknameExists 表示用户昵称冲突。
+	codePhoneExists        = 44020102 // codePhoneExists 表示用户手机号冲突。
+	codeUserNotFound       = 44020103 // codeUserNotFound 表示正常用户不存在。
+	codeUnauthenticated    = 44030101 // codeUnauthenticated 表示请求缺少登录身份。
+	codeInvalidLogin       = 44030104 // codeInvalidLogin 表示登录请求账号字段不合法。
+	codeInvalidPhone       = 44020104 // codeInvalidPhone 表示手机号格式不合法。
+	codeInvalidAvatar      = 44020105 // codeInvalidAvatar 表示头像对象或扩展名不合法。
+	codeInvalidChangeToken = 44030105 // codeInvalidChangeToken 表示改密凭证无效。
 )
 
 // UserService 将用户 HTTP 协议转换为用户领域调用。
@@ -143,6 +147,12 @@ func userHTTPError(err error) error {
 		return errassets.NewError(codePhoneExists, err.Error())
 	case errors.Is(err, userdomain.ErrInvalidCredentials):
 		return errassets.NewError(codeUnauthenticated, err.Error())
+	case errors.Is(err, userdomain.ErrInvalidPhone):
+		return errassets.NewError(codeInvalidPhone, err.Error())
+	case errors.Is(err, userdomain.ErrInvalidAvatarObjectKey):
+		return errassets.NewError(codeInvalidAvatar, err.Error())
+	case errors.Is(err, userdomain.ErrPasswordChangeTokenInvalid):
+		return errassets.NewError(codeInvalidChangeToken, err.Error())
 	case errors.Is(err, userdomain.ErrInvalidLogin):
 		return errassets.NewError(codeInvalidLogin, err.Error())
 	case errors.Is(err, userdomain.ErrUserNotFound):
@@ -150,4 +160,85 @@ func userHTTPError(err error) error {
 	default:
 		return err
 	}
+}
+
+// VerifyOldPassword 验证旧密码并返回一次性改密凭证。
+func (s *UserService) VerifyOldPassword(ctx *gin.Context, request *userapi.VerifyOldPasswordRequest) (*userapi.PasswordChangeTokenReply, error) {
+	// 1. 读取认证身份并调用领域服务验证旧密码
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+	token, err := s.useCase.VerifyOldPassword(ctx.Request.Context(), currentUser.ID, request.GetOldPassword())
+	if err != nil {
+		return nil, userHTTPError(err)
+	}
+	// 2. 返回一次性改密凭证
+	return &userapi.PasswordChangeTokenReply{ChangeToken: token}, nil
+}
+
+// ChangePassword 使用一次性凭证修改密码并收敛其他设备会话。
+func (s *UserService) ChangePassword(ctx *gin.Context, request *userapi.ChangePasswordRequest) (*userapi.EmptyReply, error) {
+	// 1. 校验当前身份和当前设备 Token
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+	token, valid := parseBearerToken(ctx.GetHeader("Authorization"))
+	if !valid {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+	// 2. 消费凭证、修改密码并收敛其他设备会话
+	err := s.useCase.ChangePassword(ctx.Request.Context(), userdomain.ChangePasswordCommand{UserID: currentUser.ID, CurrentToken: token, ChangeToken: request.GetChangeToken(), NewPassword: request.GetNewPassword()})
+	if err != nil {
+		return nil, userHTTPError(err)
+	}
+	// 3. 返回兼容成功消息和 null 数据
+	httpresponse.SetSuccess(ctx, "密码修改成功", true)
+	return &userapi.EmptyReply{}, nil
+}
+
+// UpdateMyAccount 修改当前用户手机号。
+func (s *UserService) UpdateMyAccount(ctx *gin.Context, request *userapi.UpdateMyAccountRequest) (*userapi.EmptyReply, error) {
+	// 1. 读取当前用户并交由领域服务校验手机号唯一性
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+	if err := s.useCase.UpdatePhone(ctx.Request.Context(), userdomain.UpdatePhoneCommand{UserID: currentUser.ID, Phone: strings.TrimSpace(request.GetPhone())}); err != nil {
+		return nil, userHTTPError(err)
+	}
+	// 2. 返回兼容成功消息和 null 数据
+	httpresponse.SetSuccess(ctx, "电话修改成功", true)
+	return &userapi.EmptyReply{}, nil
+}
+
+// GetAvatarUploadURL 获取当前用户头像直传凭证。
+func (s *UserService) GetAvatarUploadURL(ctx *gin.Context, request *userapi.GetAvatarUploadURLRequest) (*userapi.AvatarUploadReply, error) {
+	// 1. 读取当前用户并请求领域服务生成 MinIO 预签名地址
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+	result, err := s.useCase.GetAvatarUploadURL(ctx.Request.Context(), currentUser.ID, request.GetFileExt())
+	if err != nil {
+		return nil, userHTTPError(err)
+	}
+	// 2. 返回上传地址和稳定对象 Key
+	return &userapi.AvatarUploadReply{UploadUrl: result.UploadURL, ObjectKey: result.ObjectKey}, nil
+}
+
+// ConfirmAvatar 确认头像对象并返回公开地址。
+func (s *UserService) ConfirmAvatar(ctx *gin.Context, request *userapi.ConfirmAvatarRequest) (*userapi.AvatarUploadReply, error) {
+	// 1. 读取当前用户并由领域服务校验头像对象归属后保存
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeUnauthenticated, "未登录")
+	}
+	avatarURL, err := s.useCase.ConfirmAvatar(ctx.Request.Context(), currentUser.ID, request.GetObjectKey())
+	if err != nil {
+		return nil, userHTTPError(err)
+	}
+	// 2. 返回头像公开访问地址
+	return &userapi.AvatarUploadReply{AvatarUrl: avatarURL}, nil
 }

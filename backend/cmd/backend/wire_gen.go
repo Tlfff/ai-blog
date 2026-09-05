@@ -52,10 +52,19 @@ func wireApp() (*httpApplication, func(), error) {
 	helloworldService := book.NewHelloworld(hdRepo)
 	greeterHTTPServerController := service.NewBlogServer(helloworldService)
 	bookHTTPServerController := service.NewBookServer()
-	userRepository := repo2.NewUserRepository(mysqlClient)
+	transactionClient := repo2.ProvideTransactionClient(mysqlClient)
+	userRepository := repo2.NewUserRepository(mysqlClient, transactionClient)
 	passwordHasher := user.NewPBKDF2PasswordHasher()
 	sessionRepository := repo2.NewSessionRepository(redisClient)
-	userService := user.NewServiceWithSession(userRepository, userRepository, passwordHasher, sessionRepository)
+	storage, err := objectstorage.NewStorage(config)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	allowedImageExtensions := objectstorage.ProvideAllowedAvatarExtensions(config)
+	userService := user.NewServiceWithSecurity(userRepository, userRepository, passwordHasher, sessionRepository, sessionRepository, storage, allowedImageExtensions)
 	resolver, cleanup4, err := ipregion.NewConfiguredResolver(config)
 	if err != nil {
 		cleanup3()
@@ -72,20 +81,12 @@ func wireApp() (*httpApplication, func(), error) {
 		return nil, nil, err
 	}
 	userServiceHTTPServerController := service.NewUserServer(userService, resolver, v)
-	transactionClient := repo3.ProvideTransactionClient(mysqlClient)
-	repository := repo3.NewRepository(mysqlClient, transactionClient)
-	storage, err := objectstorage.NewStorage(config)
-	if err != nil {
-		cleanup4()
-		cleanup3()
-		cleanup2()
-		cleanup()
-		return nil, nil, err
-	}
+	repoTransactionClient := repo3.ProvideTransactionClient(mysqlClient)
+	repository := repo3.NewRepository(mysqlClient, repoTransactionClient)
 	queryRepository := repo4.NewQueryRepository(mysqlClient)
 	submissionGuard := repo3.NewSubmissionGuard(redisClient)
-	allowedImageExtensions := objectstorage.ProvideAllowedImageExtensions(config)
-	articleService, err := article.NewService(repository, storage, queryRepository, submissionGuard, allowedImageExtensions)
+	articleAllowedImageExtensions := objectstorage.ProvideAllowedImageExtensions(config)
+	articleService, err := article.NewService(repository, storage, queryRepository, submissionGuard, articleAllowedImageExtensions)
 	if err != nil {
 		cleanup4()
 		cleanup3()
@@ -106,8 +107,9 @@ func wireApp() (*httpApplication, func(), error) {
 	articleServiceHTTPServerController := service.NewArticleServer(articleService, viewService, storage, resolver)
 	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, sessionRepository)
 	articleDeletionReconciler := job.NewArticleDeletionReconciler(articleService)
+	userSessionCleanupJob := job.NewUserSessionCleanupJob(userService)
 	articleHotRankJob := job.NewArticleHotRankJob(viewService)
-	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, articleHotRankJob, articleViewPublisher)
+	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, userSessionCleanupJob, articleHotRankJob, articleViewPublisher)
 	return serverHttpApplication, func() {
 		cleanup4()
 		cleanup3()

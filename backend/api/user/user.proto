@@ -50,6 +50,31 @@ service UserService {
       body: "*"
     };
   }
+
+  // VerifyOldPassword 验证旧密码并获取一次性改密凭证。
+  rpc VerifyOldPassword(VerifyOldPasswordRequest) returns (PasswordChangeTokenReply) {
+    option (google.api.http) = {post: "/auth/my/password/verify" body: "*"};
+  }
+
+  // ChangePassword 使用一次性凭证修改密码。
+  rpc ChangePassword(ChangePasswordRequest) returns (EmptyReply) {
+    option (google.api.http) = {post: "/auth/my/password/change" body: "*"};
+  }
+
+  // UpdateMyAccount 修改当前用户手机号。
+  rpc UpdateMyAccount(UpdateMyAccountRequest) returns (EmptyReply) {
+    option (google.api.http) = {post: "/auth/my/account/update" body: "*"};
+  }
+
+  // GetAvatarUploadURL 获取头像直传凭证。
+  rpc GetAvatarUploadURL(GetAvatarUploadURLRequest) returns (AvatarUploadReply) {
+    option (google.api.http) = {post: "/auth/my/avatar/upload-url" body: "*"};
+  }
+
+  // ConfirmAvatar 确认头像对象。
+  rpc ConfirmAvatar(ConfirmAvatarRequest) returns (AvatarUploadReply) {
+    option (google.api.http) = {post: "/auth/my/avatar/confirm" body: "*"};
+  }
 }
 
 // RegisterRequest 是用户注册请求。
@@ -88,6 +113,35 @@ message GetPublicProfileRequest {
 message UpdateMyProfileRequest {
   string nickname = 1 [(validate.rules).string = {min_len: 1, max_len: 50}];
   string avatar = 2 [(validate.rules).string = {max_len: 255}];
+}
+
+message VerifyOldPasswordRequest {
+  string old_password = 1 [(validate.rules).string = {min_len: 1}];
+}
+
+message PasswordChangeTokenReply { string change_token = 1; }
+
+message ChangePasswordRequest {
+  string change_token = 1 [(validate.rules).string = {min_len: 1}];
+  string new_password = 2 [(validate.rules).string = {min_len: 6}];
+}
+
+message UpdateMyAccountRequest {
+  string phone = 1 [(validate.rules).string = {min_len: 1, max_len: 50}];
+}
+
+message GetAvatarUploadURLRequest {
+  string file_ext = 1 [(validate.rules).string = {min_len: 1, max_len: 16}];
+}
+
+message ConfirmAvatarRequest {
+  string object_key = 1 [(validate.rules).string = {min_len: 1, max_len: 255}];
+}
+
+message AvatarUploadReply {
+  string upload_url = 1;
+  string object_key = 2;
+  string avatar_url = 3;
 }
 
 // EmptyReply 表示业务成功但不返回数据。
