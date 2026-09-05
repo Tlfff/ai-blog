@@ -30,16 +30,16 @@ type UseCase interface {
 
 // Service 实现评论发布、回复校验和列表查询规则。
 type Service struct {
-	repository Repository    // repository 提供评论事务和分页查询能力。
-	articles   ArticleReader // articles 提供文章有效性查询。
-	users      UserReader    // users 提供公开用户资料查询。
-	guard      SubmissionGuard
-	now        func() time.Time
+	repository Repository       // repository 提供评论事务和分页查询能力。
+	articles   ArticleReader    // articles 提供文章有效性查询。
+	users      UserReader       // users 提供公开用户资料查询。
+	guard      SubmissionGuard  // guard 提供两秒防重复提交能力。
+	now        func() time.Time // now 提供可测试的当前时间。
 }
 
 // NewService 创建评论领域服务。
 func NewService(repository Repository, articles ArticleReader, users UserReader, guard SubmissionGuard) *Service {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验并保存评论领域服务依赖
 	if repository == nil || articles == nil || users == nil || guard == nil {
 		panic("评论领域服务缺少必要依赖")
 	}
@@ -48,7 +48,7 @@ func NewService(repository Repository, articles ArticleReader, users UserReader,
 
 // Create 校验文章和根评论状态后创建评论。
 func (s *Service) Create(ctx context.Context, command CreateCommand) (*entity.Comment, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验文章、根评论、回复目标和防重复规则
 	if command.ArticleID == 0 || command.UserID == 0 || strings.TrimSpace(command.Content) == "" {
 		return nil, ErrInvalidInput
 	}
@@ -106,7 +106,7 @@ func (s *Service) Create(ctx context.Context, command CreateCommand) (*entity.Co
 
 // ListRoots 查询主评论并补充公开用户资料。
 func (s *Service) ListRoots(ctx context.Context, query RootListQuery) (*ListResult, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验文章状态并查询主评论列表
 	valid, err := s.articles.IsPublished(ctx, query.ArticleID)
 	if err != nil {
 		return nil, fmt.Errorf("查询文章状态: %w", err)
@@ -124,7 +124,7 @@ func (s *Service) ListRoots(ctx context.Context, query RootListQuery) (*ListResu
 
 // ListReplies 查询根评论回复并补充双方公开用户资料。
 func (s *Service) ListReplies(ctx context.Context, rootID uint64, query PageQuery) (*ListResult, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验根评论和文章状态后查询直属回复
 	if rootID == 0 {
 		return nil, ErrRootNotFound
 	}
@@ -151,7 +151,7 @@ func (s *Service) ListReplies(ctx context.Context, rootID uint64, query PageQuer
 
 // normalizePage 执行评论上下文对应的处理。
 func normalizePage(query PageQuery) PageQuery {
-	// 1. 执行当前评论处理阶段
+	// 1. 补齐并限制评论分页参数
 	if query.Page == 0 {
 		query.Page = 1
 	}
@@ -169,7 +169,7 @@ func normalizePage(query PageQuery) PageQuery {
 
 // attachUsers 执行评论上下文对应的处理。
 func (s *Service) attachUsers(ctx context.Context, result *ListResult) (*ListResult, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 批量查询并附加评论双方公开用户
 	ids := make([]uint64, 0, len(result.Items)*2)
 	for _, item := range result.Items {
 		ids = append(ids, item.Comment.UserID)

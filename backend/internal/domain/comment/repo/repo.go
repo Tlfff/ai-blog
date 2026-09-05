@@ -29,7 +29,7 @@ type mysqlArticleLocker struct{}
 
 // LockPublishedArticle 执行评论上下文对应的处理。
 func (mysqlArticleLocker) LockPublishedArticle(session *xorm.Session, articleID uint64) error {
-	// 1. 执行当前评论处理阶段
+	// 1. 锁定文章行并校验已发表状态
 	var row struct {
 		Status int8 `xorm:"'status'"`
 	}
@@ -55,7 +55,7 @@ type Repository struct {
 
 // NewRepository 创建评论 MySQL 仓储。
 func NewRepository(client clients.MysqlClient, transaction transactionClient) *Repository {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验并保存评论 MySQL 与事务依赖
 	if client == nil || transaction == nil {
 		panic("评论仓储缺少事务数据库客户端")
 	}
@@ -64,7 +64,7 @@ func NewRepository(client clients.MysqlClient, transaction transactionClient) *R
 
 // Create 在事务中创建评论并维护根评论回复数。
 func (r *Repository) Create(ctx context.Context, commentEntity *entity.Comment) error {
-	// 1. 执行当前评论处理阶段
+	// 1. 在事务中校验文章和根评论、写入评论并更新回复数
 	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
 		session = session.Context(ctx)
 		if err := r.articleLocker.LockPublishedArticle(session, commentEntity.ArticleID); err != nil {
@@ -103,7 +103,7 @@ func (r *Repository) Create(ctx context.Context, commentEntity *entity.Comment) 
 
 // FindRoot 查询根评论，包括删除状态以便区分列表隐藏和回复拒绝。
 func (r *Repository) FindRoot(ctx context.Context, id uint64) (*entity.Comment, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 查询指定根评论及其状态
 	row := new(po.Comment)
 	found, err := r.client.Context(ctx).Where("id = ? AND root_id = 0", id).Get(row)
 	if err != nil {
@@ -117,14 +117,14 @@ func (r *Repository) FindRoot(ctx context.Context, id uint64) (*entity.Comment, 
 
 // HasReplyTarget 查询用户是否属于根评论作者或其正常直属回复链。
 func (r *Repository) HasReplyTarget(ctx context.Context, rootID, userID uint64) (bool, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 查询被回复用户是否属于当前根评论链
 	count, err := r.client.Context(ctx).Where("root_id = ? AND user_id = ? AND status = ?", rootID, userID, comment.StatusNormal).Count(new(po.Comment))
 	return count > 0, err
 }
 
 // ListRoots 分页查询正常主评论。
 func (r *Repository) ListRoots(ctx context.Context, query comment.RootListQuery) (*comment.ListResult, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 构建主评论状态、作者和分页查询
 	build := func() *xorm.Session {
 		session := r.client.Context(ctx).Where("article_id = ? AND root_id = 0 AND status = ?", query.ArticleID, comment.StatusNormal)
 		if query.AuthorID > 0 {
@@ -137,7 +137,7 @@ func (r *Repository) ListRoots(ctx context.Context, query comment.RootListQuery)
 
 // ListReplies 分页查询正常直属回复。
 func (r *Repository) ListReplies(ctx context.Context, rootID uint64, query comment.PageQuery) (*comment.ListResult, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 构建直属回复状态和分页查询
 	build := func() *xorm.Session {
 		return r.client.Context(ctx).Where("root_id = ? AND status = ?", rootID, comment.StatusNormal)
 	}
@@ -146,7 +146,7 @@ func (r *Repository) ListReplies(ctx context.Context, rootID uint64, query comme
 
 // list 执行评论上下文对应的处理。
 func (r *Repository) list(build func() *xorm.Session, query comment.PageQuery) (*comment.ListResult, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 统计总数并按游标或 Offset 查询评论
 	total, err := build().Count(new(po.Comment))
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func (r *Repository) list(build func() *xorm.Session, query comment.PageQuery) (
 
 // forUpdate 执行评论上下文对应的处理。
 func forUpdate(session *xorm.Session) *xorm.Session {
-	// 1. 执行当前评论处理阶段
+	// 1. 仅在 MySQL 方言启用行锁
 	if session.Engine().Dialect().URI().DBType == schemas.MYSQL {
 		return session.ForUpdate()
 	}
@@ -187,7 +187,7 @@ func forUpdate(session *xorm.Session) *xorm.Session {
 
 // ProvideTransactionClient 提供评论仓储需要的事务能力。
 func ProvideTransactionClient(client clients.MysqlClient) transactionClient {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验并暴露评论 MySQL 事务能力
 	transaction, ok := client.(transactionClient)
 	if !ok {
 		panic("评论仓储要求 MySQL 客户端支持事务")

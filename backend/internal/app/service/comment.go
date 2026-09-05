@@ -23,13 +23,13 @@ const (
 
 // CommentService 将评论 HTTP 协议转换为评论领域调用。
 type CommentService struct {
-	useCase        comment.UseCase
-	regionResolver userdomain.IPRegionResolver
+	useCase        comment.UseCase             // useCase 提供评论创建与列表领域能力。
+	regionResolver userdomain.IPRegionResolver // regionResolver 将评论 IP 转换为地区文案。
 }
 
 // NewCommentServer 创建评论 HTTP 服务。
 func NewCommentServer(useCase comment.UseCase, regionResolver userdomain.IPRegionResolver) commentapi.CommentServiceHTTPServerController {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验并保存评论领域服务和地区解析器
 	if useCase == nil || regionResolver == nil {
 		panic("评论 HTTP 服务缺少领域服务或 IP 地区解析器")
 	}
@@ -38,7 +38,7 @@ func NewCommentServer(useCase comment.UseCase, regionResolver userdomain.IPRegio
 
 // CreateComment 创建主评论或楼中楼回复。
 func (s *CommentService) CreateComment(ctx *gin.Context, request *commentapi.CreateCommentRequest) (*commentapi.CreateCommentReply, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 读取登录身份并创建主评论或直属回复
 	currentUser, ok := identity.FromContext(ctx)
 	if !ok {
 		return nil, errassets.NewError(codeCommentNotAuthenticated, "未登录")
@@ -52,7 +52,7 @@ func (s *CommentService) CreateComment(ctx *gin.Context, request *commentapi.Cre
 
 // ListRootComments 查询文章主评论列表。
 func (s *CommentService) ListRootComments(ctx *gin.Context, request *commentapi.RootCommentListRequest) (*commentapi.CommentListReply, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 转换主评论筛选参数并查询公开列表
 	result, err := s.useCase.ListRoots(ctx.Request.Context(), comment.RootListQuery{ArticleID: request.GetArticleId(), AuthorID: request.GetAuthorId(), PageQuery: comment.PageQuery{LastID: request.GetLastId(), Page: request.GetPage(), PageSize: request.GetPageSize(), IsDesc: request.GetIsDesc()}})
 	if err != nil {
 		return nil, commentHTTPError(err)
@@ -62,7 +62,7 @@ func (s *CommentService) ListRootComments(ctx *gin.Context, request *commentapi.
 
 // ListReplies 查询指定根评论的楼中楼回复。
 func (s *CommentService) ListReplies(ctx *gin.Context, request *commentapi.ReplyListRequest) (*commentapi.CommentListReply, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 转换回复分页参数并查询直属回复
 	result, err := s.useCase.ListReplies(ctx.Request.Context(), request.GetRootId(), comment.PageQuery{LastID: request.GetLastId(), Page: request.GetPage(), PageSize: request.GetPageSize()})
 	if err != nil {
 		return nil, commentHTTPError(err)
@@ -72,7 +72,7 @@ func (s *CommentService) ListReplies(ctx *gin.Context, request *commentapi.Reply
 
 // commentListReply 执行评论上下文对应的处理。
 func (s *CommentService) commentListReply(result *comment.ListResult) *commentapi.CommentListReply {
-	// 1. 执行当前评论处理阶段
+	// 1. 转换评论、用户、地区和分页字段
 	items := make([]*commentapi.CommentItem, 0, len(result.Items))
 	for _, item := range result.Items {
 		user := publicUserReply(item.User)
@@ -84,7 +84,7 @@ func (s *CommentService) commentListReply(result *comment.ListResult) *commentap
 
 // publicUserReply 执行评论上下文对应的处理。
 func publicUserReply(value *entity.PublicUser) *commentapi.PublicUser {
-	// 1. 执行当前评论处理阶段
+	// 1. 将公开用户领域数据转换为协议对象
 	if value == nil {
 		return nil
 	}
@@ -93,7 +93,7 @@ func publicUserReply(value *entity.PublicUser) *commentapi.PublicUser {
 
 // commentUnixSeconds 执行评论上下文对应的处理。
 func commentUnixSeconds(value time.Time) int64 {
-	// 1. 执行当前评论处理阶段
+	// 1. 将评论时间转换为 Unix 秒
 	if value.IsZero() {
 		return 0
 	}
@@ -102,7 +102,7 @@ func commentUnixSeconds(value time.Time) int64 {
 
 // commentHTTPError 执行评论上下文对应的处理。
 func commentHTTPError(err error) error {
-	// 1. 执行当前评论处理阶段
+	// 1. 将评论领域错误映射为稳定业务码
 	switch {
 	case errors.Is(err, comment.ErrArticleNotPublished):
 		return errassets.NewError(codeCommentArticleInvalid, "文章未发表")

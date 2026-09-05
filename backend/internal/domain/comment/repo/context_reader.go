@@ -10,11 +10,13 @@ import (
 )
 
 // ArticleReaderAdapter 将文章上下文公开查询能力转换为评论查询契约。
-type ArticleReaderAdapter struct{ reader article.UseCase }
+type ArticleReaderAdapter struct {
+	reader article.UseCase // reader 提供文章公开详情查询能力。
+}
 
 // NewArticleReader 创建文章有效性查询适配器。
 func NewArticleReader(reader article.UseCase) *ArticleReaderAdapter {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验并保存文章查询契约
 	if reader == nil {
 		panic("评论文章查询适配器缺少文章用例")
 	}
@@ -23,7 +25,7 @@ func NewArticleReader(reader article.UseCase) *ArticleReaderAdapter {
 
 // IsPublished 查询文章是否已发表。
 func (r *ArticleReaderAdapter) IsPublished(ctx context.Context, articleID uint64) (bool, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 通过文章公开详情判断文章是否已发表
 	_, err := r.reader.PublicDetail(ctx, articleID, 0)
 	if err != nil {
 		if errors.Is(err, article.ErrArticleNotFound) || errors.Is(err, article.ErrArticleNotPublished) {
@@ -35,11 +37,13 @@ func (r *ArticleReaderAdapter) IsPublished(ctx context.Context, articleID uint64
 }
 
 // UserReaderAdapter 将用户上下文完整资料转换为公开资料。
-type UserReaderAdapter struct{ reader user.UseCase }
+type UserReaderAdapter struct {
+	reader user.UseCase // reader 提供用户公开资料查询能力。
+}
 
 // NewUserReader 创建用户公开资料查询适配器。
 func NewUserReader(reader user.UseCase) *UserReaderAdapter {
-	// 1. 执行当前评论处理阶段
+	// 1. 校验并保存用户公开资料查询契约
 	if reader == nil {
 		panic("评论用户查询适配器缺少用户用例")
 	}
@@ -48,7 +52,7 @@ func NewUserReader(reader user.UseCase) *UserReaderAdapter {
 
 // FindPublic 批量查询正常用户的公开字段。
 func (r *UserReaderAdapter) FindPublic(ctx context.Context, ids []uint64) (map[uint64]*entity.PublicUser, error) {
-	// 1. 执行当前评论处理阶段
+	// 1. 批量查询并转换评论用户公开资料
 	result := make(map[uint64]*entity.PublicUser, len(ids))
 	seen := make(map[uint64]struct{}, len(ids))
 	for _, id := range ids {

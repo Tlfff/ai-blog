@@ -13,9 +13,9 @@ import (
 	"xorm.io/xorm"
 )
 
-// TestCreateReplyUpdatesRootCountInTransaction 执行评论上下文对应的处理。
+// TestCreateReplyUpdatesRootCountInTransaction 模拟当前评论测试所需的依赖行为。
 func TestCreateReplyUpdatesRootCountInTransaction(t *testing.T) {
-	// 1. 准备并验证当前测试场景
+	// 1. 执行当前测试依赖操作并记录断言数据
 	repository, engine := newCommentTestRepository(t)
 	defer engine.Close()
 	created := time.Now().Truncate(time.Second)
@@ -40,9 +40,9 @@ func TestCreateReplyUpdatesRootCountInTransaction(t *testing.T) {
 	}
 }
 
-// TestCreateReplyRejectsNestedReplyAndDeletedRoot 执行评论上下文对应的处理。
+// TestCreateReplyRejectsNestedReplyAndDeletedRoot 模拟当前评论测试所需的依赖行为。
 func TestCreateReplyRejectsNestedReplyAndDeletedRoot(t *testing.T) {
-	// 1. 准备并验证当前测试场景
+	// 1. 执行当前测试依赖操作并记录断言数据
 	repository, engine := newCommentTestRepository(t)
 	defer engine.Close()
 	deleted := &entity.Comment{ArticleID: 1, UserID: 3, RootID: 1, Content: "不应写入", Status: comment.StatusNormal, CreatedTime: time.Now(), UpdatedTime: time.Now()}
@@ -60,9 +60,9 @@ func TestCreateReplyRejectsNestedReplyAndDeletedRoot(t *testing.T) {
 	}
 }
 
-// TestListRootsAndRepliesSupportsCursorAndAuthorFilter 执行评论上下文对应的处理。
+// TestListRootsAndRepliesSupportsCursorAndAuthorFilter 模拟当前评论测试所需的依赖行为。
 func TestListRootsAndRepliesSupportsCursorAndAuthorFilter(t *testing.T) {
-	// 1. 准备并验证当前测试场景
+	// 1. 执行当前测试依赖操作并记录断言数据
 	repository, engine := newCommentTestRepository(t)
 	defer engine.Close()
 	for i := 0; i < 3; i++ {
@@ -88,9 +88,9 @@ func TestListRootsAndRepliesSupportsCursorAndAuthorFilter(t *testing.T) {
 	}
 }
 
-// newCommentTestRepository 执行评论上下文对应的处理。
+// newCommentTestRepository 模拟当前评论测试所需的依赖行为。
 func newCommentTestRepository(t *testing.T) (*Repository, *xorm.Engine) {
-	// 1. 准备并验证当前测试场景
+	// 1. 执行当前测试依赖操作并记录断言数据
 	t.Helper()
 	engine, err := xorm.NewEngine("sqlite3", fmt.Sprintf("file:%s?mode=memory&cache=shared", t.Name()))
 	engine.SetMaxOpenConns(1)
@@ -114,11 +114,14 @@ func newCommentTestRepository(t *testing.T) (*Repository, *xorm.Engine) {
 	return &Repository{client: engine, transaction: engine, articleLocker: sqliteArticleLocker{engine: engine}}, engine
 }
 
-type sqliteArticleLocker struct{ engine *xorm.Engine }
+// sqliteArticleLocker 使用 SQLite 查询模拟事务内文章校验。
+type sqliteArticleLocker struct {
+	engine *xorm.Engine // engine 是隔离的评论测试数据库。
+}
 
-// LockPublishedArticle 执行评论上下文对应的处理。
+// LockPublishedArticle 模拟当前评论测试所需的依赖行为。
 func (l sqliteArticleLocker) LockPublishedArticle(session *xorm.Session, articleID uint64) error {
-	// 1. 准备并验证当前测试场景
+	// 1. 执行当前测试依赖操作并记录断言数据
 	var row struct {
 		Status int8 `xorm:"status"`
 	}
