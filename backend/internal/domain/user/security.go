@@ -39,11 +39,11 @@ type AvatarUploadResult struct {
 
 // PasswordChangeTokenStore 定义一次性改密凭证的 Redis 能力。
 type PasswordChangeTokenStore interface {
-	// Create 创建带有效期的用户改密凭证。
+	// CreatePasswordChangeToken 创建带有效期的用户改密凭证。
 	CreatePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error
-	// Consume 原子消费改密凭证并返回其所属用户。
+	// ConsumePasswordChangeToken 原子消费改密凭证并返回所属用户及剩余有效期。
 	ConsumePasswordChangeToken(ctx context.Context, token string) (uint64, time.Duration, error)
-	// Restore 在密码事务失败时按剩余有效期恢复凭证。
+	// RestorePasswordChangeToken 在密码事务失败时按剩余有效期恢复凭证。
 	RestorePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error
 }
 

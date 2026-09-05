@@ -20,8 +20,9 @@ const (
 	sessionCleanupCompleted int8 = 2 // sessionCleanupCompleted 表示会话收敛任务已完成。
 )
 
-// UserRepository 使用 MySQL 实现用户领域仓储。
+// transactionClient 定义用户密码更新所需的 MySQL 事务能力。
 type transactionClient interface {
+	// Transaction 在同一数据库事务中执行密码和补偿任务写入。
 	Transaction(func(*xorm.Session) (interface{}, error)) (interface{}, error)
 }
 

@@ -23,19 +23,28 @@ type sessionGetter interface {
 	Get(context.Context, string) *redis.StringCmd
 }
 
-// sessionWriter 定义会话创建和删除所需的 Redis 原子流水线能力。
+// passwordChangeClient 定义改密凭证写入、原子消费和恢复所需的 Redis 能力。
 type passwordChangeClient interface {
+	// Set 保存带有效期的改密凭证。
 	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
+	// Eval 原子执行改密凭证消费脚本。
 	Eval(context.Context, string, []string, ...interface{}) *redis.Cmd
 }
 
+// sessionWriter 定义会话创建和删除所需的 Redis 原子流水线能力。
 type sessionWriter interface {
 	sessionGetter
+	// Set 保存带有效期的登录会话。
 	Set(context.Context, string, interface{}, time.Duration) *redis.StatusCmd
+	// Del 删除指定登录会话或集合成员。
 	Del(context.Context, ...string) *redis.IntCmd
+	// SAdd 将 Token 加入用户会话集合。
 	SAdd(context.Context, string, ...interface{}) *redis.IntCmd
+	// SRem 将 Token 从用户会话集合移除。
 	SRem(context.Context, string, ...interface{}) *redis.IntCmd
+	// Eval 原子执行多设备会话收敛脚本。
 	Eval(context.Context, string, []string, ...interface{}) *redis.Cmd
+	// TxPipeline 创建会话写入事务流水线。
 	TxPipeline() redis.Pipeliner
 }
 
