@@ -12,20 +12,27 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo/factory"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo/po"
 	"github.com/go-sql-driver/mysql"
+	"xorm.io/xorm"
 )
 
 // UserRepository 使用 MySQL 实现用户领域仓储。
+type transactionClient interface {
+	Transaction(func(*xorm.Session) (interface{}, error)) (interface{}, error)
+}
+
+// UserRepository 使用 MySQL 实现用户领域仓储。
 type UserRepository struct {
-	client clients.MysqlClient // client 是博客业务数据库客户端。
+	client      clients.MysqlClient // client 是博客业务数据库客户端。
+	transaction transactionClient   // transaction 提供密码更新与补偿任务的事务能力。
 }
 
 // NewUserRepository 创建用户 MySQL 仓储。
-func NewUserRepository(client clients.MysqlClient) *UserRepository {
+func NewUserRepository(client clients.MysqlClient, transaction transactionClient) *UserRepository {
 	// 1. 启动阶段拒绝缺少数据库客户端的仓储
-	if client == nil {
-		panic("用户仓储缺少 MySQL 客户端")
+	if client == nil || transaction == nil {
+		panic("用户仓储缺少 MySQL 客户端或事务能力")
 	}
-	return &UserRepository{client: client}
+	return &UserRepository{client: client, transaction: transaction}
 }
 
 // NicknameExists 判断昵称是否已被其他账号使用。
@@ -144,4 +151,101 @@ func (r *UserRepository) UpdateLogin(ctx context.Context, userID uint64, ip stri
 		return user.ErrUserNotFound
 	}
 	return nil
+}
+
+// UpdatePassword 更新正常用户的密码摘要。
+func (r *UserRepository) UpdatePassword(ctx context.Context, userID uint64, password string) error {
+	// 1. 只更新正常用户的密码字段
+	rows, err := r.client.Context(ctx).Where("id = ? AND status = ?", userID, user.StatusNormal).Cols("password").Update(&po.User{Password: password})
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return user.ErrUserNotFound
+	}
+	return nil
+}
+
+// UpdatePhone 更新正常用户手机号并映射唯一索引冲突。
+func (r *UserRepository) UpdatePhone(ctx context.Context, userID uint64, phone string) error {
+	// 1. 依赖 MySQL 唯一索引兜底并发更新
+	rows, err := r.client.Context(ctx).Where("id = ? AND status = ?", userID, user.StatusNormal).Cols("phone").Update(&po.User{Phone: phone})
+	if err != nil {
+		return mapDuplicateError(err)
+	}
+	if rows == 0 {
+		return user.ErrUserNotFound
+	}
+	return nil
+}
+
+// UpdateAvatar 更新正常用户头像对象 Key，不触碰对象存储。
+func (r *UserRepository) UpdateAvatar(ctx context.Context, userID uint64, objectKey string) error {
+	// 1. 仅保存稳定对象 Key，保持确认接口不校验对象存在的兼容行为
+	rows, err := r.client.Context(ctx).Where("id = ? AND status = ?", userID, user.StatusNormal).Cols("avatar").Update(&po.User{Avatar: &objectKey})
+	if err != nil {
+		return err
+	}
+	if rows == 0 {
+		return user.ErrUserNotFound
+	}
+	return nil
+}
+
+// UpdatePasswordWithCleanupTask 在同一 MySQL 事务中更新密码并记录会话收敛任务。
+func (r *UserRepository) UpdatePasswordWithCleanupTask(ctx context.Context, userID uint64, password, currentToken string) error {
+	// 1. 将密码更新和补偿任务写入同一事务，避免清理失败后没有可恢复记录
+	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
+		session = session.Context(ctx)
+		rows, err := session.Where("id = ? AND status = ?", userID, user.StatusNormal).Cols("password").Update(&po.User{Password: password})
+		if err != nil {
+			return nil, err
+		}
+		if rows == 0 {
+			return nil, user.ErrUserNotFound
+		}
+		_, err = session.Insert(&po.SessionCleanupTask{UserID: userID, CurrentToken: currentToken, Status: 1, CreatedTime: time.Now(), UpdatedTime: time.Now()})
+		return nil, err
+	})
+	return err
+}
+
+// ListSessionCleanupTasks 查询待处理的会话收敛补偿任务。
+func (r *UserRepository) ListSessionCleanupTasks(ctx context.Context, limit int) ([]*user.SessionCleanupTask, error) {
+	// 1. 限制单轮任务数量，避免补偿扫描阻塞其他用户请求
+	if limit <= 0 {
+		limit = 100
+	}
+	rows := make([]*po.SessionCleanupTask, 0, limit)
+	if err := r.client.Context(ctx).Where("status = ?", 1).Limit(limit).Asc("id").Find(&rows); err != nil {
+		return nil, err
+	}
+	result := make([]*user.SessionCleanupTask, 0, len(rows))
+	for _, row := range rows {
+		result = append(result, &user.SessionCleanupTask{ID: row.ID, UserID: row.UserID, CurrentToken: row.CurrentToken, CreatedTime: row.CreatedTime})
+	}
+	return result, nil
+}
+
+// CompleteSessionCleanupTask 标记会话收敛补偿任务已完成。
+func (r *UserRepository) CompleteSessionCleanupTask(ctx context.Context, taskID uint64) error {
+	// 1. 仅将待处理任务标记完成，重复补偿安全成功
+	_, err := r.client.Context(ctx).Where("id = ? AND status = ?", taskID, 1).Cols("status").Update(&po.SessionCleanupTask{Status: 2})
+	return err
+}
+
+// ProvideTransactionClient 将 MySQL 客户端暴露为用户密码更新事务契约。
+func ProvideTransactionClient(client clients.MysqlClient) transactionClient {
+	transaction, ok := client.(transactionClient)
+	if !ok {
+		panic("用户仓储要求 MySQL 客户端支持事务")
+	}
+	return transaction
+}
+
+// CompleteSessionCleanupTaskForSession 完成密码更新后当前会话对应的补偿任务。
+func (r *UserRepository) CompleteSessionCleanupTaskForSession(ctx context.Context, userID uint64, currentToken string) error {
+	// 1. 只完成指定用户和当前 Token 的待处理任务，避免误确认其他任务
+	_, err := r.client.Context(ctx).Where("user_id = ? AND current_token = ? AND status = ?", userID, currentToken, 1).Cols("status").Update(&po.SessionCleanupTask{Status: 2})
+	return err
 }

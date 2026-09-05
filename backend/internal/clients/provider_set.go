@@ -19,6 +19,8 @@ var ProviderClientsSet = wire.NewSet(
 	ipregion.NewConfiguredResolver,
 	objectstorage.NewStorage,
 	objectstorage.ProvideAllowedImageExtensions,
+	objectstorage.ProvideAllowedAvatarExtensions,
+	wire.Bind(new(user.AvatarStorage), new(*objectstorage.Storage)),
 	eventstream.NewArticleViewPublisher,
 	wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)),
 	wire.Bind(new(article.Storage), new(*objectstorage.Storage)),

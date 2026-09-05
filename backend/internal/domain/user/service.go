@@ -42,15 +42,28 @@ type UseCase interface {
 	GetProfile(ctx context.Context, userID uint64) (*entity.User, error)
 	// UpdateProfile 修改正常状态用户的公开资料。
 	UpdateProfile(ctx context.Context, command UpdateProfileCommand) error
+	// VerifyOldPassword 验证当前用户旧密码，并签发只能消费一次且有效 10 分钟的改密凭证。
+	VerifyOldPassword(ctx context.Context, userID uint64, oldPassword string) (string, error)
+	// ChangePassword 原子消费当前用户的改密凭证、更新密码并清理其他设备会话。
+	ChangePassword(ctx context.Context, command ChangePasswordCommand) error
+	// UpdatePhone 校验手机号唯一性后更新当前正常用户的手机号。
+	UpdatePhone(ctx context.Context, command UpdatePhoneCommand) error
+	// GetAvatarUploadURL 为当前用户生成受扩展名白名单约束的头像预签名上传地址。
+	GetAvatarUploadURL(ctx context.Context, userID uint64, extension string) (*AvatarUploadResult, error)
+	// ConfirmAvatar 校验头像对象属于当前用户后保存对象 Key，不检查对象是否存在。
+	ConfirmAvatar(ctx context.Context, userID uint64, objectKey string) (string, error)
 }
 
 // Service 实现用户上下文的业务规则。
 type Service struct {
-	repository     Repository       // repository 提供用户数据访问能力。
-	authRepository AuthRepository   // authRepository 提供登录账号查询和登录信息更新能力。
-	hasher         PasswordHasher   // hasher 提供密码摘要能力。
-	sessions       SessionManager   // sessions 提供登录会话存储能力。
-	now            func() time.Time // now 提供可测试的当前时间。
+	repository              Repository               // repository 提供用户数据访问能力。
+	authRepository          AuthRepository           // authRepository 提供登录账号查询和登录信息更新能力。
+	hasher                  PasswordHasher           // hasher 提供密码摘要能力。
+	sessions                SessionManager           // sessions 提供登录会话存储能力。
+	passwordTokens          PasswordChangeTokenStore // passwordTokens 提供一次性改密凭证能力。
+	avatarStorage           AvatarStorage            // avatarStorage 提供头像直传能力。
+	allowedAvatarExtensions AllowedImageExtensions   // allowedAvatarExtensions 是头像扩展名白名单。
+	now                     func() time.Time         // now 提供可测试的当前时间。
 }
 
 // NewService 创建用户领域服务。

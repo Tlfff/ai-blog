@@ -68,16 +68,17 @@ var HttpCmd = &cobra.Command{
 
 // httpApplication 聚合 HTTP Server 和正文图片删除恢复 Runner。
 type httpApplication struct {
-	server     *ginhttp.Server                   // server 是博客 HTTP 传输服务。
-	reconciler *appjob.ArticleDeletionReconciler // reconciler 是正文图片删除恢复任务。
-	hotRank    *appjob.ArticleHotRankJob         // hotRank 是文章热榜启动及整点重建任务。
-	viewEvents *eventstream.ArticleViewPublisher // viewEvents 是文章浏览事件异步发送 Runner。
+	server             *ginhttp.Server                   // server 是博客 HTTP 传输服务。
+	reconciler         *appjob.ArticleDeletionReconciler // reconciler 是正文图片删除恢复任务。
+	userSessionCleanup *appjob.UserSessionCleanupJob     // userSessionCleanup 是用户会话收敛补偿任务。
+	hotRank            *appjob.ArticleHotRankJob         // hotRank 是文章热榜启动及整点重建任务。
+	viewEvents         *eventstream.ArticleViewPublisher // viewEvents 是文章浏览事件异步发送 Runner。
 }
 
 // Run 通过 Leo 生命周期并发运行 HTTP 服务和恢复任务。
 func (app *httpApplication) Run(ctx context.Context) error {
 	// 1. 复用 Leo 多 Runner 编排和统一退出机制
-	return leo.MutilRunner(app.server, app.reconciler, app.hotRank, app.viewEvents).Run(ctx)
+	return leo.MutilRunner(app.server, app.reconciler, app.userSessionCleanup, app.hotRank, app.viewEvents).Run(ctx)
 }
 
 // ActuatorHandler 返回 HTTP Server 的管理端点处理器。
@@ -98,9 +99,10 @@ func (app *httpApplication) HealthChecker() health.Checker {
 //   - cfg：HTTP Server 和中间件配置。
 //   - httpServer：生成路由的聚合注册器。
 //   - reconciler：正文图片删除恢复任务。
+//   - userSessionCleanup：用户会话收敛补偿任务。
 //   - hotRank：文章热榜启动及整点重建任务。
 //   - viewEvents：文章浏览事件异步发送任务。
-func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appjob.ArticleDeletionReconciler, hotRank *appjob.ArticleHotRankJob, viewEvents *eventstream.ArticleViewPublisher) *httpApplication {
+func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appjob.ArticleDeletionReconciler, userSessionCleanup *appjob.UserSessionCleanupJob, hotRank *appjob.ArticleHotRankJob, viewEvents *eventstream.ArticleViewPublisher) *httpApplication {
 	// 1. 初始化 HTTP 中间件和生成路由
 	sentry.SentryInit(cfg.GetServer().GetSentry().ToSentryConfig())
 	ginEngine := gin.New()
@@ -137,5 +139,5 @@ func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *app
 	)
 
 	// 3. 聚合全部由 Leo 生命周期管理的 Runner
-	return &httpApplication{server: httpServers, reconciler: reconciler, hotRank: hotRank, viewEvents: viewEvents}
+	return &httpApplication{server: httpServers, reconciler: reconciler, userSessionCleanup: userSessionCleanup, hotRank: hotRank, viewEvents: viewEvents}
 }
