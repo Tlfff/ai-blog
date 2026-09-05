@@ -19,17 +19,19 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	ArticleService_GetImageUploadURL_FullMethodName  = "/article.v1.ArticleService/GetImageUploadURL"
-	ArticleService_CreateArticle_FullMethodName      = "/article.v1.ArticleService/CreateArticle"
-	ArticleService_GetMyArticleDetail_FullMethodName = "/article.v1.ArticleService/GetMyArticleDetail"
-	ArticleService_UpdateArticle_FullMethodName      = "/article.v1.ArticleService/UpdateArticle"
-	ArticleService_PublishArticle_FullMethodName     = "/article.v1.ArticleService/PublishArticle"
-	ArticleService_GetArticleDetail_FullMethodName   = "/article.v1.ArticleService/GetArticleDetail"
-	ArticleService_ListMyArticles_FullMethodName     = "/article.v1.ArticleService/ListMyArticles"
-	ArticleService_MoveArticleToTrash_FullMethodName = "/article.v1.ArticleService/MoveArticleToTrash"
-	ArticleService_ListTrashArticles_FullMethodName  = "/article.v1.ArticleService/ListTrashArticles"
-	ArticleService_RecoverArticle_FullMethodName     = "/article.v1.ArticleService/RecoverArticle"
-	ArticleService_ClearArticle_FullMethodName       = "/article.v1.ArticleService/ClearArticle"
+	ArticleService_GetImageUploadURL_FullMethodName     = "/article.v1.ArticleService/GetImageUploadURL"
+	ArticleService_CreateArticle_FullMethodName         = "/article.v1.ArticleService/CreateArticle"
+	ArticleService_GetMyArticleDetail_FullMethodName    = "/article.v1.ArticleService/GetMyArticleDetail"
+	ArticleService_UpdateArticle_FullMethodName         = "/article.v1.ArticleService/UpdateArticle"
+	ArticleService_PublishArticle_FullMethodName        = "/article.v1.ArticleService/PublishArticle"
+	ArticleService_GetArticleDetail_FullMethodName      = "/article.v1.ArticleService/GetArticleDetail"
+	ArticleService_ListMyArticles_FullMethodName        = "/article.v1.ArticleService/ListMyArticles"
+	ArticleService_MoveArticleToTrash_FullMethodName    = "/article.v1.ArticleService/MoveArticleToTrash"
+	ArticleService_ListTrashArticles_FullMethodName     = "/article.v1.ArticleService/ListTrashArticles"
+	ArticleService_RecoverArticle_FullMethodName        = "/article.v1.ArticleService/RecoverArticle"
+	ArticleService_ClearArticle_FullMethodName          = "/article.v1.ArticleService/ClearArticle"
+	ArticleService_ListPublishedArticles_FullMethodName = "/article.v1.ArticleService/ListPublishedArticles"
+	ArticleService_GetHotRank_FullMethodName            = "/article.v1.ArticleService/GetHotRank"
 )
 
 // ArticleServiceClient is the client API for ArticleService service.
@@ -47,6 +49,8 @@ type ArticleServiceClient interface {
 	ListTrashArticles(ctx context.Context, in *ArticleListRequest, opts ...grpc.CallOption) (*ArticleListReply, error)
 	RecoverArticle(ctx context.Context, in *ArticleIDRequest, opts ...grpc.CallOption) (*EmptyReply, error)
 	ClearArticle(ctx context.Context, in *ArticleIDRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	ListPublishedArticles(ctx context.Context, in *PublicArticleListRequest, opts ...grpc.CallOption) (*PublicArticleListReply, error)
+	GetHotRank(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*HotRankReply, error)
 }
 
 type articleServiceClient struct {
@@ -167,6 +171,26 @@ func (c *articleServiceClient) ClearArticle(ctx context.Context, in *ArticleIDRe
 	return out, nil
 }
 
+func (c *articleServiceClient) ListPublishedArticles(ctx context.Context, in *PublicArticleListRequest, opts ...grpc.CallOption) (*PublicArticleListReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(PublicArticleListReply)
+	err := c.cc.Invoke(ctx, ArticleService_ListPublishedArticles_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *articleServiceClient) GetHotRank(ctx context.Context, in *EmptyRequest, opts ...grpc.CallOption) (*HotRankReply, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(HotRankReply)
+	err := c.cc.Invoke(ctx, ArticleService_GetHotRank_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // ArticleServiceServer is the server API for ArticleService service.
 // All implementations must embed UnimplementedArticleServiceServer
 // for forward compatibility.
@@ -182,6 +206,8 @@ type ArticleServiceServer interface {
 	ListTrashArticles(context.Context, *ArticleListRequest) (*ArticleListReply, error)
 	RecoverArticle(context.Context, *ArticleIDRequest) (*EmptyReply, error)
 	ClearArticle(context.Context, *ArticleIDRequest) (*EmptyReply, error)
+	ListPublishedArticles(context.Context, *PublicArticleListRequest) (*PublicArticleListReply, error)
+	GetHotRank(context.Context, *EmptyRequest) (*HotRankReply, error)
 	mustEmbedUnimplementedArticleServiceServer()
 }
 
@@ -224,6 +250,12 @@ func (UnimplementedArticleServiceServer) RecoverArticle(context.Context, *Articl
 }
 func (UnimplementedArticleServiceServer) ClearArticle(context.Context, *ArticleIDRequest) (*EmptyReply, error) {
 	return nil, status.Error(codes.Unimplemented, "method ClearArticle not implemented")
+}
+func (UnimplementedArticleServiceServer) ListPublishedArticles(context.Context, *PublicArticleListRequest) (*PublicArticleListReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method ListPublishedArticles not implemented")
+}
+func (UnimplementedArticleServiceServer) GetHotRank(context.Context, *EmptyRequest) (*HotRankReply, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetHotRank not implemented")
 }
 func (UnimplementedArticleServiceServer) mustEmbedUnimplementedArticleServiceServer() {}
 func (UnimplementedArticleServiceServer) testEmbeddedByValue()                        {}
@@ -444,6 +476,42 @@ func _ArticleService_ClearArticle_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _ArticleService_ListPublishedArticles_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(PublicArticleListRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArticleServiceServer).ListPublishedArticles(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArticleService_ListPublishedArticles_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArticleServiceServer).ListPublishedArticles(ctx, req.(*PublicArticleListRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _ArticleService_GetHotRank_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(EmptyRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(ArticleServiceServer).GetHotRank(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: ArticleService_GetHotRank_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(ArticleServiceServer).GetHotRank(ctx, req.(*EmptyRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // ArticleService_ServiceDesc is the grpc.ServiceDesc for ArticleService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -494,6 +562,14 @@ var ArticleService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ClearArticle",
 			Handler:    _ArticleService_ClearArticle_Handler,
+		},
+		{
+			MethodName: "ListPublishedArticles",
+			Handler:    _ArticleService_ListPublishedArticles_Handler,
+		},
+		{
+			MethodName: "GetHotRank",
+			Handler:    _ArticleService_GetHotRank_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

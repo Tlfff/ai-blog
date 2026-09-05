@@ -295,6 +295,43 @@ func TestClearArticleDeletesImageAndArticleRowsAfterRemoval(t *testing.T) {
 	assertRowCount(t, engine, "article_images", "id = ?", 13, 0)
 }
 
+// TestPublishedReadingRepositoryMaintainsHistoryAndViewCount 验证公开列表及浏览统计事务。
+func TestPublishedReadingRepositoryMaintainsHistoryAndViewCount(t *testing.T) {
+	// 1. 创建包含草稿和已发表文章的数据库夹具
+	repository, engine := newArticleTestRepository(t)
+	defer closeArticleTestEngine(t, engine)
+	now := time.Now().Truncate(time.Second)
+	if _, err := engine.Exec("INSERT INTO articles (id, author_id, title, content, tags, status, created_time, updated_time) VALUES (?, ?, ?, ?, '', ?, ?, ?)",
+		5, 8, "另一篇已发表", "正文", article.StatusPublished, now, now); err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. 公开列表仅返回已发表文章，并支持倒序 Offset 首页
+	articles, total, err := repository.ListPublished(context.Background(), article.PublicListQuery{Page: 1, PageSize: 1, IsDesc: true})
+	if err != nil || total != 2 || len(articles) != 1 || articles[0].ID != 5 {
+		t.Fatalf("articles = %#v, total = %d, error = %v", articles, total, err)
+	}
+	cursorArticles, _, err := repository.ListPublished(context.Background(), article.PublicListQuery{LastID: 5, Page: 99, PageSize: 1, IsDesc: true})
+	if err != nil || len(cursorArticles) != 1 || cursorArticles[0].ID != 4 {
+		t.Fatalf("cursor articles = %#v, error = %v", cursorArticles, err)
+	}
+
+	// 3. 游客和登录用户均增加浏览量，登录用户重复浏览只保留一条历史
+	if _, err := repository.RecordView(context.Background(), article.ViewEvent{EventID: "guest", ArticleID: 4, ViewedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := repository.RecordView(context.Background(), article.ViewEvent{EventID: "user-1", ArticleID: 4, UserID: 7, ViewedAt: now}); err != nil {
+		t.Fatal(err)
+	}
+	if metric, err := repository.RecordView(context.Background(), article.ViewEvent{EventID: "user-2", ArticleID: 4, UserID: 7, ViewedAt: now.Add(time.Minute)}); err != nil || metric.ViewCount != 3 {
+		t.Fatalf("metric = %#v, error = %v", metric, err)
+	}
+	if metric, err := repository.RecordView(context.Background(), article.ViewEvent{EventID: "user-2", ArticleID: 4, UserID: 7, ViewedAt: now.Add(time.Minute)}); err != nil || metric.ViewCount != 3 {
+		t.Fatalf("duplicate metric = %#v, error = %v", metric, err)
+	}
+	assertRowCount(t, engine, "article_view_histories", "user_id = ?", 7, 1)
+}
+
 // replaceArticleWith 创建覆盖文章可编辑字段的测试领域 mutation。
 func replaceArticleWith(updated *entity.Article) article.ArticleMutation {
 	// 1. 复制更新接口允许修改的字段
@@ -331,6 +368,8 @@ func newArticleTestRepository(t *testing.T) (*Repository, *xorm.Engine) {
 		`CREATE TABLE users (id INTEGER PRIMARY KEY, nickname TEXT NOT NULL, avatar TEXT NULL, last_login_ip TEXT NOT NULL DEFAULT '')`,
 		`CREATE TABLE articles (id INTEGER PRIMARY KEY, author_id INTEGER NOT NULL, title TEXT NOT NULL, content TEXT NOT NULL, tags TEXT NOT NULL, status INTEGER NOT NULL, view_count INTEGER NOT NULL DEFAULT 0, like_count INTEGER NOT NULL DEFAULT 0, comment_count INTEGER NOT NULL DEFAULT 0, created_time DATETIME NOT NULL, updated_time DATETIME NOT NULL)`,
 		`CREATE TABLE article_images (id INTEGER PRIMARY KEY, article_id INTEGER NULL, object_key TEXT NOT NULL, created_time DATETIME NOT NULL)`,
+		`CREATE TABLE article_view_histories (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, article_id INTEGER NOT NULL, created_time DATETIME NOT NULL, updated_time DATETIME NOT NULL)`,
+		`CREATE TABLE article_view_event_inbox (event_id TEXT PRIMARY KEY, article_id INTEGER NOT NULL, processed_time DATETIME NOT NULL)`,
 	}
 	for _, statement := range schema {
 		if _, err := engine.Exec(statement); err != nil {

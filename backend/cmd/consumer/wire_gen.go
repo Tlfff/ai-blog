@@ -7,19 +7,18 @@
 package consumer
 
 import (
-	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/consumer"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain"
-	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book"
-	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
-	"codeup.aliyun.com/qimao/leo/leo/stream"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo"
 	"github.com/google/wire"
 )
 
 // Injectors from wire.go:
 
-func newBlogStreamerApp() (*stream.Streamer, func(), error) {
+func newBlogStreamerApp() (*consumerApplication, func(), error) {
 	config, err := conf.NewConfig()
 	if err != nil {
 		return nil, nil, err
@@ -29,23 +28,35 @@ func newBlogStreamerApp() (*stream.Streamer, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	mysqlLogClient, cleanup2, err := clients.NewLogMysqlClient()
+	transactionClient := repo.ProvideTransactionClient(mysqlClient)
+	repository := repo.NewRepository(mysqlClient, transactionClient)
+	articleViewPublisher, err := eventstream.NewArticleViewPublisher(config)
 	if err != nil {
 		cleanup()
 		return nil, nil, err
 	}
-	redisClient, cleanup3, err := clients.NewRedisClient()
+	redisClient, cleanup2, err := clients.NewRedisClient()
+	if err != nil {
+		cleanup()
+		return nil, nil, err
+	}
+	readingCache := repo.NewReadingCache(redisClient)
+	viewService := article.NewViewService(repository, articleViewPublisher, readingCache, readingCache)
+	articleViewSubscriber, err := eventstream.NewArticleViewSubscriber(config)
 	if err != nil {
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	hdRepo := repo.NewHdRepo(mysqlClient, mysqlLogClient, redisClient)
-	helloworldService := book.NewHelloworld(hdRepo)
-	blogConsumer := consumer.NewConsumer(helloworldService)
-	streamer := newBlogStreamer(data, blogConsumer)
-	return streamer, func() {
-		cleanup3()
+	articleViewDeadLetterPublisher, err := eventstream.NewArticleViewDeadLetterPublisher(config)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	articleViewConsumer := newArticleViewConsumer(viewService, articleViewSubscriber, articleViewDeadLetterPublisher)
+	consumerConsumerApplication := newBlogStreamer(data, articleViewConsumer, articleViewPublisher, articleViewDeadLetterPublisher)
+	return consumerConsumerApplication, func() {
 		cleanup2()
 		cleanup()
 	}, nil
@@ -53,4 +64,6 @@ func newBlogStreamerApp() (*stream.Streamer, func(), error) {
 
 // wire.go:
 
-var ProviderSet = wire.NewSet(conf.ProviderSet, consumer.ProviderConsumerSet, clients.ProviderClientsSet, domain.DomainProviderAppSet, newBlogStreamer)
+var ProviderSet = wire.NewSet(conf.ProviderSet, clients.NewMysqlClient, clients.NewRedisClient, eventstream.NewArticleViewPublisher, eventstream.NewArticleViewDeadLetterPublisher, eventstream.NewArticleViewSubscriber, wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)), wire.Bind(new(article.ViewDeadLetterPublisher), new(*eventstream.ArticleViewDeadLetterPublisher)), domain.ArticleRepositoryProviderSet, domain.ArticleReadingProviderSet, newArticleViewConsumer,
+	newBlogStreamer,
+)

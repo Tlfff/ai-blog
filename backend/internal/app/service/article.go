@@ -9,6 +9,7 @@ import (
 	userdomain "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/pkg/httpresponse"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/pkg/identity"
+	"codeup.aliyun.com/qimao/leo/leo/log"
 	"codeup.aliyun.com/qimao/leo/lib/errassets"
 	"github.com/gin-gonic/gin"
 )
@@ -31,17 +32,18 @@ const (
 // ArticleService 将文章 HTTP 协议转换为文章领域调用。
 type ArticleService struct {
 	useCase        article.UseCase             // useCase 是文章上下文公开业务接口。
+	reading        article.ReadingUseCase      // reading 提供公开列表、浏览事件和热榜能力。
 	storage        article.Storage             // storage 用于把图片对象键转换为公开地址。
 	regionResolver userdomain.IPRegionResolver // regionResolver 将作者 IP 转换为地区文案。
 }
 
 // NewArticleServer 创建文章 HTTP 服务。
-func NewArticleServer(useCase article.UseCase, storage article.Storage, regionResolver userdomain.IPRegionResolver) articleapi.ArticleServiceHTTPServerController {
+func NewArticleServer(useCase article.UseCase, reading article.ReadingUseCase, storage article.Storage, regionResolver userdomain.IPRegionResolver) articleapi.ArticleServiceHTTPServerController {
 	// 1. 启动阶段拒绝缺少文章用例、对象存储或地区解析器
-	if useCase == nil || storage == nil || regionResolver == nil {
+	if useCase == nil || reading == nil || storage == nil || regionResolver == nil {
 		panic("文章 HTTP 服务缺少必要依赖")
 	}
-	return &ArticleService{useCase: useCase, storage: storage, regionResolver: regionResolver}
+	return &ArticleService{useCase: useCase, reading: reading, storage: storage, regionResolver: regionResolver}
 }
 
 // GetImageUploadURL 获取正文图片的 MinIO 直传凭证。
@@ -153,8 +155,54 @@ func (s *ArticleService) GetArticleDetail(ctx *gin.Context, request *articleapi.
 		return nil, articleHTTPError(err)
 	}
 
-	// 3. 复用后台详情的稳定响应字段和图片 URL 转换
+	// 3. 发布失败只记录日志，不影响已成功查询的文章详情响应
+	if err := s.reading.PublishView(ctx.Request.Context(), request.GetId(), currentUser.ID); err != nil {
+		log.L().WithContext(ctx.Request.Context()).Error("发布文章浏览事件失败", err)
+	}
+
+	// 4. 复用后台详情的稳定响应字段和图片 URL 转换
 	return s.detailReply(detail), nil
+}
+
+// ListPublishedArticles 分页查询已发表文章。
+func (s *ArticleService) ListPublishedArticles(ctx *gin.Context, request *articleapi.PublicArticleListRequest) (*articleapi.PublicArticleListReply, error) {
+	// 1. 将协议分页参数转换为公开列表领域命令
+	result, err := s.reading.ListPublished(ctx.Request.Context(), article.PublicListCommand{
+		LastID: request.GetLastId(), Page: request.GetPage(), PageSize: request.GetPageSize(), IsDesc: request.GetIsDesc(),
+	})
+	if err != nil {
+		return nil, articleHTTPError(err)
+	}
+
+	// 2. 只返回公开列表契约声明的摘要和互动统计
+	reply := &articleapi.PublicArticleListReply{LastId: result.LastID, Total: result.Total, Page: result.Page, PageSize: result.PageSize}
+	for _, item := range result.Items {
+		reply.List = append(reply.List, &articleapi.PublicArticleListItem{
+			Id: item.Article.ID, Title: item.Article.Title, Summary: item.Summary, AuthorId: item.Article.AuthorID,
+			UpdatedTime: item.Article.UpdatedTime.Unix(), ViewCount: item.Article.ViewCount,
+			LikeCount: item.Article.LikeCount, CommentCount: item.Article.CommentCount,
+		})
+	}
+	return reply, nil
+}
+
+// GetHotRank 查询公开文章热榜前十。
+func (s *ArticleService) GetHotRank(ctx *gin.Context, _ *articleapi.EmptyRequest) (*articleapi.HotRankReply, error) {
+	// 1. 查询 Redis 排名并补充 MySQL 权威文章字段
+	items, err := s.reading.HotRank(ctx.Request.Context())
+	if err != nil {
+		return nil, err
+	}
+
+	// 2. 按 Redis 排名顺序转换热榜响应
+	reply := &articleapi.HotRankReply{List: make([]*articleapi.HotRankItem, 0, len(items))}
+	for _, item := range items {
+		reply.List = append(reply.List, &articleapi.HotRankItem{
+			ArticleId: item.Metric.ArticleID, Title: item.Metric.Title, Hot: item.Hot,
+			ViewCount: item.Metric.ViewCount, CommentCount: item.Metric.CommentCount, LikeCount: item.Metric.LikeCount,
+		})
+	}
+	return reply, nil
 }
 
 // ListMyArticles 分页查询当前管理员作者的文章。

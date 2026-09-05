@@ -41,6 +41,12 @@ service ArticleService {
   rpc ClearArticle(ArticleIDRequest) returns (EmptyReply) {
     option (google.api.http) = { post: "/admin/article/trash/clear" body: "*" };
   }
+  rpc ListPublishedArticles(PublicArticleListRequest) returns (PublicArticleListReply) {
+    option (google.api.http) = { get: "/article/list" };
+  }
+  rpc GetHotRank(EmptyRequest) returns (HotRankReply) {
+    option (google.api.http) = { get: "/article/hot-rank" };
+  }
 }
 message GetImageUploadURLRequest { string file_ext = 1 [(validate.rules).string = {min_len: 1, max_len: 10}]; }
 message ImageUploadURLReply { uint64 image_id = 1; string upload_url = 2; string url = 3; }
@@ -51,6 +57,7 @@ message CreateArticleRequest {
   int32 status = 4 [(validate.rules).int32 = {in: [0, 2, 3]}];
 }
 message EmptyReply {}
+message EmptyRequest {}
 message GetMyArticleDetailRequest { uint64 id = 1 [(validate.rules).uint64 = {gt: 0}]; }
 message UpdateArticleRequest {
   uint64 id = 1 [(validate.rules).uint64 = {gt: 0}];
@@ -82,6 +89,38 @@ message ArticleListItem {
   int32 status = 4;
   int64 created_time = 5;
   int64 updated_time = 6;
+}
+message PublicArticleListRequest {
+  uint64 last_id = 1;
+  uint64 page = 2;
+  uint64 page_size = 3 [(validate.rules).uint64 = {ignore_empty: true, gte: 10, lte: 20}];
+  bool is_desc = 4;
+}
+message PublicArticleListReply {
+  repeated PublicArticleListItem list = 1;
+  uint64 last_id = 2;
+  uint64 total = 3;
+  uint64 page = 4;
+  uint64 page_size = 5;
+}
+message PublicArticleListItem {
+  uint64 id = 1;
+  string title = 2;
+  string summary = 3;
+  uint64 author_id = 4;
+  int64 updated_time = 5;
+  int64 view_count = 6;
+  int64 like_count = 7;
+  int64 comment_count = 8;
+}
+message HotRankReply { repeated HotRankItem list = 1; }
+message HotRankItem {
+  uint64 article_id = 1;
+  string title = 2;
+  int64 hot = 3;
+  int64 view_count = 4;
+  int64 comment_count = 5;
+  int64 like_count = 6;
 }
 message ArticleDetailReply {
   uint64 id = 1; string title = 2; string content = 3; repeated string tags = 4; int32 status = 5;

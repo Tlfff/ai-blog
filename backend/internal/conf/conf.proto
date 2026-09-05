@@ -147,6 +147,7 @@ message Kafka {
 
 message KafkaConsumer{
   Config bid_result_report = 1;
+  Config article_view = 2;
 
 
   message Config {
@@ -163,6 +164,8 @@ message KafkaProducer{
   Config bid_result_report = 1;
   Config adx_report = 2;
   Config block_report = 3;
+  Config article_view = 4;
+  Config article_view_dead_letter = 5;
 
   message Config {
     string bootstrap_servers = 1;

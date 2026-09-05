@@ -1,6 +1,7 @@
 package clients
 
 import (
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/objectstorage"
 	article "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
@@ -18,6 +19,8 @@ var ProviderClientsSet = wire.NewSet(
 	ipregion.NewConfiguredResolver,
 	objectstorage.NewStorage,
 	objectstorage.ProvideAllowedImageExtensions,
+	eventstream.NewArticleViewPublisher,
+	wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)),
 	wire.Bind(new(article.Storage), new(*objectstorage.Storage)),
 	wire.Bind(new(user.IPRegionResolver), new(*ipregion.Resolver)),
 )

@@ -10,6 +10,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/job"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/service"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/objectstorage"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
@@ -92,10 +93,21 @@ func wireApp() (*httpApplication, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	articleServiceHTTPServerController := service.NewArticleServer(articleService, storage, resolver)
+	articleViewPublisher, err := eventstream.NewArticleViewPublisher(config)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	readingCache := repo3.NewReadingCache(redisClient)
+	viewService := article.NewViewService(repository, articleViewPublisher, readingCache, readingCache)
+	articleServiceHTTPServerController := service.NewArticleServer(articleService, viewService, storage, resolver)
 	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, sessionRepository)
 	articleDeletionReconciler := job.NewArticleDeletionReconciler(articleService)
-	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler)
+	articleHotRankJob := job.NewArticleHotRankJob(viewService)
+	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, articleHotRankJob, articleViewPublisher)
 	return serverHttpApplication, func() {
 		cleanup4()
 		cleanup3()

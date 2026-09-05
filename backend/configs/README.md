@@ -37,3 +37,25 @@ data:
       - "gif"
       - "webp"
 ```
+
+## 文章浏览 Kafka 配置
+
+HTTP 进程发布浏览事件，Consumer 进程处理失败后写入死信主题：
+
+```yaml
+data:
+  kafka:
+    producer:
+      article_view:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "article-view"
+      article_view_dead_letter:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "article-view-dlq"
+    consumer:
+      article_view:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "article-view"
+        group_id: "article-view-projector"
+        message_buffer_size: 16
+```
