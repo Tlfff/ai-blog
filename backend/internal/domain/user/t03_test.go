@@ -270,6 +270,7 @@ type t03Sessions struct {
 
 // FindByToken 模拟访问 Token 不存在。
 func (*t03Sessions) FindByToken(context.Context, string) (*Session, error) {
+	// 1. T03 测试不涉及 Redis 会话查询
 	return nil, ErrSessionNotFound
 }
 

@@ -15,6 +15,11 @@ import (
 	"xorm.io/xorm"
 )
 
+const (
+	sessionCleanupPending   int8 = 1 // sessionCleanupPending 表示会话收敛任务待处理。
+	sessionCleanupCompleted int8 = 2 // sessionCleanupCompleted 表示会话收敛任务已完成。
+)
+
 // UserRepository 使用 MySQL 实现用户领域仓储。
 type transactionClient interface {
 	Transaction(func(*xorm.Session) (interface{}, error)) (interface{}, error)
@@ -204,7 +209,8 @@ func (r *UserRepository) UpdatePasswordWithCleanupTask(ctx context.Context, user
 		if rows == 0 {
 			return nil, user.ErrUserNotFound
 		}
-		_, err = session.Insert(&po.SessionCleanupTask{UserID: userID, CurrentToken: currentToken, Status: 1, CreatedTime: time.Now(), UpdatedTime: time.Now()})
+		now := time.Now()
+		_, err = session.Insert(&po.SessionCleanupTask{UserID: userID, CurrentToken: currentToken, Status: sessionCleanupPending, CreatedTime: now, UpdatedTime: now})
 		return nil, err
 	})
 	return err
@@ -217,7 +223,7 @@ func (r *UserRepository) ListSessionCleanupTasks(ctx context.Context, limit int)
 		limit = 100
 	}
 	rows := make([]*po.SessionCleanupTask, 0, limit)
-	if err := r.client.Context(ctx).Where("status = ?", 1).Limit(limit).Asc("id").Find(&rows); err != nil {
+	if err := r.client.Context(ctx).Where("status = ?", sessionCleanupPending).Limit(limit).Asc("id").Find(&rows); err != nil {
 		return nil, err
 	}
 	result := make([]*user.SessionCleanupTask, 0, len(rows))
@@ -230,7 +236,7 @@ func (r *UserRepository) ListSessionCleanupTasks(ctx context.Context, limit int)
 // CompleteSessionCleanupTask 标记会话收敛补偿任务已完成。
 func (r *UserRepository) CompleteSessionCleanupTask(ctx context.Context, taskID uint64) error {
 	// 1. 仅将待处理任务标记完成，重复补偿安全成功
-	_, err := r.client.Context(ctx).Where("id = ? AND status = ?", taskID, 1).Cols("status").Update(&po.SessionCleanupTask{Status: 2})
+	_, err := r.client.Context(ctx).Where("id = ? AND status = ?", taskID, sessionCleanupPending).Cols("status").Update(&po.SessionCleanupTask{Status: sessionCleanupCompleted})
 	return err
 }
 
@@ -247,6 +253,6 @@ func ProvideTransactionClient(client clients.MysqlClient) transactionClient {
 // CompleteSessionCleanupTaskForSession 完成密码更新后当前会话对应的补偿任务。
 func (r *UserRepository) CompleteSessionCleanupTaskForSession(ctx context.Context, userID uint64, currentToken string) error {
 	// 1. 只完成指定用户和当前 Token 的待处理任务，避免误确认其他任务
-	_, err := r.client.Context(ctx).Where("user_id = ? AND current_token = ? AND status = ?", userID, currentToken, 1).Cols("status").Update(&po.SessionCleanupTask{Status: 2})
+	_, err := r.client.Context(ctx).Where("user_id = ? AND current_token = ? AND status = ?", userID, currentToken, sessionCleanupPending).Cols("status").Update(&po.SessionCleanupTask{Status: sessionCleanupCompleted})
 	return err
 }

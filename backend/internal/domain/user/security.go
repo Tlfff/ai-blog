@@ -11,7 +11,11 @@ import (
 	"time"
 )
 
-const securityUploadURLTTL = 10 * time.Minute
+const (
+	securityUploadURLTTL      = 10 * time.Minute       // securityUploadURLTTL 是改密凭证和头像上传地址有效期。
+	passwordTokenRestoreTries = 3                      // passwordTokenRestoreTries 是恢复改密凭证的最大尝试次数。
+	passwordTokenRestoreDelay = 100 * time.Millisecond // passwordTokenRestoreDelay 是凭证恢复重试初始间隔。
+)
 
 // ChangePasswordCommand 是修改密码所需的领域输入。
 type ChangePasswordCommand struct {
@@ -119,7 +123,7 @@ func (s *Service) ChangePassword(ctx context.Context, command ChangePasswordComm
 
 	// 3. 更新密码；MySQL 失败时按原剩余有效期恢复凭证
 	if err := s.repository.UpdatePasswordWithCleanupTask(ctx, command.UserID, hash, command.CurrentToken); err != nil {
-		return errors.Join(err, s.passwordTokens.RestorePasswordChangeToken(ctx, command.ChangeToken, command.UserID, remainingTTL))
+		return errors.Join(err, s.restorePasswordChangeToken(ctx, command.ChangeToken, command.UserID, remainingTTL))
 	}
 
 	// 4. 立即收敛其他设备会话；失败时事务已留下可重试的持久化补偿任务
@@ -127,6 +131,35 @@ func (s *Service) ChangePassword(ctx context.Context, command ChangePasswordComm
 		return err
 	}
 	return s.repository.CompleteSessionCleanupTaskForSession(ctx, command.UserID, command.CurrentToken)
+}
+
+// restorePasswordChangeToken 使用独立上下文和有限退避恢复失败事务消耗的凭证。
+func (s *Service) restorePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error {
+	// 1. 请求取消后仍保留短暂补偿窗口，避免数据库失败同时丢失 Redis 恢复机会
+	restoreCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), time.Second)
+	defer cancel()
+
+	// 2. 对 Redis 短暂故障进行有限重试，耗尽后将错误返回给调用方
+	var err error
+	delay := passwordTokenRestoreDelay
+	for attempt := 0; attempt < passwordTokenRestoreTries; attempt++ {
+		err = s.passwordTokens.RestorePasswordChangeToken(restoreCtx, token, userID, ttl)
+		if err == nil {
+			return nil
+		}
+		if attempt == passwordTokenRestoreTries-1 {
+			break
+		}
+		timer := time.NewTimer(delay)
+		select {
+		case <-restoreCtx.Done():
+			timer.Stop()
+			return errors.Join(err, restoreCtx.Err())
+		case <-timer.C:
+		}
+		delay *= 2
+	}
+	return err
 }
 
 // UpdatePhone 校验并更新当前用户手机号。

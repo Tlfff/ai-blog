@@ -404,6 +404,7 @@ func (f *fakeSessionManager) Delete(_ context.Context, token string, userID uint
 
 // DeleteOtherSessions 保持既有会话测试的当前设备兼容行为。
 func (f *fakeSessionManager) DeleteOtherSessions(_ context.Context, token string, userID uint64) error {
+	// 1. 记录密码修改后需要保留的当前会话
 	f.deletedToken, f.deletedUserID = token, userID
 	return nil
 }
