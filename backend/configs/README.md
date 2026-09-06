@@ -82,3 +82,32 @@ data:
         group_id: "article-comment-count-projector"
         message_buffer_size: 16
 ```
+
+## 开放 gRPC 认证配置
+
+开放 gRPC 的内部调用使用 HS256 JWT，外部合作方使用 HMAC-SHA256。所有密钥都必须由部署系统注入，示例占位值不得用于真实环境：
+
+```yaml
+server:
+  grpc:
+    auth:
+      jwt_issuer: "blog-internal"
+      jwt_secret: "replace-with-at-least-32-byte-jwt-secret"
+      jwt_clock_skew_seconds: 5
+      hmac_time_window_seconds: 60
+      nonce_ttl_seconds: 60
+      hmac_access_keys:
+        partner-a: "replace-with-at-least-32-byte-hmac-secret"
+```
+
+内部 JWT 必须包含 `iss`、`sub`、`iat`、`exp`，且签名算法固定为 HS256。外部请求携带 `x-access-key-id`、`x-signature`、`x-timestamp`、`x-nonce`；签名规范串按以下顺序用换行符连接，并对整个字符串计算 HMAC-SHA256 后使用十六进制编码：
+
+```text
+/full.grpc.Service/Method
+<access-key-id>
+<unix-timestamp-seconds>
+<nonce>
+<sha256-of-deterministic-protobuf-request>
+```
+
+`x-timestamp` 不能来自未来，且与服务端当前 Unix 秒之差必须严格小于 `hmac_time_window_seconds`；Nonce 长度为 16～128 字节，并在同一 Access Key 下只能成功使用一次。认证失败响应和日志不得包含 JWT、密钥、签名或 Nonce。

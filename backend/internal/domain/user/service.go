@@ -34,12 +34,17 @@ type UpdateProfileCommand struct {
 	Avatar   string // Avatar 是新的头像地址，允许为空。
 }
 
-// UseCase 定义用户上下文向应用层暴露的业务能力。
-type UseCase interface {
-	// Register 注册普通用户账号。
-	Register(ctx context.Context, command RegisterCommand) error
+// QueryUseCase 定义用户上下文公开的只读查询能力。
+type QueryUseCase interface {
 	// GetProfile 查询正常状态的用户资料。
 	GetProfile(ctx context.Context, userID uint64) (*entity.User, error)
+}
+
+// UseCase 定义用户上下文向应用层暴露的完整业务能力。
+type UseCase interface {
+	QueryUseCase
+	// Register 注册普通用户账号。
+	Register(ctx context.Context, command RegisterCommand) error
 	// UpdateProfile 修改正常状态用户的公开资料。
 	UpdateProfile(ctx context.Context, command UpdateProfileCommand) error
 	// VerifyOldPassword 验证当前用户旧密码，并签发只能消费一次且有效 10 分钟的改密凭证。
