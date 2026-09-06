@@ -93,11 +93,30 @@ var ArticleReadingProviderSet = wire.NewSet(
 	wire.Bind(new(article.HotRankRebuilder), new(*article.ViewService)),
 )
 
-// UserProviderSet 提供用户上下文的仓储、密码摘要和领域服务。
-var UserProviderSet = wire.NewSet(
+// UserRepositoryProviderSet 提供用户上下文共享的 MySQL 仓储 Adapter。
+var UserRepositoryProviderSet = wire.NewSet(
 	userrepo.ProvideTransactionClient,
 	userrepo.NewUserRepository,
 	wire.Bind(new(user.Repository), new(*userrepo.UserRepository)),
+)
+
+// UserQueryProviderSet 提供开放 gRPC 所需的用户只读查询能力。
+var UserQueryProviderSet = wire.NewSet(
+	UserRepositoryProviderSet,
+	user.NewPBKDF2PasswordHasher,
+	user.NewService,
+	wire.Bind(new(user.QueryUseCase), new(*user.Service)),
+)
+
+// UserGRPCAuthProviderSet 提供开放 gRPC 复用的用户安全 Redis Nonce 能力。
+var UserGRPCAuthProviderSet = wire.NewSet(
+	userrepo.NewSessionRepository,
+	wire.Bind(new(user.GRPCNonceStore), new(*userrepo.SessionRepository)),
+)
+
+// UserProviderSet 提供用户上下文的仓储、密码摘要和领域服务。
+var UserProviderSet = wire.NewSet(
+	UserRepositoryProviderSet,
 	wire.Bind(new(user.AuthRepository), new(*userrepo.UserRepository)),
 	userrepo.NewSessionRepository,
 	wire.Bind(new(user.SessionManager), new(*userrepo.SessionRepository)),

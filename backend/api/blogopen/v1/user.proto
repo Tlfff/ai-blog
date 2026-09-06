@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package blogopen.v1;
+
+import "validate/validate.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/blogopen/v1;blogopenv1";
+
+// UserService 提供经过统一 gRPC 认证的用户查询接口。
+service UserService {
+  // GetUserBasicInfo 供内部服务查询用户基本信息和脱敏登录地区。
+  rpc GetUserBasicInfo(GetUserInfoRequest) returns (UserBasicInfoReply);
+  // GetPublicUserInfo 供外部合作方查询用户公开资料。
+  rpc GetPublicUserInfo(GetUserInfoRequest) returns (PublicUserInfoReply);
+}
+
+// GetUserInfoRequest 是用户查询请求。
+message GetUserInfoRequest {
+  uint64 user_id = 1 [(validate.rules).uint64 = {gt: 0}];
+}
+
+// UserBasicInfoReply 是内部服务可见的用户基本信息。
+message UserBasicInfoReply {
+  uint64 user_id = 1;
+  string nickname = 2;
+  string avatar = 3;
+  int64 last_login_time = 4;
+  string last_login_ip = 5;
+}
+
+// PublicUserInfoReply 是外部合作方可见的用户公开资料。
+message PublicUserInfoReply {
+  uint64 id = 1;
+  string avatar = 2;
+  string nickname = 3;
+}

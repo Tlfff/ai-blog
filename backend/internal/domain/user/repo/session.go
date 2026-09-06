@@ -2,6 +2,8 @@ package repo
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,7 +18,14 @@ const (
 	authTokenKeyPrefix      = "auth:token:"
 	authUserTokensKeyPrefix = "auth:user-tokens:"
 	passwordChangeKeyPrefix = "user:password-change:"
+	grpcNonceKeyPrefix      = "grpc:auth:nonce:"
 )
+
+// nonceWriter 定义外部 gRPC Nonce 原子占用所需的 Redis 能力。
+type nonceWriter interface {
+	// SetNX 原子写入带有效期的防重放标记。
+	SetNX(context.Context, string, interface{}, time.Duration) *redis.BoolCmd
+}
 
 type sessionGetter interface {
 	// Get 读取指定会话 Key。
@@ -48,20 +57,21 @@ type sessionWriter interface {
 	TxPipeline() redis.Pipeliner
 }
 
-// SessionRepository 使用 Redis 保存用户登录会话。
+// SessionRepository 使用 Redis 保存登录会话、一次性改密凭证和开放 gRPC Nonce。
 type SessionRepository struct {
 	client         sessionGetter        // client 提供登录会话查询能力。
 	writer         sessionWriter        // writer 提供登录会话原子写入能力。
 	passwordClient passwordChangeClient // passwordClient 提供改密凭证原子消费能力。
+	nonceWriter    nonceWriter          // nonceWriter 提供开放 gRPC 请求原子防重放能力。
 }
 
-// NewSessionRepository 创建用户会话 Redis 仓储。
+// NewSessionRepository 创建复用同一 Redis 客户端的用户安全仓储。
 func NewSessionRepository(client clients.RedisClient) *SessionRepository {
-	// 1. 启动阶段拒绝缺少 Redis 客户端的会话仓储
+	// 1. 启动阶段拒绝缺少 Redis 客户端的用户安全仓储
 	if client == nil {
 		panic("用户会话仓储缺少 Redis 客户端")
 	}
-	return &SessionRepository{client: client, writer: client, passwordClient: client}
+	return &SessionRepository{client: client, writer: client, passwordClient: client, nonceWriter: client}
 }
 
 // FindByToken 查询访问 Token 对应的用户身份。
@@ -83,6 +93,16 @@ func (r *SessionRepository) FindByToken(ctx context.Context, token string) (*use
 		return nil, user.ErrSessionNotFound
 	}
 	return &session, nil
+}
+
+// ReserveGRPCNonce 原子占用合作方 Nonce，并使用摘要 Key 避免明文凭据进入 Redis。
+func (r *SessionRepository) ReserveGRPCNonce(ctx context.Context, accessKeyID, nonce string, ttl time.Duration) (bool, error) {
+	// 1. 摘要 Access Key ID 与 Nonce，避免存储和诊断信息泄漏凭据
+	digest := sha256.Sum256([]byte(accessKeyID + "\x00" + nonce))
+	key := grpcNonceKeyPrefix + hex.EncodeToString(digest[:])
+
+	// 2. 使用单条 SET NX + TTL 命令原子完成占用与过期设置
+	return r.nonceWriter.SetNX(ctx, key, "1", ttl).Result()
 }
 
 // Create 保存 Token 会话并把 Token 加入用户集合。

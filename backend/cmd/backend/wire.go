@@ -11,8 +11,8 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/middleware"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/server"
-	"codeup.aliyun.com/qimao/leo/leo/transport/lgrpc"
 
 	"github.com/google/wire"
 )
@@ -37,20 +37,23 @@ func wireApp() (application *httpApplication, cleanup func(), err error) {
 	))
 }
 
-// wireGrpcApp init application.
-func wireGrpcApp() (applications *lgrpc.Server, cleanup func(), err error) {
-	// func wireGrpcApp() (applications *lgrpc.Server, ac *actuator.Server, cleanup func(), err error) {
+// wireGrpcApp 组装开放 gRPC、用户查询、统一认证和基础设施依赖。
+func wireGrpcApp() (application *grpcApplication, cleanup func(), err error) {
+	// 1. 按配置、基础设施、领域、应用、驱动和进程入口的依赖方向完成组装
 	panic(wire.Build(
 		conf.ProviderSet,
-		// 基础层
+		// 基础设施 Provider
 		clients.ProviderClientsSet,
-		// 领域层
+		// 领域 Provider
 		domain.DomainProviderAppSet,
-		// 应用层
+		domain.UserQueryProviderSet,
+		domain.UserGRPCAuthProviderSet,
+		// 应用与认证 Provider
 		service.ServiceGrpcProviderAppSet,
-		// 驱动层
+		middleware.GRPCProviderSet,
+		// 传输注册 Provider
 		server.ProviderGrpcServerSet,
-		// 服务层
+		// Leo gRPC 应用入口
 		newGrpcApp,
 	))
 }

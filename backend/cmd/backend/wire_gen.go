@@ -24,8 +24,8 @@ import (
 	repo4 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/middleware"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/server"
-	"codeup.aliyun.com/qimao/leo/leo/transport/lgrpc"
 )
 
 // Injectors from wire.go:
@@ -134,8 +134,8 @@ func wireApp() (*httpApplication, func(), error) {
 	}, nil
 }
 
-// wireGrpcApp init application.
-func wireGrpcApp() (*lgrpc.Server, func(), error) {
+// wireGrpcApp 组装开放 gRPC、用户查询、统一认证和基础设施依赖。
+func wireGrpcApp() (*grpcApplication, func(), error) {
 	config, err := conf.NewConfig()
 	if err != nil {
 		return nil, nil, err
@@ -159,9 +159,40 @@ func wireGrpcApp() (*lgrpc.Server, func(), error) {
 	helloworldService := book.NewHelloworld(hdRepo)
 	greeterServer := service.NewGrpcBlogServer(helloworldService)
 	bookServer := service.NewGrpcBookServer()
-	grpcServer := server.NewGrpcServer(greeterServer, bookServer)
-	lgrpcServer := newGrpcApp(config, grpcServer)
-	return lgrpcServer, func() {
+	transactionClient := repo2.ProvideTransactionClient(mysqlClient)
+	userRepository := repo2.NewUserRepository(mysqlClient, transactionClient)
+	passwordHasher := user.NewPBKDF2PasswordHasher()
+	userService := user.NewService(userRepository, passwordHasher)
+	resolver, cleanup4, err := ipregion.NewConfiguredResolver(config)
+	if err != nil {
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	userServiceServer := service.NewOpenUserGRPCServer(userService, resolver)
+	grpcServer := server.NewGrpcServer(greeterServer, bookServer, userServiceServer)
+	grpcAuthSettings, err := middleware.ProvideGRPCAuthSettings(config)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	sessionRepository := repo2.NewSessionRepository(redisClient)
+	grpcAuthenticator, err := middleware.NewGRPCAuthenticator(grpcAuthSettings, sessionRepository)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	unaryServerInterceptor := middleware.ProvideGRPCUnaryServerInterceptor(grpcAuthenticator)
+	serverGrpcApplication := newGrpcApp(config, grpcServer, unaryServerInterceptor)
+	return serverGrpcApplication, func() {
+		cleanup4()
 		cleanup3()
 		cleanup2()
 		cleanup()

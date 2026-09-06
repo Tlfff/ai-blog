@@ -46,6 +46,17 @@ message GRPC {
   int32 port = 2;
   string timeout = 3;
   string id = 4;
+  GRPCAuth auth = 5;
+}
+
+// GRPCAuth 定义开放 gRPC 服务的内部 JWT 与外部 HMAC 认证配置。
+message GRPCAuth {
+  string jwt_issuer = 1;
+  string jwt_secret = 2;
+  uint32 jwt_clock_skew_seconds = 3;
+  uint32 hmac_time_window_seconds = 4;
+  uint32 nonce_ttl_seconds = 5;
+  map<string, string> hmac_access_keys = 6;
 }
 
 // 管理配置

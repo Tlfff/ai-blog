@@ -390,10 +390,11 @@ type GRPC struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Network string `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
-	Port    int32  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
-	Timeout string `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	Id      string `protobuf:"bytes,4,opt,name=id,proto3" json:"id,omitempty"`
+	Network string    `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
+	Port    int32     `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	Timeout string    `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
+	Id      string    `protobuf:"bytes,4,opt,name=id,proto3" json:"id,omitempty"`
+	Auth    *GRPCAuth `protobuf:"bytes,5,opt,name=auth,proto3" json:"auth,omitempty"`
 }
 
 func (x *GRPC) Reset() {
@@ -456,6 +457,101 @@ func (x *GRPC) GetId() string {
 	return ""
 }
 
+func (x *GRPC) GetAuth() *GRPCAuth {
+	if x != nil {
+		return x.Auth
+	}
+	return nil
+}
+
+// GRPCAuth 定义开放 gRPC 服务的内部 JWT 与外部 HMAC 认证配置。
+type GRPCAuth struct {
+	state         protoimpl.MessageState
+	sizeCache     protoimpl.SizeCache
+	unknownFields protoimpl.UnknownFields
+
+	JwtIssuer             string            `protobuf:"bytes,1,opt,name=jwt_issuer,json=jwtIssuer,proto3" json:"jwt_issuer,omitempty"`
+	JwtSecret             string            `protobuf:"bytes,2,opt,name=jwt_secret,json=jwtSecret,proto3" json:"jwt_secret,omitempty"`
+	JwtClockSkewSeconds   uint32            `protobuf:"varint,3,opt,name=jwt_clock_skew_seconds,json=jwtClockSkewSeconds,proto3" json:"jwt_clock_skew_seconds,omitempty"`
+	HmacTimeWindowSeconds uint32            `protobuf:"varint,4,opt,name=hmac_time_window_seconds,json=hmacTimeWindowSeconds,proto3" json:"hmac_time_window_seconds,omitempty"`
+	NonceTtlSeconds       uint32            `protobuf:"varint,5,opt,name=nonce_ttl_seconds,json=nonceTtlSeconds,proto3" json:"nonce_ttl_seconds,omitempty"`
+	HmacAccessKeys        map[string]string `protobuf:"bytes,6,rep,name=hmac_access_keys,json=hmacAccessKeys,proto3" json:"hmac_access_keys,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+}
+
+func (x *GRPCAuth) Reset() {
+	*x = GRPCAuth{}
+	if protoimpl.UnsafeEnabled {
+		mi := &file_conf_conf_proto_msgTypes[6]
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		ms.StoreMessageInfo(mi)
+	}
+}
+
+func (x *GRPCAuth) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GRPCAuth) ProtoMessage() {}
+
+func (x *GRPCAuth) ProtoReflect() protoreflect.Message {
+	mi := &file_conf_conf_proto_msgTypes[6]
+	if protoimpl.UnsafeEnabled && x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GRPCAuth.ProtoReflect.Descriptor instead.
+func (*GRPCAuth) Descriptor() ([]byte, []int) {
+	return file_conf_conf_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *GRPCAuth) GetJwtIssuer() string {
+	if x != nil {
+		return x.JwtIssuer
+	}
+	return ""
+}
+
+func (x *GRPCAuth) GetJwtSecret() string {
+	if x != nil {
+		return x.JwtSecret
+	}
+	return ""
+}
+
+func (x *GRPCAuth) GetJwtClockSkewSeconds() uint32 {
+	if x != nil {
+		return x.JwtClockSkewSeconds
+	}
+	return 0
+}
+
+func (x *GRPCAuth) GetHmacTimeWindowSeconds() uint32 {
+	if x != nil {
+		return x.HmacTimeWindowSeconds
+	}
+	return 0
+}
+
+func (x *GRPCAuth) GetNonceTtlSeconds() uint32 {
+	if x != nil {
+		return x.NonceTtlSeconds
+	}
+	return 0
+}
+
+func (x *GRPCAuth) GetHmacAccessKeys() map[string]string {
+	if x != nil {
+		return x.HmacAccessKeys
+	}
+	return nil
+}
+
 // 管理配置
 type Management struct {
 	state         protoimpl.MessageState
@@ -468,7 +564,7 @@ type Management struct {
 func (x *Management) Reset() {
 	*x = Management{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[6]
+		mi := &file_conf_conf_proto_msgTypes[7]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -481,7 +577,7 @@ func (x *Management) String() string {
 func (*Management) ProtoMessage() {}
 
 func (x *Management) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[6]
+	mi := &file_conf_conf_proto_msgTypes[7]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -494,7 +590,7 @@ func (x *Management) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Management.ProtoReflect.Descriptor instead.
 func (*Management) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{6}
+	return file_conf_conf_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *Management) GetPort() int32 {
@@ -517,7 +613,7 @@ type Metrics struct {
 func (x *Metrics) Reset() {
 	*x = Metrics{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[7]
+		mi := &file_conf_conf_proto_msgTypes[8]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -530,7 +626,7 @@ func (x *Metrics) String() string {
 func (*Metrics) ProtoMessage() {}
 
 func (x *Metrics) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[7]
+	mi := &file_conf_conf_proto_msgTypes[8]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -543,7 +639,7 @@ func (x *Metrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Metrics.ProtoReflect.Descriptor instead.
 func (*Metrics) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{7}
+	return file_conf_conf_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Metrics) GetEnabled() bool {
@@ -571,7 +667,7 @@ type MetricsExporter struct {
 func (x *MetricsExporter) Reset() {
 	*x = MetricsExporter{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[8]
+		mi := &file_conf_conf_proto_msgTypes[9]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -584,7 +680,7 @@ func (x *MetricsExporter) String() string {
 func (*MetricsExporter) ProtoMessage() {}
 
 func (x *MetricsExporter) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[8]
+	mi := &file_conf_conf_proto_msgTypes[9]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -597,7 +693,7 @@ func (x *MetricsExporter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MetricsExporter.ProtoReflect.Descriptor instead.
 func (*MetricsExporter) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{8}
+	return file_conf_conf_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MetricsExporter) GetPrometheus() *Prometheus {
@@ -618,7 +714,7 @@ type Prometheus struct {
 func (x *Prometheus) Reset() {
 	*x = Prometheus{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[9]
+		mi := &file_conf_conf_proto_msgTypes[10]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -631,7 +727,7 @@ func (x *Prometheus) String() string {
 func (*Prometheus) ProtoMessage() {}
 
 func (x *Prometheus) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[9]
+	mi := &file_conf_conf_proto_msgTypes[10]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -644,7 +740,7 @@ func (x *Prometheus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Prometheus.ProtoReflect.Descriptor instead.
 func (*Prometheus) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{9}
+	return file_conf_conf_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Prometheus) GetEnabled() bool {
@@ -666,7 +762,7 @@ type Logger struct {
 func (x *Logger) Reset() {
 	*x = Logger{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[10]
+		mi := &file_conf_conf_proto_msgTypes[11]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -679,7 +775,7 @@ func (x *Logger) String() string {
 func (*Logger) ProtoMessage() {}
 
 func (x *Logger) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[10]
+	mi := &file_conf_conf_proto_msgTypes[11]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -692,7 +788,7 @@ func (x *Logger) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Logger.ProtoReflect.Descriptor instead.
 func (*Logger) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{10}
+	return file_conf_conf_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *Logger) GetLevel() string {
@@ -718,7 +814,7 @@ type Trace struct {
 func (x *Trace) Reset() {
 	*x = Trace{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[11]
+		mi := &file_conf_conf_proto_msgTypes[12]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -731,7 +827,7 @@ func (x *Trace) String() string {
 func (*Trace) ProtoMessage() {}
 
 func (x *Trace) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[11]
+	mi := &file_conf_conf_proto_msgTypes[12]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -744,7 +840,7 @@ func (x *Trace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Trace.ProtoReflect.Descriptor instead.
 func (*Trace) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{11}
+	return file_conf_conf_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *Trace) GetEnabled() bool {
@@ -794,7 +890,7 @@ type JaegerTrace struct {
 func (x *JaegerTrace) Reset() {
 	*x = JaegerTrace{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[12]
+		mi := &file_conf_conf_proto_msgTypes[13]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -807,7 +903,7 @@ func (x *JaegerTrace) String() string {
 func (*JaegerTrace) ProtoMessage() {}
 
 func (x *JaegerTrace) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[12]
+	mi := &file_conf_conf_proto_msgTypes[13]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -820,7 +916,7 @@ func (x *JaegerTrace) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use JaegerTrace.ProtoReflect.Descriptor instead.
 func (*JaegerTrace) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{12}
+	return file_conf_conf_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *JaegerTrace) GetEnabled() bool {
@@ -848,7 +944,7 @@ type Sampler struct {
 func (x *Sampler) Reset() {
 	*x = Sampler{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[13]
+		mi := &file_conf_conf_proto_msgTypes[14]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -861,7 +957,7 @@ func (x *Sampler) String() string {
 func (*Sampler) ProtoMessage() {}
 
 func (x *Sampler) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[13]
+	mi := &file_conf_conf_proto_msgTypes[14]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -874,7 +970,7 @@ func (x *Sampler) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Sampler.ProtoReflect.Descriptor instead.
 func (*Sampler) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{13}
+	return file_conf_conf_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *Sampler) GetRate() float64 {
@@ -901,7 +997,7 @@ type Data struct {
 func (x *Data) Reset() {
 	*x = Data{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[14]
+		mi := &file_conf_conf_proto_msgTypes[15]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -914,7 +1010,7 @@ func (x *Data) String() string {
 func (*Data) ProtoMessage() {}
 
 func (x *Data) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[14]
+	mi := &file_conf_conf_proto_msgTypes[15]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -927,7 +1023,7 @@ func (x *Data) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Data.ProtoReflect.Descriptor instead.
 func (*Data) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{14}
+	return file_conf_conf_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *Data) GetMysql() map[string]*MySQL {
@@ -990,7 +1086,7 @@ type ObjectStorage struct {
 func (x *ObjectStorage) Reset() {
 	*x = ObjectStorage{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[15]
+		mi := &file_conf_conf_proto_msgTypes[16]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1003,7 +1099,7 @@ func (x *ObjectStorage) String() string {
 func (*ObjectStorage) ProtoMessage() {}
 
 func (x *ObjectStorage) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[15]
+	mi := &file_conf_conf_proto_msgTypes[16]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1016,7 +1112,7 @@ func (x *ObjectStorage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ObjectStorage.ProtoReflect.Descriptor instead.
 func (*ObjectStorage) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{15}
+	return file_conf_conf_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ObjectStorage) GetEndpoint() string {
@@ -1084,7 +1180,7 @@ type MySQL struct {
 func (x *MySQL) Reset() {
 	*x = MySQL{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[16]
+		mi := &file_conf_conf_proto_msgTypes[17]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1097,7 +1193,7 @@ func (x *MySQL) String() string {
 func (*MySQL) ProtoMessage() {}
 
 func (x *MySQL) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[16]
+	mi := &file_conf_conf_proto_msgTypes[17]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1110,7 +1206,7 @@ func (x *MySQL) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MySQL.ProtoReflect.Descriptor instead.
 func (*MySQL) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{16}
+	return file_conf_conf_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *MySQL) GetDriver() string {
@@ -1171,7 +1267,7 @@ type Redis struct {
 func (x *Redis) Reset() {
 	*x = Redis{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[17]
+		mi := &file_conf_conf_proto_msgTypes[18]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1184,7 +1280,7 @@ func (x *Redis) String() string {
 func (*Redis) ProtoMessage() {}
 
 func (x *Redis) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[17]
+	mi := &file_conf_conf_proto_msgTypes[18]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1197,7 +1293,7 @@ func (x *Redis) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Redis.ProtoReflect.Descriptor instead.
 func (*Redis) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{17}
+	return file_conf_conf_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *Redis) GetDialTimeout() string {
@@ -1255,7 +1351,7 @@ type SLSProducer struct {
 func (x *SLSProducer) Reset() {
 	*x = SLSProducer{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[18]
+		mi := &file_conf_conf_proto_msgTypes[19]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1268,7 +1364,7 @@ func (x *SLSProducer) String() string {
 func (*SLSProducer) ProtoMessage() {}
 
 func (x *SLSProducer) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[18]
+	mi := &file_conf_conf_proto_msgTypes[19]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1281,7 +1377,7 @@ func (x *SLSProducer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SLSProducer.ProtoReflect.Descriptor instead.
 func (*SLSProducer) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{18}
+	return file_conf_conf_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SLSProducer) GetEndpoint() string {
@@ -1317,7 +1413,7 @@ type KylinStorage struct {
 func (x *KylinStorage) Reset() {
 	*x = KylinStorage{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[19]
+		mi := &file_conf_conf_proto_msgTypes[20]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1330,7 +1426,7 @@ func (x *KylinStorage) String() string {
 func (*KylinStorage) ProtoMessage() {}
 
 func (x *KylinStorage) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[19]
+	mi := &file_conf_conf_proto_msgTypes[20]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1343,7 +1439,7 @@ func (x *KylinStorage) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KylinStorage.ProtoReflect.Descriptor instead.
 func (*KylinStorage) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{19}
+	return file_conf_conf_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *KylinStorage) GetEndpoint() string {
@@ -1372,7 +1468,7 @@ type Kafka struct {
 func (x *Kafka) Reset() {
 	*x = Kafka{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[20]
+		mi := &file_conf_conf_proto_msgTypes[21]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1385,7 +1481,7 @@ func (x *Kafka) String() string {
 func (*Kafka) ProtoMessage() {}
 
 func (x *Kafka) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[20]
+	mi := &file_conf_conf_proto_msgTypes[21]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1398,7 +1494,7 @@ func (x *Kafka) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Kafka.ProtoReflect.Descriptor instead.
 func (*Kafka) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{20}
+	return file_conf_conf_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *Kafka) GetProducer() *KafkaProducer {
@@ -1429,7 +1525,7 @@ type KafkaConsumer struct {
 func (x *KafkaConsumer) Reset() {
 	*x = KafkaConsumer{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[21]
+		mi := &file_conf_conf_proto_msgTypes[22]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1442,7 +1538,7 @@ func (x *KafkaConsumer) String() string {
 func (*KafkaConsumer) ProtoMessage() {}
 
 func (x *KafkaConsumer) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[21]
+	mi := &file_conf_conf_proto_msgTypes[22]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1455,7 +1551,7 @@ func (x *KafkaConsumer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KafkaConsumer.ProtoReflect.Descriptor instead.
 func (*KafkaConsumer) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{21}
+	return file_conf_conf_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *KafkaConsumer) GetBidResultReport() *KafkaConsumer_Config {
@@ -1505,7 +1601,7 @@ type KafkaProducer struct {
 func (x *KafkaProducer) Reset() {
 	*x = KafkaProducer{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[22]
+		mi := &file_conf_conf_proto_msgTypes[23]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1518,7 +1614,7 @@ func (x *KafkaProducer) String() string {
 func (*KafkaProducer) ProtoMessage() {}
 
 func (x *KafkaProducer) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[22]
+	mi := &file_conf_conf_proto_msgTypes[23]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1531,7 +1627,7 @@ func (x *KafkaProducer) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KafkaProducer.ProtoReflect.Descriptor instead.
 func (*KafkaProducer) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{22}
+	return file_conf_conf_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *KafkaProducer) GetBidResultReport() *KafkaProducer_Config {
@@ -1613,7 +1709,7 @@ type KafkaConsumer_Config struct {
 func (x *KafkaConsumer_Config) Reset() {
 	*x = KafkaConsumer_Config{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[25]
+		mi := &file_conf_conf_proto_msgTypes[27]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1626,7 +1722,7 @@ func (x *KafkaConsumer_Config) String() string {
 func (*KafkaConsumer_Config) ProtoMessage() {}
 
 func (x *KafkaConsumer_Config) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[25]
+	mi := &file_conf_conf_proto_msgTypes[27]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1639,7 +1735,7 @@ func (x *KafkaConsumer_Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KafkaConsumer_Config.ProtoReflect.Descriptor instead.
 func (*KafkaConsumer_Config) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{21, 0}
+	return file_conf_conf_proto_rawDescGZIP(), []int{22, 0}
 }
 
 func (x *KafkaConsumer_Config) GetBootstrapServers() string {
@@ -1697,7 +1793,7 @@ type KafkaProducer_Config struct {
 func (x *KafkaProducer_Config) Reset() {
 	*x = KafkaProducer_Config{}
 	if protoimpl.UnsafeEnabled {
-		mi := &file_conf_conf_proto_msgTypes[27]
+		mi := &file_conf_conf_proto_msgTypes[29]
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		ms.StoreMessageInfo(mi)
 	}
@@ -1710,7 +1806,7 @@ func (x *KafkaProducer_Config) String() string {
 func (*KafkaProducer_Config) ProtoMessage() {}
 
 func (x *KafkaProducer_Config) ProtoReflect() protoreflect.Message {
-	mi := &file_conf_conf_proto_msgTypes[27]
+	mi := &file_conf_conf_proto_msgTypes[29]
 	if protoimpl.UnsafeEnabled && x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1723,7 +1819,7 @@ func (x *KafkaProducer_Config) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KafkaProducer_Config.ProtoReflect.Descriptor instead.
 func (*KafkaProducer_Config) Descriptor() ([]byte, []int) {
-	return file_conf_conf_proto_rawDescGZIP(), []int{22, 0}
+	return file_conf_conf_proto_rawDescGZIP(), []int{23, 0}
 }
 
 func (x *KafkaProducer_Config) GetBootstrapServers() string {
@@ -1794,13 +1890,38 @@ var file_conf_conf_proto_rawDesc = []byte{
 	0x12, 0x0a, 0x04, 0x70, 0x6f, 0x72, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x04, 0x70,
 	0x6f, 0x72, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x74, 0x69, 0x6d, 0x65, 0x6f, 0x75, 0x74, 0x18, 0x03,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x74, 0x69, 0x6d, 0x65, 0x6f, 0x75, 0x74, 0x12, 0x0e, 0x0a,
-	0x02, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x5e, 0x0a,
+	0x02, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x7d, 0x0a,
 	0x04, 0x47, 0x52, 0x50, 0x43, 0x12, 0x18, 0x0a, 0x07, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b,
 	0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x6e, 0x65, 0x74, 0x77, 0x6f, 0x72, 0x6b, 0x12,
 	0x12, 0x0a, 0x04, 0x70, 0x6f, 0x72, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x05, 0x52, 0x04, 0x70,
 	0x6f, 0x72, 0x74, 0x12, 0x18, 0x0a, 0x07, 0x74, 0x69, 0x6d, 0x65, 0x6f, 0x75, 0x74, 0x18, 0x03,
 	0x20, 0x01, 0x28, 0x09, 0x52, 0x07, 0x74, 0x69, 0x6d, 0x65, 0x6f, 0x75, 0x74, 0x12, 0x0e, 0x0a,
-	0x02, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x22, 0x20, 0x0a,
+	0x02, 0x69, 0x64, 0x18, 0x04, 0x20, 0x01, 0x28, 0x09, 0x52, 0x02, 0x69, 0x64, 0x12, 0x1d, 0x0a,
+	0x04, 0x61, 0x75, 0x74, 0x68, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0b, 0x32, 0x09, 0x2e, 0x47, 0x52,
+	0x50, 0x43, 0x41, 0x75, 0x74, 0x68, 0x52, 0x04, 0x61, 0x75, 0x74, 0x68, 0x22, 0xee, 0x02, 0x0a,
+	0x08, 0x47, 0x52, 0x50, 0x43, 0x41, 0x75, 0x74, 0x68, 0x12, 0x1d, 0x0a, 0x0a, 0x6a, 0x77, 0x74,
+	0x5f, 0x69, 0x73, 0x73, 0x75, 0x65, 0x72, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6a,
+	0x77, 0x74, 0x49, 0x73, 0x73, 0x75, 0x65, 0x72, 0x12, 0x1d, 0x0a, 0x0a, 0x6a, 0x77, 0x74, 0x5f,
+	0x73, 0x65, 0x63, 0x72, 0x65, 0x74, 0x18, 0x02, 0x20, 0x01, 0x28, 0x09, 0x52, 0x09, 0x6a, 0x77,
+	0x74, 0x53, 0x65, 0x63, 0x72, 0x65, 0x74, 0x12, 0x33, 0x0a, 0x16, 0x6a, 0x77, 0x74, 0x5f, 0x63,
+	0x6c, 0x6f, 0x63, 0x6b, 0x5f, 0x73, 0x6b, 0x65, 0x77, 0x5f, 0x73, 0x65, 0x63, 0x6f, 0x6e, 0x64,
+	0x73, 0x18, 0x03, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x13, 0x6a, 0x77, 0x74, 0x43, 0x6c, 0x6f, 0x63,
+	0x6b, 0x53, 0x6b, 0x65, 0x77, 0x53, 0x65, 0x63, 0x6f, 0x6e, 0x64, 0x73, 0x12, 0x37, 0x0a, 0x18,
+	0x68, 0x6d, 0x61, 0x63, 0x5f, 0x74, 0x69, 0x6d, 0x65, 0x5f, 0x77, 0x69, 0x6e, 0x64, 0x6f, 0x77,
+	0x5f, 0x73, 0x65, 0x63, 0x6f, 0x6e, 0x64, 0x73, 0x18, 0x04, 0x20, 0x01, 0x28, 0x0d, 0x52, 0x15,
+	0x68, 0x6d, 0x61, 0x63, 0x54, 0x69, 0x6d, 0x65, 0x57, 0x69, 0x6e, 0x64, 0x6f, 0x77, 0x53, 0x65,
+	0x63, 0x6f, 0x6e, 0x64, 0x73, 0x12, 0x2a, 0x0a, 0x11, 0x6e, 0x6f, 0x6e, 0x63, 0x65, 0x5f, 0x74,
+	0x74, 0x6c, 0x5f, 0x73, 0x65, 0x63, 0x6f, 0x6e, 0x64, 0x73, 0x18, 0x05, 0x20, 0x01, 0x28, 0x0d,
+	0x52, 0x0f, 0x6e, 0x6f, 0x6e, 0x63, 0x65, 0x54, 0x74, 0x6c, 0x53, 0x65, 0x63, 0x6f, 0x6e, 0x64,
+	0x73, 0x12, 0x47, 0x0a, 0x10, 0x68, 0x6d, 0x61, 0x63, 0x5f, 0x61, 0x63, 0x63, 0x65, 0x73, 0x73,
+	0x5f, 0x6b, 0x65, 0x79, 0x73, 0x18, 0x06, 0x20, 0x03, 0x28, 0x0b, 0x32, 0x1d, 0x2e, 0x47, 0x52,
+	0x50, 0x43, 0x41, 0x75, 0x74, 0x68, 0x2e, 0x48, 0x6d, 0x61, 0x63, 0x41, 0x63, 0x63, 0x65, 0x73,
+	0x73, 0x4b, 0x65, 0x79, 0x73, 0x45, 0x6e, 0x74, 0x72, 0x79, 0x52, 0x0e, 0x68, 0x6d, 0x61, 0x63,
+	0x41, 0x63, 0x63, 0x65, 0x73, 0x73, 0x4b, 0x65, 0x79, 0x73, 0x1a, 0x41, 0x0a, 0x13, 0x48, 0x6d,
+	0x61, 0x63, 0x41, 0x63, 0x63, 0x65, 0x73, 0x73, 0x4b, 0x65, 0x79, 0x73, 0x45, 0x6e, 0x74, 0x72,
+	0x79, 0x12, 0x10, 0x0a, 0x03, 0x6b, 0x65, 0x79, 0x18, 0x01, 0x20, 0x01, 0x28, 0x09, 0x52, 0x03,
+	0x6b, 0x65, 0x79, 0x12, 0x14, 0x0a, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x18, 0x02, 0x20, 0x01,
+	0x28, 0x09, 0x52, 0x05, 0x76, 0x61, 0x6c, 0x75, 0x65, 0x3a, 0x02, 0x38, 0x01, 0x22, 0x20, 0x0a,
 	0x0a, 0x4d, 0x61, 0x6e, 0x61, 0x67, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x12, 0x12, 0x0a, 0x04, 0x70,
 	0x6f, 0x72, 0x74, 0x18, 0x01, 0x20, 0x01, 0x28, 0x05, 0x52, 0x04, 0x70, 0x6f, 0x72, 0x74, 0x22,
 	0x51, 0x0a, 0x07, 0x4d, 0x65, 0x74, 0x72, 0x69, 0x63, 0x73, 0x12, 0x18, 0x0a, 0x07, 0x65, 0x6e,
@@ -2019,7 +2140,7 @@ func file_conf_conf_proto_rawDescGZIP() []byte {
 	return file_conf_conf_proto_rawDescData
 }
 
-var file_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 29)
+var file_conf_conf_proto_msgTypes = make([]protoimpl.MessageInfo, 31)
 var file_conf_conf_proto_goTypes = []interface{}{
 	(*Config)(nil),               // 0: Config
 	(*Server)(nil),               // 1: Server
@@ -2027,75 +2148,79 @@ var file_conf_conf_proto_goTypes = []interface{}{
 	(*Jaeger)(nil),               // 3: Jaeger
 	(*HTTP)(nil),                 // 4: HTTP
 	(*GRPC)(nil),                 // 5: GRPC
-	(*Management)(nil),           // 6: Management
-	(*Metrics)(nil),              // 7: Metrics
-	(*MetricsExporter)(nil),      // 8: MetricsExporter
-	(*Prometheus)(nil),           // 9: Prometheus
-	(*Logger)(nil),               // 10: Logger
-	(*Trace)(nil),                // 11: Trace
-	(*JaegerTrace)(nil),          // 12: JaegerTrace
-	(*Sampler)(nil),              // 13: Sampler
-	(*Data)(nil),                 // 14: Data
-	(*ObjectStorage)(nil),        // 15: ObjectStorage
-	(*MySQL)(nil),                // 16: MySQL
-	(*Redis)(nil),                // 17: Redis
-	(*SLSProducer)(nil),          // 18: SLSProducer
-	(*KylinStorage)(nil),         // 19: KylinStorage
-	(*Kafka)(nil),                // 20: Kafka
-	(*KafkaConsumer)(nil),        // 21: KafkaConsumer
-	(*KafkaProducer)(nil),        // 22: KafkaProducer
-	nil,                          // 23: Data.MysqlEntry
-	nil,                          // 24: Data.RedisEntry
-	(*KafkaConsumer_Config)(nil), // 25: KafkaConsumer.Config
-	nil,                          // 26: KafkaConsumer.Config.ConfigMapEntry
-	(*KafkaProducer_Config)(nil), // 27: KafkaProducer.Config
-	nil,                          // 28: KafkaProducer.Config.ConfigMapEntry
+	(*GRPCAuth)(nil),             // 6: GRPCAuth
+	(*Management)(nil),           // 7: Management
+	(*Metrics)(nil),              // 8: Metrics
+	(*MetricsExporter)(nil),      // 9: MetricsExporter
+	(*Prometheus)(nil),           // 10: Prometheus
+	(*Logger)(nil),               // 11: Logger
+	(*Trace)(nil),                // 12: Trace
+	(*JaegerTrace)(nil),          // 13: JaegerTrace
+	(*Sampler)(nil),              // 14: Sampler
+	(*Data)(nil),                 // 15: Data
+	(*ObjectStorage)(nil),        // 16: ObjectStorage
+	(*MySQL)(nil),                // 17: MySQL
+	(*Redis)(nil),                // 18: Redis
+	(*SLSProducer)(nil),          // 19: SLSProducer
+	(*KylinStorage)(nil),         // 20: KylinStorage
+	(*Kafka)(nil),                // 21: Kafka
+	(*KafkaConsumer)(nil),        // 22: KafkaConsumer
+	(*KafkaProducer)(nil),        // 23: KafkaProducer
+	nil,                          // 24: GRPCAuth.HmacAccessKeysEntry
+	nil,                          // 25: Data.MysqlEntry
+	nil,                          // 26: Data.RedisEntry
+	(*KafkaConsumer_Config)(nil), // 27: KafkaConsumer.Config
+	nil,                          // 28: KafkaConsumer.Config.ConfigMapEntry
+	(*KafkaProducer_Config)(nil), // 29: KafkaProducer.Config
+	nil,                          // 30: KafkaProducer.Config.ConfigMapEntry
 }
 var file_conf_conf_proto_depIdxs = []int32{
 	1,  // 0: Config.server:type_name -> Server
-	6,  // 1: Config.management:type_name -> Management
-	7,  // 2: Config.metrics:type_name -> Metrics
-	10, // 3: Config.logger:type_name -> Logger
-	11, // 4: Config.trace:type_name -> Trace
-	14, // 5: Config.data:type_name -> Data
+	7,  // 1: Config.management:type_name -> Management
+	8,  // 2: Config.metrics:type_name -> Metrics
+	11, // 3: Config.logger:type_name -> Logger
+	12, // 4: Config.trace:type_name -> Trace
+	15, // 5: Config.data:type_name -> Data
 	2,  // 6: Server.sentry:type_name -> Sentry
 	3,  // 7: Server.jaeger:type_name -> Jaeger
 	4,  // 8: Server.http:type_name -> HTTP
 	5,  // 9: Server.grpc:type_name -> GRPC
-	8,  // 10: Metrics.exporter:type_name -> MetricsExporter
-	9,  // 11: MetricsExporter.prometheus:type_name -> Prometheus
-	12, // 12: Trace.jaeger:type_name -> JaegerTrace
-	13, // 13: Trace.sampler:type_name -> Sampler
-	23, // 14: Data.mysql:type_name -> Data.MysqlEntry
-	24, // 15: Data.redis:type_name -> Data.RedisEntry
-	18, // 16: Data.sls_producer:type_name -> SLSProducer
-	19, // 17: Data.kylin_storage:type_name -> KylinStorage
-	20, // 18: Data.kafka:type_name -> Kafka
-	15, // 19: Data.object_storage:type_name -> ObjectStorage
-	22, // 20: Kafka.producer:type_name -> KafkaProducer
-	21, // 21: Kafka.consumer:type_name -> KafkaConsumer
-	25, // 22: KafkaConsumer.bid_result_report:type_name -> KafkaConsumer.Config
-	25, // 23: KafkaConsumer.article_view:type_name -> KafkaConsumer.Config
-	25, // 24: KafkaConsumer.comment_event:type_name -> KafkaConsumer.Config
-	25, // 25: KafkaConsumer.like_event:type_name -> KafkaConsumer.Config
-	27, // 26: KafkaProducer.bid_result_report:type_name -> KafkaProducer.Config
-	27, // 27: KafkaProducer.adx_report:type_name -> KafkaProducer.Config
-	27, // 28: KafkaProducer.block_report:type_name -> KafkaProducer.Config
-	27, // 29: KafkaProducer.article_view:type_name -> KafkaProducer.Config
-	27, // 30: KafkaProducer.article_view_dead_letter:type_name -> KafkaProducer.Config
-	27, // 31: KafkaProducer.comment_event:type_name -> KafkaProducer.Config
-	27, // 32: KafkaProducer.comment_event_dead_letter:type_name -> KafkaProducer.Config
-	27, // 33: KafkaProducer.like_event:type_name -> KafkaProducer.Config
-	27, // 34: KafkaProducer.like_event_dead_letter:type_name -> KafkaProducer.Config
-	16, // 35: Data.MysqlEntry.value:type_name -> MySQL
-	17, // 36: Data.RedisEntry.value:type_name -> Redis
-	26, // 37: KafkaConsumer.Config.config_map:type_name -> KafkaConsumer.Config.ConfigMapEntry
-	28, // 38: KafkaProducer.Config.config_map:type_name -> KafkaProducer.Config.ConfigMapEntry
-	39, // [39:39] is the sub-list for method output_type
-	39, // [39:39] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	6,  // 10: GRPC.auth:type_name -> GRPCAuth
+	24, // 11: GRPCAuth.hmac_access_keys:type_name -> GRPCAuth.HmacAccessKeysEntry
+	9,  // 12: Metrics.exporter:type_name -> MetricsExporter
+	10, // 13: MetricsExporter.prometheus:type_name -> Prometheus
+	13, // 14: Trace.jaeger:type_name -> JaegerTrace
+	14, // 15: Trace.sampler:type_name -> Sampler
+	25, // 16: Data.mysql:type_name -> Data.MysqlEntry
+	26, // 17: Data.redis:type_name -> Data.RedisEntry
+	19, // 18: Data.sls_producer:type_name -> SLSProducer
+	20, // 19: Data.kylin_storage:type_name -> KylinStorage
+	21, // 20: Data.kafka:type_name -> Kafka
+	16, // 21: Data.object_storage:type_name -> ObjectStorage
+	23, // 22: Kafka.producer:type_name -> KafkaProducer
+	22, // 23: Kafka.consumer:type_name -> KafkaConsumer
+	27, // 24: KafkaConsumer.bid_result_report:type_name -> KafkaConsumer.Config
+	27, // 25: KafkaConsumer.article_view:type_name -> KafkaConsumer.Config
+	27, // 26: KafkaConsumer.comment_event:type_name -> KafkaConsumer.Config
+	27, // 27: KafkaConsumer.like_event:type_name -> KafkaConsumer.Config
+	29, // 28: KafkaProducer.bid_result_report:type_name -> KafkaProducer.Config
+	29, // 29: KafkaProducer.adx_report:type_name -> KafkaProducer.Config
+	29, // 30: KafkaProducer.block_report:type_name -> KafkaProducer.Config
+	29, // 31: KafkaProducer.article_view:type_name -> KafkaProducer.Config
+	29, // 32: KafkaProducer.article_view_dead_letter:type_name -> KafkaProducer.Config
+	29, // 33: KafkaProducer.comment_event:type_name -> KafkaProducer.Config
+	29, // 34: KafkaProducer.comment_event_dead_letter:type_name -> KafkaProducer.Config
+	29, // 35: KafkaProducer.like_event:type_name -> KafkaProducer.Config
+	29, // 36: KafkaProducer.like_event_dead_letter:type_name -> KafkaProducer.Config
+	17, // 37: Data.MysqlEntry.value:type_name -> MySQL
+	18, // 38: Data.RedisEntry.value:type_name -> Redis
+	28, // 39: KafkaConsumer.Config.config_map:type_name -> KafkaConsumer.Config.ConfigMapEntry
+	30, // 40: KafkaProducer.Config.config_map:type_name -> KafkaProducer.Config.ConfigMapEntry
+	41, // [41:41] is the sub-list for method output_type
+	41, // [41:41] is the sub-list for method input_type
+	41, // [41:41] is the sub-list for extension type_name
+	41, // [41:41] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_conf_conf_proto_init() }
@@ -2177,7 +2302,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[6].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Management); i {
+			switch v := v.(*GRPCAuth); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2189,7 +2314,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[7].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Metrics); i {
+			switch v := v.(*Management); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2201,7 +2326,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[8].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*MetricsExporter); i {
+			switch v := v.(*Metrics); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2213,7 +2338,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[9].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Prometheus); i {
+			switch v := v.(*MetricsExporter); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2225,7 +2350,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[10].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Logger); i {
+			switch v := v.(*Prometheus); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2237,7 +2362,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[11].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Trace); i {
+			switch v := v.(*Logger); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2249,7 +2374,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[12].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*JaegerTrace); i {
+			switch v := v.(*Trace); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2261,7 +2386,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[13].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Sampler); i {
+			switch v := v.(*JaegerTrace); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2273,7 +2398,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[14].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Data); i {
+			switch v := v.(*Sampler); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2285,7 +2410,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[15].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*ObjectStorage); i {
+			switch v := v.(*Data); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2297,7 +2422,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[16].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*MySQL); i {
+			switch v := v.(*ObjectStorage); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2309,7 +2434,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[17].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Redis); i {
+			switch v := v.(*MySQL); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2321,7 +2446,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[18].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*SLSProducer); i {
+			switch v := v.(*Redis); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2333,7 +2458,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[19].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*KylinStorage); i {
+			switch v := v.(*SLSProducer); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2345,7 +2470,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[20].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*Kafka); i {
+			switch v := v.(*KylinStorage); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2357,7 +2482,7 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[21].Exporter = func(v interface{}, i int) interface{} {
-			switch v := v.(*KafkaConsumer); i {
+			switch v := v.(*Kafka); i {
 			case 0:
 				return &v.state
 			case 1:
@@ -2369,6 +2494,18 @@ func file_conf_conf_proto_init() {
 			}
 		}
 		file_conf_conf_proto_msgTypes[22].Exporter = func(v interface{}, i int) interface{} {
+			switch v := v.(*KafkaConsumer); i {
+			case 0:
+				return &v.state
+			case 1:
+				return &v.sizeCache
+			case 2:
+				return &v.unknownFields
+			default:
+				return nil
+			}
+		}
+		file_conf_conf_proto_msgTypes[23].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*KafkaProducer); i {
 			case 0:
 				return &v.state
@@ -2380,7 +2517,7 @@ func file_conf_conf_proto_init() {
 				return nil
 			}
 		}
-		file_conf_conf_proto_msgTypes[25].Exporter = func(v interface{}, i int) interface{} {
+		file_conf_conf_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*KafkaConsumer_Config); i {
 			case 0:
 				return &v.state
@@ -2392,7 +2529,7 @@ func file_conf_conf_proto_init() {
 				return nil
 			}
 		}
-		file_conf_conf_proto_msgTypes[27].Exporter = func(v interface{}, i int) interface{} {
+		file_conf_conf_proto_msgTypes[29].Exporter = func(v interface{}, i int) interface{} {
 			switch v := v.(*KafkaProducer_Config); i {
 			case 0:
 				return &v.state
@@ -2411,7 +2548,7 @@ func file_conf_conf_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: file_conf_conf_proto_rawDesc,
 			NumEnums:      0,
-			NumMessages:   29,
+			NumMessages:   31,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
