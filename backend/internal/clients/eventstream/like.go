@@ -8,47 +8,47 @@ import (
 	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
-	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
 	"codeup.aliyun.com/qimao/leo/leo/stream"
 	leokafka "codeup.aliyun.com/qimao/leo/leo/stream/kafka"
 	confluent "github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
-// CommentEventPublisher 同步发布评论 Outbox 事件。
-type CommentEventPublisher struct {
+// LikeEventPublisher 同步发布文章点赞 Outbox 事件。
+type LikeEventPublisher struct {
 	publisher stream.Publisher // publisher 是 Leo Kafka 发布器。
 	mutex     sync.RWMutex     // mutex 协调发布与关闭。
 	closed    bool             // closed 表示发布器已关闭。
 }
 
-// CommentEventSubscriber 包装评论事件 Kafka 订阅器。
-type CommentEventSubscriber struct {
+// LikeEventSubscriber 包装文章点赞事件 Kafka 订阅器。
+type LikeEventSubscriber struct {
 	stream.Subscriber // Subscriber 提供 Leo Stream 订阅能力。
 }
 
-// CommentEventDeadLetterPublisher 发布文章评论计数消费死信。
-type CommentEventDeadLetterPublisher struct {
+// LikeEventDeadLetterPublisher 发布文章点赞计数消费死信。
+type LikeEventDeadLetterPublisher struct {
 	publisher stream.Publisher // publisher 是 Leo Kafka 死信发布器。
 	mutex     sync.RWMutex     // mutex 协调发布与关闭。
 	closed    bool             // closed 表示发布器已关闭。
 }
 
-// NewCommentEventPublisher 创建评论事件 Kafka 发布器。
-func NewCommentEventPublisher(config *conf.Config) (*CommentEventPublisher, error) {
+// NewLikeEventPublisher 创建文章点赞事件 Kafka 发布器。
+func NewLikeEventPublisher(config *conf.Config) (*LikeEventPublisher, error) {
 	// 1. 从版本化配置字段创建同步发布器
-	publisher, err := newIntegrationPublisher(config.GetData().GetKafka().GetProducer().GetCommentEvent(), "评论事件")
+	publisher, err := newIntegrationPublisher(config.GetData().GetKafka().GetProducer().GetLikeEvent(), "点赞事件")
 	if err != nil {
 		return nil, err
 	}
-	return &CommentEventPublisher{publisher: publisher}, nil
+	return &LikeEventPublisher{publisher: publisher}, nil
 }
 
-// NewCommentEventSubscriber 创建文章评论计数 Kafka 订阅器。
-func NewCommentEventSubscriber(config *conf.Config) (*CommentEventSubscriber, error) {
+// NewLikeEventSubscriber 创建文章点赞计数 Kafka 订阅器。
+func NewLikeEventSubscriber(config *conf.Config) (*LikeEventSubscriber, error) {
 	// 1. 从版本化配置字段创建手动提交订阅器
-	cfg := config.GetData().GetKafka().GetConsumer().GetCommentEvent()
+	cfg := config.GetData().GetKafka().GetConsumer().GetLikeEvent()
 	if cfg.GetBootstrapServers() == "" || cfg.GetTopic() == "" || cfg.GetGroupId() == "" {
-		return nil, fmt.Errorf("缺少评论事件 Kafka consumer 配置")
+		return nil, fmt.Errorf("缺少点赞事件 Kafka consumer 配置")
 	}
 	factory := func() (*confluent.Consumer, error) {
 		values := confluent.ConfigMap{"bootstrap.servers": cfg.GetBootstrapServers(), "group.id": cfg.GetGroupId(), "auto.offset.reset": "earliest", "enable.auto.commit": false}
@@ -61,21 +61,21 @@ func NewCommentEventSubscriber(config *conf.Config) (*CommentEventSubscriber, er
 	if err != nil {
 		return nil, err
 	}
-	return &CommentEventSubscriber{Subscriber: subscriber}, nil
+	return &LikeEventSubscriber{Subscriber: subscriber}, nil
 }
 
-// NewCommentEventDeadLetterPublisher 创建评论计数死信发布器。
-func NewCommentEventDeadLetterPublisher(config *conf.Config) (*CommentEventDeadLetterPublisher, error) {
+// NewLikeEventDeadLetterPublisher 创建点赞计数死信发布器。
+func NewLikeEventDeadLetterPublisher(config *conf.Config) (*LikeEventDeadLetterPublisher, error) {
 	// 1. 从版本化配置字段创建死信发布器
-	publisher, err := newIntegrationPublisher(config.GetData().GetKafka().GetProducer().GetCommentEventDeadLetter(), "评论事件死信")
+	publisher, err := newIntegrationPublisher(config.GetData().GetKafka().GetProducer().GetLikeEventDeadLetter(), "点赞事件死信")
 	if err != nil {
 		return nil, err
 	}
-	return &CommentEventDeadLetterPublisher{publisher: publisher}, nil
+	return &LikeEventDeadLetterPublisher{publisher: publisher}, nil
 }
 
-// Publish 同步等待 Kafka 接受评论事件。
-func (p *CommentEventPublisher) Publish(ctx context.Context, event comment.IntegrationEvent) error {
+// Publish 同步等待 Kafka 接受文章点赞事件。
+func (p *LikeEventPublisher) Publish(ctx context.Context, event like.IntegrationEvent) error {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	if p.closed {
@@ -90,8 +90,8 @@ func (p *CommentEventPublisher) Publish(ctx context.Context, event comment.Integ
 	return err
 }
 
-// Run 等待退出并关闭评论事件 Kafka 发布器。
-func (p *CommentEventPublisher) Run(ctx context.Context) error {
+// Run 等待退出并关闭文章点赞事件 Kafka 发布器。
+func (p *LikeEventPublisher) Run(ctx context.Context) error {
 	// 1. 等待 Leo 生命周期结束后阻止新发布并关闭连接
 	<-ctx.Done()
 	p.mutex.Lock()
@@ -103,8 +103,8 @@ func (p *CommentEventPublisher) Run(ctx context.Context) error {
 	return err
 }
 
-// PublishCommentCountDeadLetter 发布评论计数消费失败消息。
-func (p *CommentEventDeadLetterPublisher) PublishCommentCountDeadLetter(ctx context.Context, payload []byte, cause string) error {
+// PublishLikeCountDeadLetter 发布点赞计数消费失败消息。
+func (p *LikeEventDeadLetterPublisher) PublishLikeCountDeadLetter(ctx context.Context, payload []byte, cause string) error {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	if p.closed {
@@ -117,8 +117,8 @@ func (p *CommentEventDeadLetterPublisher) PublishCommentCountDeadLetter(ctx cont
 	return err
 }
 
-// Run 等待退出并关闭评论事件死信发布器。
-func (p *CommentEventDeadLetterPublisher) Run(ctx context.Context) error {
+// Run 等待退出并关闭点赞事件死信发布器。
+func (p *LikeEventDeadLetterPublisher) Run(ctx context.Context) error {
 	// 1. 等待 Leo 生命周期结束后关闭连接
 	<-ctx.Done()
 	p.mutex.Lock()
@@ -128,20 +128,4 @@ func (p *CommentEventDeadLetterPublisher) Run(ctx context.Context) error {
 	err := p.publisher.Close(cleanupCtx)
 	p.mutex.Unlock()
 	return err
-}
-
-// newIntegrationPublisher 创建指定用途的 Leo Kafka 发布器。
-func newIntegrationPublisher(config *conf.KafkaProducer_Config, name string) (stream.Publisher, error) {
-	// 1. 启动时拒绝缺少 Broker 或 Topic 的配置
-	if config == nil || config.GetBootstrapServers() == "" || config.GetTopic() == "" {
-		return nil, fmt.Errorf("缺少%s Kafka producer 配置", name)
-	}
-	factory := func() (*confluent.Producer, error) {
-		values := confluent.ConfigMap{"bootstrap.servers": config.GetBootstrapServers()}
-		for key, value := range config.GetConfigMap() {
-			values[key] = value
-		}
-		return confluent.NewProducer(&values)
-	}
-	return leokafka.NewPublisher(config.GetTopic(), factory)
 }

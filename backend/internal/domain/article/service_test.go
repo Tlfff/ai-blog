@@ -168,6 +168,15 @@ func (f *fakeRepository) FindPublicDetail(context.Context, uint64) (*entity.Deta
 	return &entity.Detail{Article: &entity.Article{ID: 1, Status: StatusPublished}}, nil
 }
 
+// IsPublished 返回测试文章是否可公开点赞。
+func (f *fakeRepository) IsPublished(context.Context, uint64) (bool, error) {
+	// 1. 复用公开详情预设表达文章状态
+	if f.publicErr != nil {
+		return false, f.publicErr
+	}
+	return true, nil
+}
+
 // fakeStorage 记录预签名有效期。
 type fakeStorage struct {
 	expires    time.Duration          // expires 是预签名地址有效期。

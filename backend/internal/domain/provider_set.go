@@ -7,6 +7,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
 	comment "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
 	commentrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
+	like "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
 	likerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	userrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
@@ -18,14 +19,30 @@ var DomainProviderAppSet = wire.NewSet(
 	repo.NewHdRepo,
 	book.NewHelloworld,
 	ArticleRepositoryProviderSet,
-	likerepo.NewQueryRepository,
-	wire.Bind(new(article.LikeReader), new(*likerepo.QueryRepository)),
+	LikeProviderSet,
 	wire.Bind(new(article.Repository), new(*articlerepo.Repository)),
 	wire.Bind(new(article.SubmissionGuard), new(*articlerepo.SubmissionGuard)),
 	article.NewService,
 	wire.Bind(new(article.UseCase), new(*article.Service)),
 	wire.Bind(new(article.DeletionRecovery), new(*article.Service)),
 	CommentProviderSet,
+)
+
+// LikeProviderSet 提供点赞事实、Redis 集合、查询契约和领域服务。
+var LikeProviderSet = wire.NewSet(
+	likerepo.ProvideTransactionClient,
+	likerepo.NewRepository,
+	likerepo.NewCache,
+	likerepo.NewQueryRepository,
+	wire.Bind(new(like.Repository), new(*likerepo.Repository)),
+	wire.Bind(new(like.OutboxRepository), new(*likerepo.Repository)),
+	wire.Bind(new(like.Cache), new(*likerepo.Cache)),
+	wire.Bind(new(article.LikeReader), new(*likerepo.QueryRepository)),
+	article.NewPublicationQuery,
+	wire.Bind(new(like.ArticleReader), new(*article.PublicationQuery)),
+	like.NewService,
+	wire.Bind(new(like.UseCase), new(*like.Service)),
+	wire.Bind(new(like.CacheRebuilder), new(*like.Service)),
 )
 
 // CommentProviderSet 提供评论上下文的仓储、查询适配器和领域服务。
@@ -50,12 +67,19 @@ var ArticleRepositoryProviderSet = wire.NewSet(
 	articlerepo.NewRepository,
 	wire.Bind(new(article.ReadingRepository), new(*articlerepo.Repository)),
 	wire.Bind(new(article.CommentCountRepository), new(*articlerepo.Repository)),
+	wire.Bind(new(article.LikeCountRepository), new(*articlerepo.Repository)),
 )
 
 // ArticleCommentCountProviderSet 提供文章评论数投影能力。
 var ArticleCommentCountProviderSet = wire.NewSet(
 	article.NewCommentCountProjector,
 	wire.Bind(new(article.CommentCountProcessor), new(*article.CommentCountProjector)),
+)
+
+// ArticleLikeCountProviderSet 提供文章点赞数投影能力。
+var ArticleLikeCountProviderSet = wire.NewSet(
+	article.NewLikeCountProjector,
+	wire.Bind(new(article.LikeCountProcessor), new(*article.LikeCountProjector)),
 )
 
 // ArticleReadingProviderSet 提供公开阅读、浏览消费和热榜领域能力。
