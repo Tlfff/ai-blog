@@ -59,3 +59,26 @@ data:
         group_id: "article-view-projector"
         message_buffer_size: 16
 ```
+
+
+## 评论事件 Outbox 与文章评论数投影 Kafka 配置
+
+Consumer 进程持续补发评论事务 Outbox，并由独立消费组维护文章 `comment_count`；处理重试耗尽后写入死信主题：
+
+```yaml
+data:
+  kafka:
+    producer:
+      comment_event:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "comment-event"
+      comment_event_dead_letter:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "comment-event-dlq"
+    consumer:
+      comment_event:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "comment-event"
+        group_id: "article-comment-count-projector"
+        message_buffer_size: 16
+```

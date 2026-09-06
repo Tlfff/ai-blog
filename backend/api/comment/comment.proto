@@ -11,6 +11,12 @@ service CommentService {
   rpc CreateComment(CreateCommentRequest) returns (CreateCommentReply) {
     option (google.api.http) = { post: "/auth/comment/create" body: "*" };
   }
+  rpc DeleteComment(DeleteCommentRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/auth/comment/delete" body: "*" };
+  }
+  rpc AdminDeleteComment(DeleteCommentRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/admin/comment/delete" body: "*" };
+  }
   rpc ListRootComments(RootCommentListRequest) returns (CommentListReply) {
     option (google.api.http) = { get: "/comment/list/roots" };
   }
@@ -25,6 +31,12 @@ message CreateCommentRequest {
   uint64 reply_to_user_id = 3;
   string content = 4 [(validate.rules).string = {min_len: 1}];
 }
+
+message DeleteCommentRequest {
+  uint64 id = 1 [(validate.rules).uint64 = {gt: 0}];
+}
+
+message EmptyReply {}
 
 message CreateCommentReply {
   uint64 id = 1;

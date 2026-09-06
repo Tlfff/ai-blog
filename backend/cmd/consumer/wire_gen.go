@@ -7,12 +7,15 @@
 package consumer
 
 import (
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/job"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
+	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
 	"github.com/google/wire"
 )
 
@@ -55,7 +58,30 @@ func newBlogStreamerApp() (*consumerApplication, func(), error) {
 		return nil, nil, err
 	}
 	articleViewConsumer := newArticleViewConsumer(viewService, articleViewSubscriber, articleViewDeadLetterPublisher)
-	consumerConsumerApplication := newBlogStreamer(data, articleViewConsumer, articleViewPublisher, articleViewDeadLetterPublisher)
+	commentCountProjector := article.NewCommentCountProjector(repository)
+	commentEventSubscriber, err := eventstream.NewCommentEventSubscriber(config)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	commentEventDeadLetterPublisher, err := eventstream.NewCommentEventDeadLetterPublisher(config)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	commentCountConsumer := newCommentCountConsumer(commentCountProjector, commentEventSubscriber, commentEventDeadLetterPublisher)
+	commentEventPublisher, err := eventstream.NewCommentEventPublisher(config)
+	if err != nil {
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	repoTransactionClient := repo2.ProvideTransactionClient(mysqlClient)
+	repoRepository := repo2.NewRepository(mysqlClient, repoTransactionClient)
+	commentOutboxRelay := job.NewCommentOutboxRelay(repoRepository, commentEventPublisher)
+	consumerConsumerApplication := newBlogStreamer(data, articleViewConsumer, commentCountConsumer, articleViewPublisher, articleViewDeadLetterPublisher, commentEventPublisher, commentEventDeadLetterPublisher, commentOutboxRelay)
 	return consumerConsumerApplication, func() {
 		cleanup2()
 		cleanup()
@@ -64,6 +90,7 @@ func newBlogStreamerApp() (*consumerApplication, func(), error) {
 
 // wire.go:
 
-var ProviderSet = wire.NewSet(conf.ProviderSet, clients.NewMysqlClient, clients.NewRedisClient, eventstream.NewArticleViewPublisher, eventstream.NewArticleViewDeadLetterPublisher, eventstream.NewArticleViewSubscriber, wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)), wire.Bind(new(article.ViewDeadLetterPublisher), new(*eventstream.ArticleViewDeadLetterPublisher)), domain.ArticleRepositoryProviderSet, domain.ArticleReadingProviderSet, newArticleViewConsumer,
+var ProviderSet = wire.NewSet(conf.ProviderSet, clients.NewMysqlClient, clients.NewRedisClient, eventstream.NewArticleViewPublisher, eventstream.NewArticleViewDeadLetterPublisher, eventstream.NewArticleViewSubscriber, eventstream.NewCommentEventPublisher, eventstream.NewCommentEventDeadLetterPublisher, eventstream.NewCommentEventSubscriber, wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)), wire.Bind(new(article.ViewDeadLetterPublisher), new(*eventstream.ArticleViewDeadLetterPublisher)), wire.Bind(new(comment.EventPublisher), new(*eventstream.CommentEventPublisher)), wire.Bind(new(article.CommentCountDeadLetterPublisher), new(*eventstream.CommentEventDeadLetterPublisher)), domain.ArticleRepositoryProviderSet, domain.ArticleReadingProviderSet, domain.ArticleCommentCountProviderSet, repo2.ProvideTransactionClient, repo2.NewRepository, wire.Bind(new(comment.OutboxRepository), new(*repo2.Repository)), job.NewCommentOutboxRelay, newArticleViewConsumer,
+	newCommentCountConsumer,
 	newBlogStreamer,
 )

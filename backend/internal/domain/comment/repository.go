@@ -42,6 +42,13 @@ type CreateCommand struct {
 	CreatedTime   time.Time // CreatedTime 是评论创建时间。
 }
 
+// DeleteCommand 表示删除评论的领域输入。
+type DeleteCommand struct {
+	CommentID uint64 // CommentID 是待删除评论标识。
+	ActorID   uint64 // ActorID 是当前操作者标识。
+	IsAdmin   bool   // IsAdmin 表示操作者是否可绕过所有权校验。
+}
+
 // PageQuery 表示评论列表的规范化分页输入。
 type PageQuery struct {
 	LastID   uint64 // LastID 大于0时启用游标分页。
@@ -68,8 +75,12 @@ type ListResult struct {
 
 // Repository 定义评论上下文的数据访问能力。
 type Repository interface {
-	// Create 在事务中创建评论并维护根评论回复数。
+	// Create 在事务中创建评论、维护根评论回复数并写入 Outbox。
 	Create(context.Context, *entity.Comment) error
+	// FindByID 查询评论及其删除状态。
+	FindByID(context.Context, uint64) (*entity.Comment, error)
+	// Delete 幂等软删除评论并为实际状态变化写入 Outbox。
+	Delete(context.Context, uint64) error
 	// FindRoot 查询正常或已删除状态的根评论，用于回复前校验。
 	FindRoot(context.Context, uint64) (*entity.Comment, error)
 	// HasReplyTarget 查询用户是否属于指定根评论及其正常直属回复链。
