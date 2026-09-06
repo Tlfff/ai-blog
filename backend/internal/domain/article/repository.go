@@ -59,6 +59,8 @@ type Repository interface {
 	FindDetail(context.Context, uint64, uint64) (*entity.Detail, error)
 	// FindPublicDetail 查询已发表文章、作者快照和正文图片映射。
 	FindPublicDetail(context.Context, uint64) (*entity.Detail, error)
+	// IsPublished 查询文章是否存在且处于已发表状态。
+	IsPublished(context.Context, uint64) (bool, error)
 }
 
 // Storage 定义正文图片直传和公开访问所需的对象存储能力。
