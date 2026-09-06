@@ -24,6 +24,21 @@ func (f *fakeRepository) Create(_ context.Context, c *entity.Comment) error {
 	return nil
 }
 
+// FindByID 返回预设评论。
+func (f *fakeRepository) FindByID(context.Context, uint64) (*entity.Comment, error) {
+	// 1. 复用根评论作为删除测试数据
+	if f.root == nil {
+		return nil, ErrCommentNotFound
+	}
+	return f.root, nil
+}
+
+// Delete 模拟幂等删除评论。
+func (f *fakeRepository) Delete(context.Context, uint64) error {
+	// 1. 测试替身无需持久化状态
+	return nil
+}
+
 // HasReplyTarget 模拟当前评论测试所需的依赖行为。
 func (f *fakeRepository) HasReplyTarget(_ context.Context, _, _ uint64) (bool, error) {
 	// 1. 执行当前测试依赖操作并记录断言数据

@@ -163,6 +163,218 @@ var _ interface {
 	ErrorName() string
 } = CreateCommentRequestValidationError{}
 
+// Validate checks the field values on DeleteCommentRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *DeleteCommentRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on DeleteCommentRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// DeleteCommentRequestMultiError, or nil if none found.
+func (m *DeleteCommentRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *DeleteCommentRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if m.GetId() <= 0 {
+		err := DeleteCommentRequestValidationError{
+			field:  "Id",
+			reason: "value must be greater than 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return DeleteCommentRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// DeleteCommentRequestMultiError is an error wrapping multiple validation
+// errors returned by DeleteCommentRequest.ValidateAll() if the designated
+// constraints aren't met.
+type DeleteCommentRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m DeleteCommentRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m DeleteCommentRequestMultiError) AllErrors() []error { return m }
+
+// DeleteCommentRequestValidationError is the validation error returned by
+// DeleteCommentRequest.Validate if the designated constraints aren't met.
+type DeleteCommentRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e DeleteCommentRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e DeleteCommentRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e DeleteCommentRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e DeleteCommentRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e DeleteCommentRequestValidationError) ErrorName() string {
+	return "DeleteCommentRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e DeleteCommentRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sDeleteCommentRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = DeleteCommentRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = DeleteCommentRequestValidationError{}
+
+// Validate checks the field values on EmptyReply with the rules defined in the
+// proto definition for this message. If any rules are violated, the first
+// error encountered is returned, or nil if there are no violations.
+func (m *EmptyReply) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on EmptyReply with the rules defined in
+// the proto definition for this message. If any rules are violated, the
+// result is a list of violation errors wrapped in EmptyReplyMultiError, or
+// nil if none found.
+func (m *EmptyReply) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *EmptyReply) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if len(errors) > 0 {
+		return EmptyReplyMultiError(errors)
+	}
+
+	return nil
+}
+
+// EmptyReplyMultiError is an error wrapping multiple validation errors
+// returned by EmptyReply.ValidateAll() if the designated constraints aren't met.
+type EmptyReplyMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m EmptyReplyMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m EmptyReplyMultiError) AllErrors() []error { return m }
+
+// EmptyReplyValidationError is the validation error returned by
+// EmptyReply.Validate if the designated constraints aren't met.
+type EmptyReplyValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e EmptyReplyValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e EmptyReplyValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e EmptyReplyValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e EmptyReplyValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e EmptyReplyValidationError) ErrorName() string { return "EmptyReplyValidationError" }
+
+// Error satisfies the builtin error interface
+func (e EmptyReplyValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sEmptyReply.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = EmptyReplyValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = EmptyReplyValidationError{}
+
 // Validate checks the field values on CreateCommentReply with the rules
 // defined in the proto definition for this message. If any rules are
 // violated, the first error encountered is returned, or nil if there are no violations.

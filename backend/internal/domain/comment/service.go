@@ -22,6 +22,8 @@ const (
 type UseCase interface {
 	// Create 创建主评论或楼中楼回复。
 	Create(context.Context, CreateCommand) (*entity.Comment, error)
+	// Delete 按作者或管理员权限幂等删除评论。
+	Delete(context.Context, DeleteCommand) error
 	// ListRoots 查询文章主评论。
 	ListRoots(context.Context, RootListQuery) (*ListResult, error)
 	// ListReplies 查询根评论的楼中楼回复。
@@ -102,6 +104,26 @@ func (s *Service) Create(ctx context.Context, command CreateCommand) (*entity.Co
 		return nil, err
 	}
 	return comment, nil
+}
+
+// Delete 按所有权规则删除评论。
+func (s *Service) Delete(ctx context.Context, command DeleteCommand) error {
+	// 1. 校验操作者和评论标识
+	if command.CommentID == 0 || command.ActorID == 0 {
+		return ErrInvalidInput
+	}
+
+	// 2. 普通用户必须是评论作者，管理员仅绕过所有权校验
+	current, err := s.repository.FindByID(ctx, command.CommentID)
+	if err != nil {
+		return err
+	}
+	if !command.IsAdmin && current.UserID != command.ActorID {
+		return ErrCommentPermissionDenied
+	}
+
+	// 3. 仓储通过条件更新保证重复删除不产生第二次状态变化
+	return s.repository.Delete(ctx, command.CommentID)
 }
 
 // ListRoots 查询主评论并补充公开用户资料。

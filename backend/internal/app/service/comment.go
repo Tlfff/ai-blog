@@ -8,6 +8,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/entity"
 	userdomain "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/pkg/httpresponse"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/pkg/identity"
 	"codeup.aliyun.com/qimao/leo/lib/errassets"
 	"github.com/gin-gonic/gin"
@@ -19,6 +20,8 @@ const (
 	codeCommentRootInvalid      = 44050113
 	codeCommentDuplicate        = 44050114
 	codeCommentNotAuthenticated = 44030101
+	codeCommentPermissionDenied = 44030102
+	codeCommentNotFound         = 44050115
 )
 
 // CommentService 将评论 HTTP 协议转换为评论领域调用。
@@ -48,6 +51,41 @@ func (s *CommentService) CreateComment(ctx *gin.Context, request *commentapi.Cre
 		return nil, commentHTTPError(err)
 	}
 	return &commentapi.CreateCommentReply{Id: created.ID, CreatedTime: commentUnixSeconds(created.CreatedTime)}, nil
+}
+
+// DeleteComment 删除当前用户自己的评论。
+func (s *CommentService) DeleteComment(ctx *gin.Context, request *commentapi.DeleteCommentRequest) (*commentapi.EmptyReply, error) {
+	// 1. 读取当前用户并按所有权规则删除评论
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeCommentNotAuthenticated, "未登录")
+	}
+	if err := s.useCase.Delete(ctx.Request.Context(), comment.DeleteCommand{CommentID: request.GetId(), ActorID: currentUser.ID}); err != nil {
+		return nil, commentHTTPError(err)
+	}
+
+	// 2. 保持删除接口 data=null 的兼容契约
+	httpresponse.SetSuccess(ctx, "评论删除成功", true)
+	return &commentapi.EmptyReply{}, nil
+}
+
+// AdminDeleteComment 允许管理员绕过评论所有权校验。
+func (s *CommentService) AdminDeleteComment(ctx *gin.Context, request *commentapi.DeleteCommentRequest) (*commentapi.EmptyReply, error) {
+	// 1. 再次校验管理员身份，避免应用服务被非 HTTP 入口误用
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeCommentNotAuthenticated, "未登录")
+	}
+	if currentUser.Role != userdomain.RoleAdmin {
+		return nil, errassets.NewError(codeCommentPermissionDenied, "无管理员权限")
+	}
+	if err := s.useCase.Delete(ctx.Request.Context(), comment.DeleteCommand{CommentID: request.GetId(), ActorID: currentUser.ID, IsAdmin: true}); err != nil {
+		return nil, commentHTTPError(err)
+	}
+
+	// 2. 管理员入口复用相同删除结果契约
+	httpresponse.SetSuccess(ctx, "评论删除成功", true)
+	return &commentapi.EmptyReply{}, nil
 }
 
 // ListRootComments 查询文章主评论列表。
@@ -112,6 +150,10 @@ func commentHTTPError(err error) error {
 		return errassets.NewError(codeCommentDuplicate, "请勿重复提交评论")
 	case errors.Is(err, comment.ErrInvalidReplyTarget):
 		return errassets.NewError(codeCommentRootInvalid, "回复目标不属于当前评论楼")
+	case errors.Is(err, comment.ErrCommentNotFound):
+		return errassets.NewError(codeCommentNotFound, "评论不存在")
+	case errors.Is(err, comment.ErrCommentPermissionDenied):
+		return errassets.NewError(codeCommentPermissionDenied, "无权删除该评论")
 	case errors.Is(err, comment.ErrInvalidInput):
 		return errassets.NewError(codeCommentInvalid, "评论参数不合法")
 	default:

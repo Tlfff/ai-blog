@@ -43,18 +43,24 @@ type CommentServiceResponse struct {
 	Data any `json:"data"`
 }
 
+const OperationCommentServiceAdminDeleteComment = "/comment.v1.CommentService/AdminDeleteComment"
 const OperationCommentServiceCreateComment = "/comment.v1.CommentService/CreateComment"
+const OperationCommentServiceDeleteComment = "/comment.v1.CommentService/DeleteComment"
 const OperationCommentServiceListReplies = "/comment.v1.CommentService/ListReplies"
 const OperationCommentServiceListRootComments = "/comment.v1.CommentService/ListRootComments"
 
 type CommentServiceHTTPServerController interface {
+	AdminDeleteComment(*gin.Context, *DeleteCommentRequest) (*EmptyReply, error)
 	CreateComment(*gin.Context, *CreateCommentRequest) (*CreateCommentReply, error)
+	DeleteComment(*gin.Context, *DeleteCommentRequest) (*EmptyReply, error)
 	ListReplies(*gin.Context, *ReplyListRequest) (*CommentListReply, error)
 	ListRootComments(*gin.Context, *RootCommentListRequest) (*CommentListReply, error)
 }
 
 func RegisterCommentServiceHTTPServerController(router *gin.RouterGroup, srv CommentServiceHTTPServerController) {
 	router.POST("/auth/comment/create", _CommentService_CreateComment0_HTTP_Handler(srv))
+	router.POST("/auth/comment/delete", _CommentService_DeleteComment0_HTTP_Handler(srv))
+	router.POST("/admin/comment/delete", _CommentService_AdminDeleteComment0_HTTP_Handler(srv))
 	router.GET("/comment/list/roots", _CommentService_ListRootComments0_HTTP_Handler(srv))
 	router.GET("/comment/list/replies", _CommentService_ListReplies0_HTTP_Handler(srv))
 }
@@ -104,6 +110,110 @@ func _CommentService_CreateComment0_HTTP_Handler(srv CommentServiceHTTPServerCon
 		_, err = c.Writer.Write(b)
 		if err != nil {
 			log.Errorf("/comment.v1.CommentService/CreateComment err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _CommentService_DeleteComment0_HTTP_Handler(srv CommentServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in DeleteCommentRequest
+		data, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		if len(data) != 0 {
+			codec, _ := code_encoding.CodecForRequest(c.Request, "Content-Type")
+			if err = codec.Unmarshal(data, &in); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+				return
+			}
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.DeleteComment(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/comment.v1.CommentService/DeleteComment err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := CommentServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/comment.v1.CommentService/DeleteComment err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _CommentService_AdminDeleteComment0_HTTP_Handler(srv CommentServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in DeleteCommentRequest
+		data, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		if len(data) != 0 {
+			codec, _ := code_encoding.CodecForRequest(c.Request, "Content-Type")
+			if err = codec.Unmarshal(data, &in); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+				return
+			}
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.AdminDeleteComment(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/comment.v1.CommentService/AdminDeleteComment err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := CommentServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/comment.v1.CommentService/AdminDeleteComment err: %+v", err)
 			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
 			return
 		}

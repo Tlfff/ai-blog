@@ -2,12 +2,16 @@ package repo
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
+	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/entity"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo/factory"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo/po"
+	"github.com/google/uuid"
 	"xorm.io/xorm"
 	"xorm.io/xorm/schemas"
 )
@@ -31,7 +35,7 @@ type mysqlArticleLocker struct{}
 func (mysqlArticleLocker) LockPublishedArticle(session *xorm.Session, articleID uint64) error {
 	// 1. 锁定文章行并校验已发表状态
 	var row struct {
-		Status int8 `xorm:"'status'"`
+		Status int8 `xorm:"'status'"` // Status 是文章状态：3-已发表。
 	}
 	found, err := forUpdate(session.Table("articles").Where("id = ?", articleID)).Cols("status").Get(&row)
 	if err != nil {
@@ -51,6 +55,8 @@ type Repository struct {
 	client        clients.MysqlClient // client 提供评论普通查询能力。
 	transaction   transactionClient   // transaction 提供评论创建事务能力。
 	articleLocker ArticleLocker       // articleLocker 提供事务内文章有效性校验。
+	now           func() time.Time    // now 提供可测试的当前时间。
+	newEventID    func() string       // newEventID 提供可测试的事件标识。
 }
 
 // NewRepository 创建评论 MySQL 仓储。
@@ -59,7 +65,7 @@ func NewRepository(client clients.MysqlClient, transaction transactionClient) *R
 	if client == nil || transaction == nil {
 		panic("评论仓储缺少事务数据库客户端")
 	}
-	return &Repository{client: client, transaction: transaction, articleLocker: mysqlArticleLocker{}}
+	return &Repository{client: client, transaction: transaction, articleLocker: mysqlArticleLocker{}, now: time.Now, newEventID: uuid.NewString}
 }
 
 // Create 在事务中创建评论并维护根评论回复数。
@@ -96,9 +102,118 @@ func (r *Repository) Create(ctx context.Context, commentEntity *entity.Comment) 
 				return nil, err
 			}
 		}
+		event := comment.IntegrationEvent{EventID: r.eventID(), EventType: comment.CommentCreatedEventType, Version: comment.CommentCreatedVersion, OccurredAt: commentEntity.CreatedTime, AggregateID: commentEntity.ID, CommentID: commentEntity.ID, ArticleID: commentEntity.ArticleID, RootID: commentEntity.RootID}
+		if err := r.insertOutbox(session, event); err != nil {
+			return nil, err
+		}
 		return nil, nil
 	})
 	return err
+}
+
+// FindByID 查询评论及其删除状态。
+func (r *Repository) FindByID(ctx context.Context, id uint64) (*entity.Comment, error) {
+	// 1. 保留删除状态以支持重复删除和权限判断
+	row := new(po.Comment)
+	found, err := r.client.Context(ctx).ID(id).Get(row)
+	if err != nil {
+		return nil, err
+	}
+	if !found {
+		return nil, comment.ErrCommentNotFound
+	}
+	return factory.FromPO(row), nil
+}
+
+// Delete 幂等软删除评论并为实际状态变化写入 Outbox。
+func (r *Repository) Delete(ctx context.Context, id uint64) error {
+	// 1. 锁定目标评论，已删除记录直接成功返回
+	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
+		session = session.Context(ctx)
+		target := new(po.Comment)
+		found, err := forUpdate(session.ID(id)).Get(target)
+		if err != nil {
+			return nil, err
+		}
+		if !found {
+			return nil, comment.ErrCommentNotFound
+		}
+		if target.Status == comment.StatusDeleted {
+			return nil, nil
+		}
+
+		// 2. 主评论锁定并删除整楼；回复只删除自身并安全扣减根回复数
+		affected := []*po.Comment{target}
+		if target.RootID == 0 {
+			replies := make([]*po.Comment, 0)
+			if err := forUpdate(session.Where("root_id = ? AND status = ?", target.ID, comment.StatusNormal)).Find(&replies); err != nil {
+				return nil, err
+			}
+			affected = append(affected, replies...)
+			ids := make([]uint64, 0, len(affected))
+			for _, row := range affected {
+				ids = append(ids, row.ID)
+			}
+			if _, err := session.In("id", ids).And("status = ?", comment.StatusNormal).Cols("status").Update(&po.Comment{Status: comment.StatusDeleted}); err != nil {
+				return nil, err
+			}
+			if _, err := session.ID(target.ID).Cols("comment_count").Update(&po.Comment{CommentCount: 0}); err != nil {
+				return nil, err
+			}
+		} else {
+			rows, err := session.ID(target.ID).And("status = ?", comment.StatusNormal).Cols("status").Update(&po.Comment{Status: comment.StatusDeleted})
+			if err != nil {
+				return nil, err
+			}
+			if rows == 0 {
+				return nil, nil
+			}
+			if _, err := session.Exec("UPDATE comments SET comment_count = CASE WHEN comment_count > 0 THEN comment_count - 1 ELSE 0 END WHERE id = ?", target.RootID); err != nil {
+				return nil, err
+			}
+		}
+
+		// 3. 仅为本次实际删除的评论写入版本2事件
+		occurredAt := r.currentTime()
+		for _, row := range affected {
+			event := comment.IntegrationEvent{EventID: r.eventID(), EventType: comment.CommentDeletedEventType, Version: comment.CommentDeletedVersion, OccurredAt: occurredAt, AggregateID: row.ID, CommentID: row.ID, ArticleID: row.ArticleID, RootID: row.RootID}
+			if err := r.insertOutbox(session, event); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	})
+	return err
+}
+
+// insertOutbox 将评论事实作为 JSON 写入当前业务事务。
+func (r *Repository) insertOutbox(session *xorm.Session, event comment.IntegrationEvent) error {
+	// 1. 事件与评论写入共享事务，序列化或插入失败均回滚业务事实
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return fmt.Errorf("序列化评论集成事件: %w", err)
+	}
+	now := r.currentTime()
+	_, err = session.Insert(&po.CommentEventOutbox{EventID: event.EventID, AggregateID: event.CommentID, EventType: event.EventType, Version: event.Version, OccurredAt: event.OccurredAt, Payload: string(payload), Status: 0, NextAttemptAt: now, CreatedAt: now, UpdatedAt: now})
+	return err
+}
+
+// eventID 创建评论事件幂等标识。
+func (r *Repository) eventID() string {
+	// 1. 测试直构仓储时回退到安全随机 UUID
+	if r.newEventID == nil {
+		return uuid.NewString()
+	}
+	return r.newEventID()
+}
+
+// currentTime 返回评论事务使用的当前时间。
+func (r *Repository) currentTime() time.Time {
+	// 1. 测试直构仓储时使用系统时间
+	if r.now == nil {
+		return time.Now()
+	}
+	return r.now()
 }
 
 // FindRoot 查询根评论，包括删除状态以便区分列表隐藏和回复拒绝。
@@ -193,4 +308,39 @@ func ProvideTransactionClient(client clients.MysqlClient) transactionClient {
 		panic("评论仓储要求 MySQL 客户端支持事务")
 	}
 	return transaction
+}
+
+// ListPending 查询到期且尚未发布的评论事件。
+func (r *Repository) ListPending(ctx context.Context, limit int, now time.Time) ([]comment.OutboxMessage, error) {
+	// 1. 按创建顺序读取有限数量待发布消息
+	if limit <= 0 {
+		return nil, nil
+	}
+	rows := make([]*po.CommentEventOutbox, 0, limit)
+	if err := r.client.Context(ctx).Where("status = 0 AND next_attempt_time <= ?", now).OrderBy("created_time ASC").Limit(limit).Find(&rows); err != nil {
+		return nil, err
+	}
+	messages := make([]comment.OutboxMessage, 0, len(rows))
+	for _, row := range rows {
+		var event comment.IntegrationEvent
+		if err := json.Unmarshal([]byte(row.Payload), &event); err != nil {
+			return nil, fmt.Errorf("解析评论 Outbox 事件 %s: %w", row.EventID, err)
+		}
+		messages = append(messages, comment.OutboxMessage{Event: event, Attempts: row.Attempts, NextAttempt: row.NextAttemptAt})
+	}
+	return messages, nil
+}
+
+// MarkPublished 将评论事件标记为发布完成。
+func (r *Repository) MarkPublished(ctx context.Context, eventID string, publishedAt time.Time) error {
+	// 1. 只允许待发布状态转换为完成，重复确认保持幂等
+	_, err := r.client.Context(ctx).Where("event_id = ? AND status = 0", eventID).Cols("status", "published_time", "last_error", "updated_time").Update(&po.CommentEventOutbox{Status: 1, PublishedAt: &publishedAt, LastError: "", UpdatedAt: publishedAt})
+	return err
+}
+
+// MarkFailed 记录评论事件发布失败并安排下次重试。
+func (r *Repository) MarkFailed(ctx context.Context, eventID string, cause string, nextAttempt time.Time) error {
+	// 1. 已发布消息不能被迟到失败结果改回待发布状态
+	_, err := r.client.Context(ctx).Where("event_id = ? AND status = 0", eventID).Incr("attempts", 1).Cols("last_error", "next_attempt_time", "updated_time").Update(&po.CommentEventOutbox{LastError: cause, NextAttemptAt: nextAttempt, UpdatedAt: time.Now()})
+	return err
 }

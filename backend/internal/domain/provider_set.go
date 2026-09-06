@@ -34,6 +34,7 @@ var CommentProviderSet = wire.NewSet(
 	commentrepo.ProvideTransactionClient,
 	commentrepo.NewRepository,
 	wire.Bind(new(comment.Repository), new(*commentrepo.Repository)),
+	wire.Bind(new(comment.OutboxRepository), new(*commentrepo.Repository)),
 	commentrepo.NewArticleReader,
 	wire.Bind(new(comment.ArticleReader), new(*commentrepo.ArticleReaderAdapter)),
 	commentrepo.NewUserReader,
@@ -48,6 +49,13 @@ var ArticleRepositoryProviderSet = wire.NewSet(
 	articlerepo.ProvideTransactionClient,
 	articlerepo.NewRepository,
 	wire.Bind(new(article.ReadingRepository), new(*articlerepo.Repository)),
+	wire.Bind(new(article.CommentCountRepository), new(*articlerepo.Repository)),
+)
+
+// ArticleCommentCountProviderSet 提供文章评论数投影能力。
+var ArticleCommentCountProviderSet = wire.NewSet(
+	article.NewCommentCountProjector,
+	wire.Bind(new(article.CommentCountProcessor), new(*article.CommentCountProjector)),
 )
 
 // ArticleReadingProviderSet 提供公开阅读、浏览消费和热榜领域能力。
