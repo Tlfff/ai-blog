@@ -12,6 +12,8 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
 	commentrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
+	likerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"github.com/google/wire"
 )
 
@@ -25,19 +27,30 @@ var ProviderSet = wire.NewSet(
 	eventstream.NewCommentEventPublisher,
 	eventstream.NewCommentEventDeadLetterPublisher,
 	eventstream.NewCommentEventSubscriber,
+	eventstream.NewLikeEventPublisher,
+	eventstream.NewLikeEventDeadLetterPublisher,
+	eventstream.NewLikeEventSubscriber,
 	wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)),
 	wire.Bind(new(article.ViewDeadLetterPublisher), new(*eventstream.ArticleViewDeadLetterPublisher)),
 	wire.Bind(new(comment.EventPublisher), new(*eventstream.CommentEventPublisher)),
 	wire.Bind(new(article.CommentCountDeadLetterPublisher), new(*eventstream.CommentEventDeadLetterPublisher)),
+	wire.Bind(new(like.EventPublisher), new(*eventstream.LikeEventPublisher)),
+	wire.Bind(new(article.LikeCountDeadLetterPublisher), new(*eventstream.LikeEventDeadLetterPublisher)),
 	domain.ArticleRepositoryProviderSet,
 	domain.ArticleReadingProviderSet,
 	domain.ArticleCommentCountProviderSet,
+	domain.ArticleLikeCountProviderSet,
 	commentrepo.ProvideTransactionClient,
 	commentrepo.NewRepository,
 	wire.Bind(new(comment.OutboxRepository), new(*commentrepo.Repository)),
+	likerepo.ProvideTransactionClient,
+	likerepo.NewRepository,
+	wire.Bind(new(like.OutboxRepository), new(*likerepo.Repository)),
 	job.NewCommentOutboxRelay,
+	job.NewLikeOutboxRelay,
 	newArticleViewConsumer,
 	newCommentCountConsumer,
+	newLikeCountConsumer,
 	newBlogStreamer,
 )
 

@@ -20,6 +20,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
 	repo5 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
 	repo4 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
@@ -85,7 +86,8 @@ func wireApp() (*httpApplication, func(), error) {
 	userServiceHTTPServerController := service.NewUserServer(userService, resolver, v)
 	repoTransactionClient := repo3.ProvideTransactionClient(mysqlClient)
 	repository := repo3.NewRepository(mysqlClient, repoTransactionClient)
-	queryRepository := repo4.NewQueryRepository(mysqlClient)
+	cache := repo4.NewCache(redisClient)
+	queryRepository := repo4.NewQueryRepository(mysqlClient, cache)
 	submissionGuard := repo3.NewSubmissionGuard(redisClient)
 	articleAllowedImageExtensions := objectstorage.ProvideAllowedImageExtensions(config)
 	articleService, err := article.NewService(repository, storage, queryRepository, submissionGuard, articleAllowedImageExtensions)
@@ -113,11 +115,17 @@ func wireApp() (*httpApplication, func(), error) {
 	userReaderAdapter := repo5.NewUserReader(userService)
 	commentService := comment.NewService(repoRepository, articleReaderAdapter, userReaderAdapter, submissionGuard)
 	commentServiceHTTPServerController := service.NewCommentServer(commentService, resolver)
-	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, sessionRepository)
+	transactionClient3 := repo4.ProvideTransactionClient(mysqlClient)
+	repository2 := repo4.NewRepository(mysqlClient, transactionClient3)
+	publicationQuery := article.NewPublicationQuery(repository)
+	likeService := like.NewService(repository2, publicationQuery, cache)
+	likeServiceHTTPServerController := service.NewLikeServer(likeService)
+	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, likeServiceHTTPServerController, sessionRepository)
 	articleDeletionReconciler := job.NewArticleDeletionReconciler(articleService)
 	userSessionCleanupJob := job.NewUserSessionCleanupJob(userService)
 	articleHotRankJob := job.NewArticleHotRankJob(viewService)
-	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, userSessionCleanupJob, articleHotRankJob, articleViewPublisher)
+	articleLikeCacheRebuildJob := job.NewArticleLikeCacheRebuildJob(likeService)
+	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, userSessionCleanupJob, articleHotRankJob, articleLikeCacheRebuildJob, articleViewPublisher)
 	return serverHttpApplication, func() {
 		cleanup4()
 		cleanup3()

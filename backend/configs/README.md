@@ -83,6 +83,29 @@ data:
         message_buffer_size: 16
 ```
 
+
+## 文章点赞 Outbox、计数投影与缓存重建配置
+
+Consumer 进程补发文章点赞事务 Outbox，文章上下文消费独立 Topic 维护 `like_count`；HTTP 进程从 MySQL 点赞事实周期重建 Redis Set：
+
+```yaml
+data:
+  kafka:
+    producer:
+      like_event:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "article-like-event"
+      like_event_dead_letter:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "article-like-event-dlq"
+    consumer:
+      like_event:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "article-like-event"
+        group_id: "article-like-count-projector"
+        message_buffer_size: 16
+```
+
 ## 开放 gRPC 认证配置
 
 开放 gRPC 的内部调用使用 HS256 JWT，外部合作方使用 HMAC-SHA256。所有密钥都必须由部署系统注入，示例占位值不得用于真实环境：

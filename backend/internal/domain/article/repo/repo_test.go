@@ -372,6 +372,8 @@ func newArticleTestRepository(t *testing.T) (*Repository, *xorm.Engine) {
 		`CREATE TABLE article_view_event_inbox (event_id TEXT PRIMARY KEY, article_id INTEGER NOT NULL, processed_time DATETIME NOT NULL)`,
 		`CREATE TABLE article_comment_event_inbox (event_id TEXT PRIMARY KEY, comment_id INTEGER NOT NULL, article_id INTEGER NOT NULL, processed_time DATETIME NOT NULL)`,
 		`CREATE TABLE article_comment_projection (comment_id INTEGER PRIMARY KEY, article_id INTEGER NOT NULL, version INTEGER NOT NULL, active INTEGER NOT NULL, last_event_id TEXT NOT NULL, updated_time DATETIME NOT NULL)`,
+		`CREATE TABLE article_like_event_inbox (event_id TEXT PRIMARY KEY, like_id INTEGER NOT NULL, article_id INTEGER NOT NULL, processed_time DATETIME NOT NULL)`,
+		`CREATE TABLE article_like_projection (like_id INTEGER PRIMARY KEY, article_id INTEGER NOT NULL, user_id INTEGER NOT NULL, version INTEGER NOT NULL, active INTEGER NOT NULL, last_event_id TEXT NOT NULL, updated_time DATETIME NOT NULL)`,
 	}
 	for _, statement := range schema {
 		if _, err := engine.Exec(statement); err != nil {

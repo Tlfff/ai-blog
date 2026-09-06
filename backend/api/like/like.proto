@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package like.v1;
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/like;like";
+
+service LikeService {
+  rpc LikeArticle(ArticleLikeRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/auth/article/like" body: "*" };
+  }
+  rpc CancelArticleLike(ArticleLikeRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/auth/article/cancel_like" body: "*" };
+  }
+}
+
+message ArticleLikeRequest {
+  uint64 article_id = 1 [(validate.rules).uint64.gt = 0];
+}
+
+message EmptyReply {}

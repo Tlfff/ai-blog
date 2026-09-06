@@ -160,6 +160,7 @@ message KafkaConsumer{
   Config bid_result_report = 1;
   Config article_view = 2;
   Config comment_event = 3;
+  Config like_event = 4;
 
 
   message Config {
@@ -180,6 +181,8 @@ message KafkaProducer{
   Config article_view_dead_letter = 5;
   Config comment_event = 6;
   Config comment_event_dead_letter = 7;
+  Config like_event = 8;
+  Config like_event_dead_letter = 9;
 
   message Config {
     string bootstrap_servers = 1;
