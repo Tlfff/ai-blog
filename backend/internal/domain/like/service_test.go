@@ -24,6 +24,19 @@ func (f *fakeRepository) ChangeArticleLike(_ context.Context, _, _ uint64, statu
 	return true, f.changeErr
 }
 
+// ChangeCommentLike 记录评论点赞最终状态。
+func (f *fakeRepository) ChangeCommentLike(_ context.Context, _, _ uint64, status int8, _ time.Time) (bool, error) {
+	// 1. 保存每次评论点赞领域调用的最终状态
+	f.statuses = append(f.statuses, status)
+	return true, f.changeErr
+}
+
+// ListActiveCommentLikes 返回评论缓存重建事实。
+func (f *fakeRepository) ListActiveCommentLikes(context.Context) ([]*entity.CommentLike, error) {
+	// 1. 返回预设错误，当前测试无需评论事实
+	return nil, f.listErr
+}
+
 // ListActiveArticleLikes 返回缓存重建事实。
 func (f *fakeRepository) ListActiveArticleLikes(context.Context) ([]*entity.ArticleLike, error) {
 	// 1. 返回预设 MySQL 事实或错误
@@ -40,6 +53,18 @@ type fakeArticleReader struct {
 func (f *fakeArticleReader) IsPublished(context.Context, uint64) (bool, error) {
 	// 1. 返回预设查询结果
 	return f.published, f.err
+}
+
+// fakeCommentReader 返回评论正常状态。
+type fakeCommentReader struct {
+	active bool  // active 是评论是否正常。
+	err    error // err 是状态查询预设错误。
+}
+
+// IsActive 返回预设评论状态。
+func (f *fakeCommentReader) IsActive(context.Context, uint64) (bool, error) {
+	// 1. 返回预设评论状态
+	return f.active, f.err
 }
 
 // fakeCache 记录点赞缓存更新和重建。
@@ -63,6 +88,19 @@ func (f *fakeCache) StoreArticleLike(_ context.Context, _, _ uint64, liked bool)
 	return f.storeErr
 }
 
+// StoreCommentLike 记录评论缓存最终状态。
+func (f *fakeCache) StoreCommentLike(_ context.Context, _, _ uint64, liked bool) error {
+	// 1. 保存评论点赞缓存最终状态
+	f.states = append(f.states, liked)
+	return f.storeErr
+}
+
+// ReplaceCommentLikes 返回预设重建结果。
+func (f *fakeCache) ReplaceCommentLikes(_ context.Context, _ []*entity.CommentLike) error {
+	// 1. 返回预设完整重建错误
+	return f.replaceErr
+}
+
 // ReplaceArticleLikes 记录完整重建事实。
 func (f *fakeCache) ReplaceArticleLikes(_ context.Context, facts []*entity.ArticleLike) error {
 	// 1. 保存隔离副本供断言
@@ -75,7 +113,7 @@ func TestServiceTreatsRepeatedLikeAndCancelAsSuccess(t *testing.T) {
 	// 1. 连续点赞和连续取消均返回成功，并向仓储传递相同最终状态
 	repository := &fakeRepository{}
 	cache := &fakeCache{}
-	service := NewService(repository, &fakeArticleReader{published: true}, cache)
+	service := NewService(repository, &fakeArticleReader{published: true}, &fakeCommentReader{active: true}, cache)
 	for range 2 {
 		if err := service.LikeArticle(context.Background(), 7, 9); err != nil {
 			t.Fatal(err)
@@ -102,7 +140,7 @@ func TestServiceDoesNotRollbackFactWhenCacheFails(t *testing.T) {
 	// 1. MySQL 事务成功后 Redis 错误被记录但不返回给调用方
 	repository := &fakeRepository{}
 	cache := &fakeCache{storeErr: errors.New("redis unavailable")}
-	service := NewService(repository, &fakeArticleReader{published: true}, cache)
+	service := NewService(repository, &fakeArticleReader{published: true}, &fakeCommentReader{active: true}, cache)
 	if err := service.LikeArticle(context.Background(), 7, 9); err != nil {
 		t.Fatalf("LikeArticle() error = %v", err)
 	}
@@ -115,7 +153,7 @@ func TestServiceDoesNotRollbackFactWhenCacheFails(t *testing.T) {
 func TestServiceRejectsUnavailableArticleBeforeFactChange(t *testing.T) {
 	// 1. 文章查询返回不可公开时拒绝点赞
 	repository := &fakeRepository{}
-	service := NewService(repository, &fakeArticleReader{}, &fakeCache{})
+	service := NewService(repository, &fakeArticleReader{}, &fakeCommentReader{active: true}, &fakeCache{})
 	if err := service.LikeArticle(context.Background(), 7, 9); !errors.Is(err, ErrArticleUnavailable) {
 		t.Fatalf("LikeArticle() error = %v", err)
 	}
@@ -130,7 +168,7 @@ func TestServiceRebuildsCacheFromMySQLFacts(t *testing.T) {
 	facts := []*entity.ArticleLike{{ID: 1, UserID: 7, ArticleID: 9, Status: StatusLiked}}
 	repository := &fakeRepository{facts: facts}
 	cache := &fakeCache{}
-	service := NewService(repository, &fakeArticleReader{published: true}, cache)
+	service := NewService(repository, &fakeArticleReader{published: true}, &fakeCommentReader{active: true}, cache)
 	if err := service.RebuildArticleLikeCache(context.Background()); err != nil {
 		t.Fatal(err)
 	}
@@ -142,5 +180,30 @@ func TestServiceRebuildsCacheFromMySQLFacts(t *testing.T) {
 	cache.replaceErr = errors.New("redis unavailable")
 	if err := service.RebuildArticleLikeCache(context.Background()); err == nil {
 		t.Fatal("cache rebuild failure was ignored")
+	}
+}
+
+// TestServiceRejectsDeletedCommentAndIgnoresCacheFailure 验证评论状态边界和缓存失败不回滚事实。
+func TestServiceRejectsDeletedCommentAndIgnoresCacheFailure(t *testing.T) {
+	repository := &fakeRepository{}
+	comments := &fakeCommentReader{}
+	cache := &fakeCache{}
+	service := NewService(repository, &fakeArticleReader{published: true}, comments, cache)
+	if err := service.LikeComment(context.Background(), 7, 9); !errors.Is(err, ErrCommentUnavailable) {
+		t.Fatalf("err=%v", err)
+	}
+	if len(repository.statuses) != 0 {
+		t.Fatal("deleted comment changed fact")
+	}
+	comments.active = true
+	cache.storeErr = errors.New("redis down")
+	if err := service.LikeComment(context.Background(), 7, 9); err != nil {
+		t.Fatal(err)
+	}
+	if err := service.CancelCommentLike(context.Background(), 7, 9); err != nil {
+		t.Fatal(err)
+	}
+	if len(repository.statuses) != 2 || repository.statuses[0] != StatusLiked || repository.statuses[1] != StatusUnliked {
+		t.Fatalf("statuses=%v", repository.statuses)
 	}
 }

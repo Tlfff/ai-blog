@@ -8,6 +8,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
 	"codeup.aliyun.com/qimao/leo/leo"
 	"codeup.aliyun.com/qimao/leo/leo/log"
 	"codeup.aliyun.com/qimao/leo/leo/stream"
@@ -45,13 +46,14 @@ type consumerApplication struct {
 	commentOutbox     *job.CommentOutboxRelay                      // commentOutbox 是评论 Outbox 补偿任务。
 	likeEvents        *eventstream.LikeEventPublisher              // likeEvents 是点赞 Outbox Kafka 发布器。
 	likeDeadLetter    *eventstream.LikeEventDeadLetterPublisher    // likeDeadLetter 是点赞计数消费死信发布器。
-	likeOutbox        *job.LikeOutboxRelay                         // likeOutbox 是点赞 Outbox 补偿任务。
+	likeOutbox        *job.LikeOutboxRelay                         // likeOutbox 是文章点赞 Outbox 补偿任务。
+	commentLikeOutbox *job.CommentLikeOutboxRelay                  // commentLikeOutbox 是评论点赞 Outbox 补偿任务。
 }
 
 // Run 通过 Leo 生命周期并发运行消息流和 Kafka 发布器。
 func (app *consumerApplication) Run(ctx context.Context) error {
 	// 1. 统一管理订阅器、普通发布器、死信发布器和 Outbox 补偿退出
-	return leo.MutilRunner(app.streamer, app.viewEvents, app.deadLetter, app.commentEvents, app.commentDeadLetter, app.commentOutbox, app.likeEvents, app.likeDeadLetter, app.likeOutbox).Run(ctx)
+	return leo.MutilRunner(app.streamer, app.viewEvents, app.deadLetter, app.commentEvents, app.commentDeadLetter, app.commentOutbox, app.likeEvents, app.likeDeadLetter, app.likeOutbox, app.commentLikeOutbox).Run(ctx)
 }
 
 // newBlogStreamer 创建博客消息消费应用。
@@ -68,7 +70,8 @@ func (app *consumerApplication) Run(ctx context.Context) error {
 //   - commentOutbox：评论 Outbox 补偿任务。
 //   - likeEvents：点赞 Outbox 事件发布器。
 //   - likeDeadLetter：点赞计数消费死信发布器。
-//   - likeOutbox：点赞 Outbox 补偿任务。
+//   - likeOutbox：文章点赞 Outbox 补偿任务。
+//   - commentLikeOutbox：评论点赞 Outbox 补偿任务。
 func newBlogStreamer(
 	cf *conf.Data,
 	viewHandler *consumer.ArticleViewConsumer,
@@ -82,6 +85,7 @@ func newBlogStreamer(
 	likeEvents *eventstream.LikeEventPublisher,
 	likeDeadLetter *eventstream.LikeEventDeadLetterPublisher,
 	likeOutbox *job.LikeOutboxRelay,
+	commentLikeOutbox *job.CommentLikeOutboxRelay,
 ) *consumerApplication {
 	// 1. 使用三类消费者的最大缓冲配置创建 Leo Streamer
 	articleViewConfig := cf.GetKafka().GetConsumer().GetArticleView()
@@ -101,7 +105,7 @@ func newBlogStreamer(
 			log.Error("error: ", err)
 		}),
 	)
-	return &consumerApplication{streamer: streamer, viewEvents: viewEvents, deadLetter: deadLetter, commentEvents: commentEvents, commentDeadLetter: commentDeadLetter, commentOutbox: commentOutbox, likeEvents: likeEvents, likeDeadLetter: likeDeadLetter, likeOutbox: likeOutbox}
+	return &consumerApplication{streamer: streamer, viewEvents: viewEvents, deadLetter: deadLetter, commentEvents: commentEvents, commentDeadLetter: commentDeadLetter, commentOutbox: commentOutbox, likeEvents: likeEvents, likeDeadLetter: likeDeadLetter, likeOutbox: likeOutbox, commentLikeOutbox: commentLikeOutbox}
 }
 
 // newArticleViewConsumer 组装文章浏览领域处理器、订阅器和死信发布器。
@@ -117,9 +121,9 @@ func newCommentCountConsumer(processor article.CommentCountProcessor, subscriber
 }
 
 // newLikeCountConsumer 组装文章点赞数投影消费者。
-func newLikeCountConsumer(processor article.LikeCountProcessor, subscriber *eventstream.LikeEventSubscriber, deadLetter article.LikeCountDeadLetterPublisher) *consumer.LikeCountConsumer {
-	// 1. 将点赞事件基础设施适配器注入文章投影消费者
-	return consumer.NewLikeCountConsumer(subscriber, processor, deadLetter)
+func newLikeCountConsumer(articleProcessor article.LikeCountProcessor, commentProcessor comment.LikeCountProcessor, subscriber *eventstream.LikeEventSubscriber, deadLetter article.LikeCountDeadLetterPublisher) *consumer.LikeCountConsumer {
+	// 1. 将同一点赞事件订阅器路由到文章和评论投影器
+	return consumer.NewLikeCountConsumer(subscriber, articleProcessor, commentProcessor, deadLetter)
 }
 
 // init 注册博客消息消费者子命令。

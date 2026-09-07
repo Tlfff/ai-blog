@@ -252,3 +252,178 @@ func ProvideTransactionClient(client clients.MysqlClient) transactionClient {
 	}
 	return transaction
 }
+
+// ChangeCommentLike 幂等变更评论点赞事实，并为实际状态变化原子写入 Outbox。
+//
+// 参数说明：
+//   - ctx：当前请求上下文。
+//   - userID：点赞用户标识。
+//   - commentID：目标评论标识。
+//   - desiredStatus：请求完成后的点赞最终状态。
+//   - occurredAt：事实变更时间。
+func (r *Repository) ChangeCommentLike(ctx context.Context, userID, commentID uint64, desiredStatus int8, occurredAt time.Time) (bool, error) {
+	// 1. 只接受点赞上下文定义的两种最终状态
+	if userID == 0 || commentID == 0 || (desiredStatus != like.StatusLiked && desiredStatus != like.StatusUnliked) {
+		return false, like.ErrInvalidInput
+	}
+	if occurredAt.IsZero() {
+		occurredAt = r.currentTime()
+	}
+
+	// 2. 使用唯一关系键和行锁串行化同一用户对同一评论的状态转换
+	changed := false
+	_, err := r.transaction.Transaction(func(session *xorm.Session) (interface{}, error) {
+		session = session.Context(ctx)
+		row, inserted, err := r.findOrCreateCommentLike(session, userID, commentID, desiredStatus, occurredAt)
+		if err != nil {
+			return nil, err
+		}
+		if row == nil || (!inserted && row.Status == desiredStatus) {
+			return nil, nil
+		}
+		if !inserted {
+			row.Status = desiredStatus
+			row.UpdatedTime = occurredAt
+			if _, err := session.ID(row.ID).Cols("status", "updated_time").Update(row); err != nil {
+				return nil, err
+			}
+		}
+
+		// 3. 每次真实状态变化生成单调版本，并与评论点赞事实在同一事务写入
+		version, err := nextCommentLikeVersion(session, row.ID)
+		if err != nil {
+			return nil, err
+		}
+		eventType := like.CommentLikedEventType
+		if desiredStatus == like.StatusUnliked {
+			eventType = like.CommentUnlikedEventType
+		}
+		event := like.IntegrationEvent{EventID: r.eventID(), EventType: eventType, Version: version, OccurredAt: occurredAt, AggregateID: row.ID, LikeID: row.ID, CommentID: commentID, UserID: userID}
+		if err := r.insertCommentOutbox(session, event); err != nil {
+			return nil, err
+		}
+		changed = true
+		return nil, nil
+	})
+	return changed, err
+}
+
+// findOrCreateCommentLike 锁定现有关系；首次点赞时可直接创建有效关系。
+//
+// 参数说明：
+//   - session：当前点赞事实事务。
+//   - userID：点赞用户标识。
+//   - commentID：目标评论标识。
+//   - desiredStatus：请求完成后的点赞最终状态。
+//   - occurredAt：事实变更时间。
+func (r *Repository) findOrCreateCommentLike(session *xorm.Session, userID, commentID uint64, desiredStatus int8, occurredAt time.Time) (*po.CommentLike, bool, error) {
+	// 1. 从未点赞过的重复取消不创建无意义事实记录
+	if desiredStatus == like.StatusUnliked {
+		row := new(po.CommentLike)
+		found, err := forUpdate(session.Where("user_id = ? AND comment_id = ?", userID, commentID)).Get(row)
+		if err != nil || !found {
+			return nil, false, err
+		}
+		return row, false, nil
+	}
+
+	// 2. INSERT IGNORE 结合唯一索引安全处理并发首次点赞
+	query := "INSERT IGNORE INTO comment_likes (user_id, comment_id, status, created_time, updated_time) VALUES (?, ?, ?, ?, ?)"
+	if session.Engine().Dialect().URI().DBType != schemas.MYSQL {
+		query = "INSERT OR IGNORE INTO comment_likes (user_id, comment_id, status, created_time, updated_time) VALUES (?, ?, ?, ?, ?)"
+	}
+	result, err := session.Exec(query, userID, commentID, like.StatusLiked, occurredAt, occurredAt)
+	if err != nil {
+		return nil, false, err
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return nil, false, err
+	}
+	row := new(po.CommentLike)
+	found, err := forUpdate(session.Where("user_id = ? AND comment_id = ?", userID, commentID)).Get(row)
+	if err != nil {
+		return nil, false, err
+	}
+	if !found {
+		return nil, false, fmt.Errorf("创建评论点赞关系后未找到记录")
+	}
+	return row, rows > 0, nil
+}
+
+// nextCommentLikeVersion 查询同一评论点赞关系的下一事件版本。
+func nextCommentLikeVersion(session *xorm.Session, likeID uint64) (int64, error) {
+	// 1. 点赞关系行锁保证同一聚合的版本查询和写入串行执行
+	var latest struct {
+		Version int64 `xorm:"'version'"` // Version 是当前最大事件版本。
+	}
+	found, err := session.Table("comment_like_event_outbox").Where("aggregate_id = ?", likeID).Desc("version").Cols("version").Get(&latest)
+	if err != nil {
+		return 0, err
+	}
+	if !found {
+		return 1, nil
+	}
+	return latest.Version + 1, nil
+}
+
+// insertCommentOutbox 将评论点赞事件写入当前事实事务。
+func (r *Repository) insertCommentOutbox(session *xorm.Session, event like.IntegrationEvent) error {
+	// 1. 保存完整稳定负载，Publisher 重试时不重新组装业务事实
+	payload, err := json.Marshal(event)
+	if err != nil {
+		return err
+	}
+	now := r.currentTime()
+	_, err = session.Insert(&po.CommentLikeEventOutbox{EventID: event.EventID, AggregateID: event.AggregateID, EventType: event.EventType, Version: event.Version, OccurredAt: event.OccurredAt, Payload: string(payload), NextAttemptAt: now, CreatedAt: now, UpdatedAt: now})
+	return err
+}
+
+// ListActiveCommentLikes 查询全部当前生效的评论点赞事实。
+func (r *Repository) ListActiveCommentLikes(ctx context.Context) ([]*entity.CommentLike, error) {
+	// 1. 按关系标识稳定读取 MySQL 权威事实
+	rows := make([]*po.CommentLike, 0)
+	if err := r.client.Context(ctx).Where("status = ?", like.StatusLiked).Asc("id").Find(&rows); err != nil {
+		return nil, err
+	}
+	facts := make([]*entity.CommentLike, 0, len(rows))
+	for _, row := range rows {
+		facts = append(facts, &entity.CommentLike{ID: row.ID, UserID: row.UserID, CommentID: row.CommentID, Status: row.Status, CreatedTime: row.CreatedTime, UpdatedTime: row.UpdatedTime})
+	}
+	return facts, nil
+}
+
+// ListPendingCommentLikes 查询到期且尚未发布的评论点赞事件。
+func (r *Repository) ListPendingCommentLikes(ctx context.Context, limit int, now time.Time) ([]like.OutboxMessage, error) {
+	// 1. 按创建顺序读取有限数量待发布消息
+	if limit <= 0 {
+		return nil, nil
+	}
+	rows := make([]*po.CommentLikeEventOutbox, 0, limit)
+	if err := r.client.Context(ctx).Where("status = 0 AND next_attempt_time <= ?", now).OrderBy("created_time ASC").Limit(limit).Find(&rows); err != nil {
+		return nil, err
+	}
+	messages := make([]like.OutboxMessage, 0, len(rows))
+	for _, row := range rows {
+		var event like.IntegrationEvent
+		if err := json.Unmarshal([]byte(row.Payload), &event); err != nil {
+			return nil, fmt.Errorf("解析评论点赞 Outbox 事件 %s: %w", row.EventID, err)
+		}
+		messages = append(messages, like.OutboxMessage{Event: event, Attempts: row.Attempts, NextAttempt: row.NextAttemptAt})
+	}
+	return messages, nil
+}
+
+// MarkCommentLikePublished 将评论点赞事件标记为发布完成。
+func (r *Repository) MarkCommentLikePublished(ctx context.Context, eventID string, publishedAt time.Time) error {
+	// 1. 只允许待发布状态转换为完成，重复确认保持幂等
+	_, err := r.client.Context(ctx).Where("event_id = ? AND status = 0", eventID).Cols("status", "published_time", "last_error", "updated_time").Update(&po.CommentLikeEventOutbox{Status: 1, PublishedAt: &publishedAt, LastError: "", UpdatedAt: publishedAt})
+	return err
+}
+
+// MarkCommentLikeFailed 记录评论点赞事件发布失败并安排下次重试。
+func (r *Repository) MarkCommentLikeFailed(ctx context.Context, eventID string, cause string, nextAttempt time.Time) error {
+	// 1. 已发布消息不能被迟到失败结果改回待发布状态
+	_, err := r.client.Context(ctx).Where("event_id = ? AND status = 0", eventID).Incr("attempts", 1).Cols("last_error", "next_attempt_time", "updated_time").Update(&po.CommentLikeEventOutbox{LastError: cause, NextAttemptAt: nextAttempt, UpdatedAt: r.currentTime()})
+	return err
+}

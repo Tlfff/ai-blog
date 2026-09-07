@@ -44,16 +44,22 @@ type LikeServiceResponse struct {
 }
 
 const OperationLikeServiceCancelArticleLike = "/like.v1.LikeService/CancelArticleLike"
+const OperationLikeServiceCancelCommentLike = "/like.v1.LikeService/CancelCommentLike"
 const OperationLikeServiceLikeArticle = "/like.v1.LikeService/LikeArticle"
+const OperationLikeServiceLikeComment = "/like.v1.LikeService/LikeComment"
 
 type LikeServiceHTTPServerController interface {
 	CancelArticleLike(*gin.Context, *ArticleLikeRequest) (*EmptyReply, error)
+	CancelCommentLike(*gin.Context, *CommentLikeRequest) (*EmptyReply, error)
 	LikeArticle(*gin.Context, *ArticleLikeRequest) (*EmptyReply, error)
+	LikeComment(*gin.Context, *CommentLikeRequest) (*EmptyReply, error)
 }
 
 func RegisterLikeServiceHTTPServerController(router *gin.RouterGroup, srv LikeServiceHTTPServerController) {
 	router.POST("/auth/article/like", _LikeService_LikeArticle0_HTTP_Handler(srv))
 	router.POST("/auth/article/cancel_like", _LikeService_CancelArticleLike0_HTTP_Handler(srv))
+	router.POST("/auth/comment/like", _LikeService_LikeComment0_HTTP_Handler(srv))
+	router.POST("/auth/comment/cancel_like", _LikeService_CancelCommentLike0_HTTP_Handler(srv))
 }
 
 func _LikeService_LikeArticle0_HTTP_Handler(srv LikeServiceHTTPServerController) gin.HandlerFunc {
@@ -153,6 +159,110 @@ func _LikeService_CancelArticleLike0_HTTP_Handler(srv LikeServiceHTTPServerContr
 		_, err = c.Writer.Write(b)
 		if err != nil {
 			log.Errorf("/like.v1.LikeService/CancelArticleLike err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _LikeService_LikeComment0_HTTP_Handler(srv LikeServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in CommentLikeRequest
+		data, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		if len(data) != 0 {
+			codec, _ := code_encoding.CodecForRequest(c.Request, "Content-Type")
+			if err = codec.Unmarshal(data, &in); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+				return
+			}
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.LikeComment(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/like.v1.LikeService/LikeComment err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := LikeServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/like.v1.LikeService/LikeComment err: %+v", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		return
+	}
+}
+
+func _LikeService_CancelCommentLike0_HTTP_Handler(srv LikeServiceHTTPServerController) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var in CommentLikeRequest
+		data, err := io.ReadAll(c.Request.Body)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+			return
+		}
+		if len(data) != 0 {
+			codec, _ := code_encoding.CodecForRequest(c.Request, "Content-Type")
+			if err = codec.Unmarshal(data, &in); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, "请求参数错误")))
+				return
+			}
+		}
+		var j interface{} = &in
+		if v, ok := j.(validator); ok {
+			if err := v.Validate(); err != nil {
+				c.Negotiate(render.AbortWithError(c, errassets.NewError(44010102, err.Error())))
+				return
+			}
+		}
+		out, err := srv.CancelCommentLike(c, &in)
+		if err != nil {
+			// 兼容来的err code 方式
+			if _, ok := err.(errassets.ErrorNo); ok {
+				c.Negotiate(render.AbortWithError(c, err.(errassets.ErrorNo)))
+				return
+			}
+			log.Error("/like.v1.LikeService/CancelCommentLike err: ", err)
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		obj := LikeServiceResponse{
+			Data: out,
+		}
+		b, err := json.Marshal(obj)
+		if err != nil {
+			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
+			return
+		}
+		c.Writer.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, err = c.Writer.Write(b)
+		if err != nil {
+			log.Errorf("/like.v1.LikeService/CancelCommentLike err: %+v", err)
 			c.Negotiate(render.AbortWithError(c, errassets.NewError(47010101, "系统繁忙，请稍后再试")))
 			return
 		}

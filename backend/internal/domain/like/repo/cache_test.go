@@ -107,3 +107,18 @@ func TestCacheRebuildsSetsAndRemovesStaleMembers(t *testing.T) {
 		t.Fatal("rebuilt member missing")
 	}
 }
+
+// TestCacheRebuildsCommentSets 验证评论点赞 Redis 集合可从 MySQL 事实完整重建。
+func TestCacheRebuildsCommentSets(t *testing.T) {
+	client := &fakeRedisLikeClient{sets: map[string]map[string]struct{}{commentLikeKey(9): {"99": {}}}}
+	cache := &Cache{client: client}
+	if err := cache.ReplaceCommentLikes(context.Background(), []*entity.CommentLike{{UserID: 7, CommentID: 9}, {UserID: 8, CommentID: 10}}); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := client.sets[commentLikeKey(9)]["7"]; !ok {
+		t.Fatal("comment member missing")
+	}
+	if _, ok := client.sets[commentLikeKey(9)]["99"]; ok {
+		t.Fatal("stale member remains")
+	}
+}

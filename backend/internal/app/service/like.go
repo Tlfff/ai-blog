@@ -15,14 +15,15 @@ const (
 	codeLikeInvalid          = 44010104
 	codeLikeNotAuthenticated = 44030101
 	codeLikeArticleInvalid   = 44050116
+	codeLikeCommentInvalid   = 44050117
 )
 
-// LikeService 将文章点赞 HTTP 协议转换为点赞领域调用。
+// LikeService 将文章和评论点赞 HTTP 协议转换为点赞领域调用。
 type LikeService struct {
 	useCase like.UseCase // useCase 提供文章点赞与取消点赞能力。
 }
 
-// NewLikeServer 创建文章点赞 HTTP 服务。
+// NewLikeServer 创建点赞 HTTP 服务。
 func NewLikeServer(useCase like.UseCase) likeapi.LikeServiceHTTPServerController {
 	// 1. 启动阶段拒绝缺少点赞领域服务
 	if useCase == nil {
@@ -63,6 +64,38 @@ func (s *LikeService) CancelArticleLike(ctx *gin.Context, request *likeapi.Artic
 	return &likeapi.EmptyReply{}, nil
 }
 
+// LikeComment 幂等点赞评论。
+func (s *LikeService) LikeComment(ctx *gin.Context, request *likeapi.CommentLikeRequest) (*likeapi.EmptyReply, error) {
+	// 1. 读取当前登录用户并建立评论点赞事实
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeLikeNotAuthenticated, "未登录")
+	}
+	if err := s.useCase.LikeComment(ctx.Request.Context(), currentUser.ID, request.GetCommentId()); err != nil {
+		return nil, likeHTTPError(err)
+	}
+
+	// 2. 保持点赞接口 data=null 的兼容契约
+	httpresponse.SetSuccess(ctx, "点赞成功", true)
+	return &likeapi.EmptyReply{}, nil
+}
+
+// CancelCommentLike 幂等取消评论点赞。
+func (s *LikeService) CancelCommentLike(ctx *gin.Context, request *likeapi.CommentLikeRequest) (*likeapi.EmptyReply, error) {
+	// 1. 读取当前登录用户并取消评论点赞事实
+	currentUser, ok := identity.FromContext(ctx)
+	if !ok {
+		return nil, errassets.NewError(codeLikeNotAuthenticated, "未登录")
+	}
+	if err := s.useCase.CancelCommentLike(ctx.Request.Context(), currentUser.ID, request.GetCommentId()); err != nil {
+		return nil, likeHTTPError(err)
+	}
+
+	// 2. 保持取消点赞接口 data=null 的兼容契约
+	httpresponse.SetSuccess(ctx, "取消点赞成功", true)
+	return &likeapi.EmptyReply{}, nil
+}
+
 // likeHTTPError 将点赞领域错误转换为稳定业务码。
 func likeHTTPError(err error) error {
 	// 1. 仅映射可预期业务错误，未知依赖错误保留原始错误链
@@ -71,6 +104,8 @@ func likeHTTPError(err error) error {
 		return errassets.NewError(codeLikeInvalid, "点赞参数不合法")
 	case errors.Is(err, like.ErrArticleUnavailable):
 		return errassets.NewError(codeLikeArticleInvalid, "文章不存在或未发表")
+	case errors.Is(err, like.ErrCommentUnavailable):
+		return errassets.NewError(codeLikeCommentInvalid, "评论不存在或已删除")
 	default:
 		return err
 	}

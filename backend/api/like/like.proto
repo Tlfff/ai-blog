@@ -14,10 +14,20 @@ service LikeService {
   rpc CancelArticleLike(ArticleLikeRequest) returns (EmptyReply) {
     option (google.api.http) = { post: "/auth/article/cancel_like" body: "*" };
   }
+  rpc LikeComment(CommentLikeRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/auth/comment/like" body: "*" };
+  }
+  rpc CancelCommentLike(CommentLikeRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/auth/comment/cancel_like" body: "*" };
+  }
 }
 
 message ArticleLikeRequest {
   uint64 article_id = 1 [(validate.rules).uint64.gt = 0];
+}
+
+message CommentLikeRequest {
+  uint64 comment_id = 1 [(validate.rules).uint64.gt = 0];
 }
 
 message EmptyReply {}

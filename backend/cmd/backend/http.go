@@ -73,13 +73,14 @@ type httpApplication struct {
 	userSessionCleanup *appjob.UserSessionCleanupJob      // userSessionCleanup 是用户会话收敛补偿任务。
 	hotRank            *appjob.ArticleHotRankJob          // hotRank 是文章热榜启动及整点重建任务。
 	likeCache          *appjob.ArticleLikeCacheRebuildJob // likeCache 是文章点赞 Redis 集合重建任务。
+	commentLike        *appjob.CommentLikeRebuildJob      // commentLike 是评论点赞缓存与计数重建任务。
 	viewEvents         *eventstream.ArticleViewPublisher  // viewEvents 是文章浏览事件异步发送 Runner。
 }
 
 // Run 通过 Leo 生命周期并发运行 HTTP 服务和恢复任务。
 func (app *httpApplication) Run(ctx context.Context) error {
 	// 1. 复用 Leo 多 Runner 编排和统一退出机制
-	return leo.MutilRunner(app.server, app.reconciler, app.userSessionCleanup, app.hotRank, app.likeCache, app.viewEvents).Run(ctx)
+	return leo.MutilRunner(app.server, app.reconciler, app.userSessionCleanup, app.hotRank, app.likeCache, app.commentLike, app.viewEvents).Run(ctx)
 }
 
 // ActuatorHandler 返回 HTTP Server 的管理端点处理器。
@@ -103,8 +104,9 @@ func (app *httpApplication) HealthChecker() health.Checker {
 //   - userSessionCleanup：用户会话收敛补偿任务。
 //   - hotRank：文章热榜启动及整点重建任务。
 //   - likeCache：文章点赞 Redis 集合重建任务。
+//   - commentLike：评论点赞缓存与计数重建任务。
 //   - viewEvents：文章浏览事件异步发送任务。
-func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appjob.ArticleDeletionReconciler, userSessionCleanup *appjob.UserSessionCleanupJob, hotRank *appjob.ArticleHotRankJob, likeCache *appjob.ArticleLikeCacheRebuildJob, viewEvents *eventstream.ArticleViewPublisher) *httpApplication {
+func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *appjob.ArticleDeletionReconciler, userSessionCleanup *appjob.UserSessionCleanupJob, hotRank *appjob.ArticleHotRankJob, likeCache *appjob.ArticleLikeCacheRebuildJob, commentLike *appjob.CommentLikeRebuildJob, viewEvents *eventstream.ArticleViewPublisher) *httpApplication {
 	// 1. 初始化 HTTP 中间件和生成路由
 	sentry.SentryInit(cfg.GetServer().GetSentry().ToSentryConfig())
 	ginEngine := gin.New()
@@ -141,5 +143,5 @@ func newApp(cfg *conf.Config, httpServer ginhttp.RegisterServer, reconciler *app
 	)
 
 	// 3. 聚合全部由 Leo 生命周期管理的 Runner
-	return &httpApplication{server: httpServers, reconciler: reconciler, userSessionCleanup: userSessionCleanup, hotRank: hotRank, likeCache: likeCache, viewEvents: viewEvents}
+	return &httpApplication{server: httpServers, reconciler: reconciler, userSessionCleanup: userSessionCleanup, hotRank: hotRank, likeCache: likeCache, commentLike: commentLike, viewEvents: viewEvents}
 }

@@ -15,4 +15,5 @@ var (
 	ErrDuplicateSubmission     = errors.New("评论重复提交")
 	ErrCommentNotFound         = errors.New("评论不存在")
 	ErrCommentPermissionDenied = errors.New("无权删除评论")
+	ErrInvalidLikeCountEvent   = errors.New("评论点赞计数事件不合法")
 )

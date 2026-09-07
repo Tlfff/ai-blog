@@ -148,6 +148,119 @@ var _ interface {
 	ErrorName() string
 } = ArticleLikeRequestValidationError{}
 
+// Validate checks the field values on CommentLikeRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the first error encountered is returned, or nil if there are no violations.
+func (m *CommentLikeRequest) Validate() error {
+	return m.validate(false)
+}
+
+// ValidateAll checks the field values on CommentLikeRequest with the rules
+// defined in the proto definition for this message. If any rules are
+// violated, the result is a list of violation errors wrapped in
+// CommentLikeRequestMultiError, or nil if none found.
+func (m *CommentLikeRequest) ValidateAll() error {
+	return m.validate(true)
+}
+
+func (m *CommentLikeRequest) validate(all bool) error {
+	if m == nil {
+		return nil
+	}
+
+	var errors []error
+
+	if m.GetCommentId() <= 0 {
+		err := CommentLikeRequestValidationError{
+			field:  "CommentId",
+			reason: "value must be greater than 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
+	if len(errors) > 0 {
+		return CommentLikeRequestMultiError(errors)
+	}
+
+	return nil
+}
+
+// CommentLikeRequestMultiError is an error wrapping multiple validation errors
+// returned by CommentLikeRequest.ValidateAll() if the designated constraints
+// aren't met.
+type CommentLikeRequestMultiError []error
+
+// Error returns a concatenation of all the error messages it wraps.
+func (m CommentLikeRequestMultiError) Error() string {
+	msgs := make([]string, 0, len(m))
+	for _, err := range m {
+		msgs = append(msgs, err.Error())
+	}
+	return strings.Join(msgs, "; ")
+}
+
+// AllErrors returns a list of validation violation errors.
+func (m CommentLikeRequestMultiError) AllErrors() []error { return m }
+
+// CommentLikeRequestValidationError is the validation error returned by
+// CommentLikeRequest.Validate if the designated constraints aren't met.
+type CommentLikeRequestValidationError struct {
+	field  string
+	reason string
+	cause  error
+	key    bool
+}
+
+// Field function returns field value.
+func (e CommentLikeRequestValidationError) Field() string { return e.field }
+
+// Reason function returns reason value.
+func (e CommentLikeRequestValidationError) Reason() string { return e.reason }
+
+// Cause function returns cause value.
+func (e CommentLikeRequestValidationError) Cause() error { return e.cause }
+
+// Key function returns key value.
+func (e CommentLikeRequestValidationError) Key() bool { return e.key }
+
+// ErrorName returns error name.
+func (e CommentLikeRequestValidationError) ErrorName() string {
+	return "CommentLikeRequestValidationError"
+}
+
+// Error satisfies the builtin error interface
+func (e CommentLikeRequestValidationError) Error() string {
+	cause := ""
+	if e.cause != nil {
+		cause = fmt.Sprintf(" | caused by: %v", e.cause)
+	}
+
+	key := ""
+	if e.key {
+		key = "key for "
+	}
+
+	return fmt.Sprintf(
+		"invalid %sCommentLikeRequest.%s: %s%s",
+		key,
+		e.field,
+		e.reason,
+		cause)
+}
+
+var _ error = CommentLikeRequestValidationError{}
+
+var _ interface {
+	Field() string
+	Reason() string
+	Key() bool
+	Cause() error
+	ErrorName() string
+} = CommentLikeRequestValidationError{}
+
 // Validate checks the field values on EmptyReply with the rules defined in the
 // proto definition for this message. If any rules are violated, the first
 // error encountered is returned, or nil if there are no violations.

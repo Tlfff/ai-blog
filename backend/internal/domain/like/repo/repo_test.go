@@ -156,6 +156,8 @@ func newLikeTestRepository(t *testing.T) (*Repository, *xorm.Engine) {
 	for _, statement := range []string{
 		`CREATE TABLE article_likes (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, article_id INTEGER NOT NULL, status INTEGER NOT NULL, created_time DATETIME NOT NULL, updated_time DATETIME NOT NULL, UNIQUE(user_id, article_id))`,
 		`CREATE TABLE article_like_event_outbox (event_id TEXT PRIMARY KEY, aggregate_id INTEGER NOT NULL, event_type TEXT NOT NULL, version INTEGER NOT NULL, occurred_at DATETIME NOT NULL, payload TEXT NOT NULL, status INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0, next_attempt_time DATETIME NOT NULL, published_time DATETIME NULL, last_error TEXT NOT NULL DEFAULT '', created_time DATETIME NOT NULL, updated_time DATETIME NOT NULL, UNIQUE(aggregate_id, version))`,
+		`CREATE TABLE comment_likes (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, comment_id INTEGER NOT NULL, status INTEGER NOT NULL, created_time DATETIME NOT NULL, updated_time DATETIME NOT NULL, UNIQUE(user_id, comment_id))`,
+		`CREATE TABLE comment_like_event_outbox (event_id TEXT PRIMARY KEY, aggregate_id INTEGER NOT NULL, event_type TEXT NOT NULL, version INTEGER NOT NULL, occurred_at DATETIME NOT NULL, payload TEXT NOT NULL, status INTEGER NOT NULL DEFAULT 0, attempts INTEGER NOT NULL DEFAULT 0, next_attempt_time DATETIME NOT NULL, published_time DATETIME NULL, last_error TEXT NOT NULL DEFAULT '', created_time DATETIME NOT NULL, updated_time DATETIME NOT NULL, UNIQUE(aggregate_id, version))`,
 	} {
 		if _, err := engine.Exec(statement); err != nil {
 			engine.Close()
