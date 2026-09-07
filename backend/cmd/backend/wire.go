@@ -49,6 +49,8 @@ func wireGrpcApp() (application *grpcApplication, cleanup func(), err error) {
 		domain.DomainProviderAppSet,
 		domain.UserQueryProviderSet,
 		domain.UserGRPCAuthProviderSet,
+		domain.ArticleOpenQueryProviderSet,
+		domain.CommentQueryProviderSet,
 		// 应用与认证 Provider
 		service.ServiceGrpcProviderAppSet,
 		middleware.GRPCProviderSet,

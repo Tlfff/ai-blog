@@ -51,6 +51,8 @@ var HttpCmd = &cobra.Command{
 			3000,
 			actuator.Handlers(app.ActuatorHandler()),
 			actuator.HealthCheckers(app.HealthChecker()),
+			actuator.Logger(logger),
+			actuator.ShutdownTimeout(10*time.Second),
 		)
 		// 初始化app
 		leoApp := leo.NewApp(

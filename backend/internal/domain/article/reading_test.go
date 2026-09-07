@@ -12,15 +12,18 @@ import (
 // fakeReadingRepository 记录公开阅读领域服务的权威数据调用。
 type fakeReadingRepository struct {
 	articles    []*entity.Article // articles 是公开列表预设文章。
+	listQuery   PublicListQuery   // listQuery 是公开列表收到的查询。
+	listErr     error             // listErr 是公开列表预设错误。
 	recordCalls int               // recordCalls 是浏览写入调用次数。
 	metric      *HotMetric        // metric 是热榜权威统计。
 	processed   bool              // processed 表示 MySQL Inbox 已提交事件。
 }
 
 // ListPublished 返回测试公开文章列表。
-func (f *fakeReadingRepository) ListPublished(context.Context, PublicListQuery) ([]*entity.Article, uint64, error) {
-	// 1. 返回预设文章及其总数
-	return f.articles, uint64(len(f.articles)), nil
+func (f *fakeReadingRepository) ListPublished(_ context.Context, query PublicListQuery) ([]*entity.Article, uint64, error) {
+	// 1. 记录查询并返回预设文章及其总数
+	f.listQuery = query
+	return f.articles, uint64(len(f.articles)), f.listErr
 }
 
 // RecordView 记录一次浏览写入。
