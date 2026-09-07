@@ -12,6 +12,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
 	"codeup.aliyun.com/qimao/leo/leo"
 	"codeup.aliyun.com/qimao/leo/leo/actuator"
 	"codeup.aliyun.com/qimao/leo/leo/log"
@@ -79,6 +80,7 @@ func (app *consumerApplication) Run(ctx context.Context) error {
 //   - viewHandler：文章浏览事件处理器。
 //   - commentHandler：文章评论数事件处理器。
 //   - likeHandler：文章点赞数事件处理器。
+//   - notificationHandler：文章点赞通知事件处理器。
 //   - viewEvents：文章浏览事件发布器。
 //   - deadLetter：文章浏览消费死信发布器。
 //   - commentEvents：评论 Outbox 事件发布器。
@@ -93,6 +95,7 @@ func newBlogStreamer(
 	viewHandler *consumer.ArticleViewConsumer,
 	commentHandler *consumer.CommentCountConsumer,
 	likeHandler *consumer.LikeCountConsumer,
+	notificationHandler *consumer.NotificationConsumer,
 	viewEvents *eventstream.ArticleViewPublisher,
 	deadLetter *eventstream.ArticleViewDeadLetterPublisher,
 	commentEvents *eventstream.CommentEventPublisher,
@@ -103,21 +106,16 @@ func newBlogStreamer(
 	likeOutbox *job.LikeOutboxRelay,
 	commentLikeOutbox *job.CommentLikeOutboxRelay,
 ) *consumerApplication {
-	// 1. 使用三类消费者的最大缓冲配置创建 Leo Streamer
+	// 1. 使用全部消费者的最大缓冲配置创建 Leo Streamer
 	data := config.GetData()
 	articleViewConfig := data.GetKafka().GetConsumer().GetArticleView()
 	commentEventConfig := data.GetKafka().GetConsumer().GetCommentEvent()
 	likeEventConfig := data.GetKafka().GetConsumer().GetLikeEvent()
-	messageBufferSize := articleViewConfig.GetMessageBufferSize()
-	if commentEventConfig.GetMessageBufferSize() > messageBufferSize {
-		messageBufferSize = commentEventConfig.GetMessageBufferSize()
-	}
-	if likeEventConfig.GetMessageBufferSize() > messageBufferSize {
-		messageBufferSize = likeEventConfig.GetMessageBufferSize()
-	}
+	notificationConfig := data.GetKafka().GetConsumer().GetArticleLikeNotification()
+	messageBufferSize := maxConsumerMessageBufferSize(articleViewConfig, commentEventConfig, likeEventConfig, notificationConfig)
 	streamer := stream.NewStreamer(
 		stream.MessageBufferSize(int(messageBufferSize)),
-		stream.Handlers(viewHandler, commentHandler, likeHandler),
+		stream.Handlers(viewHandler, commentHandler, likeHandler, notificationHandler),
 		stream.ErrorHandler(func(err error) {
 			log.Error("error: ", err)
 		}),
@@ -125,6 +123,18 @@ func newBlogStreamer(
 	// 2. Consumer 与其他进程一致暴露 Actuator，并由同一取消信号优雅退出
 	management := actuator.New(consumerActuatorPort(config), actuator.Logger(log.L()), actuator.ShutdownTimeout(10*time.Second))
 	return &consumerApplication{streamer: streamer, viewEvents: viewEvents, deadLetter: deadLetter, commentEvents: commentEvents, commentDeadLetter: commentDeadLetter, commentOutbox: commentOutbox, likeEvents: likeEvents, likeDeadLetter: likeDeadLetter, likeOutbox: likeOutbox, commentLikeOutbox: commentLikeOutbox, actuator: management}
+}
+
+// maxConsumerMessageBufferSize 返回全部业务消费者配置中的最大消息缓冲数。
+func maxConsumerMessageBufferSize(configs ...*conf.KafkaConsumer_Config) int64 {
+	// 1. 使用最大值满足共享 Streamer 中所有订阅器的缓冲需求
+	var maximum int64
+	for _, config := range configs {
+		if config.GetMessageBufferSize() > maximum {
+			maximum = config.GetMessageBufferSize()
+		}
+	}
+	return maximum
 }
 
 // consumerActuatorPort 返回 Consumer 管理端口。
@@ -152,6 +162,12 @@ func newCommentCountConsumer(processor article.CommentCountProcessor, subscriber
 func newLikeCountConsumer(articleProcessor article.LikeCountProcessor, commentProcessor comment.LikeCountProcessor, subscriber *eventstream.LikeEventSubscriber, deadLetter article.LikeCountDeadLetterPublisher) *consumer.LikeCountConsumer {
 	// 1. 将同一点赞事件订阅器路由到文章和评论投影器
 	return consumer.NewLikeCountConsumer(subscriber, articleProcessor, commentProcessor, deadLetter)
+}
+
+// newNotificationConsumer 组装文章点赞通知消费者。
+func newNotificationConsumer(processor notification.Processor, subscriber *eventstream.ArticleLikeNotificationSubscriber, deadLetter notification.DeadLetterPublisher) *consumer.NotificationConsumer {
+	// 1. 使用独立消费组和通知领域处理器创建 Leo Handler
+	return consumer.NewNotificationConsumer(subscriber, processor, deadLetter)
 }
 
 // init 注册博客消息消费者子命令。

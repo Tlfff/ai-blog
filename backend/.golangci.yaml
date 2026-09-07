@@ -242,4 +242,5 @@ linters-settings:
           - $gostd
           - codeup.aliyun.com/qimao
           - github.com
+          - go.mongodb.org
         deny:
