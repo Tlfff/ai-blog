@@ -33,7 +33,6 @@ func newBlogStreamerApp() (*consumerApplication, func(), error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	data := conf.GetConfigData(config)
 	mysqlClient, cleanup, err := clients.NewMysqlClient()
 	if err != nil {
 		return nil, nil, err
@@ -144,7 +143,7 @@ func newBlogStreamerApp() (*consumerApplication, func(), error) {
 	repository3 := repo5.NewRepository(mysqlClient, transactionClient3)
 	likeOutboxRelay := job.NewLikeOutboxRelay(repository3, likeEventPublisher)
 	commentLikeOutboxRelay := job.NewCommentLikeOutboxRelay(repository3, likeEventPublisher)
-	consumerConsumerApplication := newBlogStreamer(data, articleViewConsumer, commentCountConsumer, likeCountConsumer, notificationConsumer, articleViewPublisher, articleViewDeadLetterPublisher, commentEventPublisher, commentEventDeadLetterPublisher, commentOutboxRelay, likeEventPublisher, likeEventDeadLetterPublisher, likeOutboxRelay, commentLikeOutboxRelay)
+	consumerConsumerApplication := newBlogStreamer(config, articleViewConsumer, commentCountConsumer, likeCountConsumer, notificationConsumer, articleViewPublisher, articleViewDeadLetterPublisher, commentEventPublisher, commentEventDeadLetterPublisher, commentOutboxRelay, likeEventPublisher, likeEventDeadLetterPublisher, likeOutboxRelay, commentLikeOutboxRelay)
 	return consumerConsumerApplication, func() {
 		cleanup3()
 		cleanup2()

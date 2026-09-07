@@ -113,6 +113,18 @@ var CommentLikeCountProviderSet = wire.NewSet(
 	wire.Bind(new(comment.LikeCountRebuilder), new(*comment.LikeCountProjector)),
 )
 
+// ArticleOpenQueryProviderSet 提供开放 gRPC 文章列表查询能力。
+var ArticleOpenQueryProviderSet = wire.NewSet(
+	article.NewOpenQueryService,
+	wire.Bind(new(article.OpenQueryUseCase), new(*article.OpenQueryService)),
+)
+
+// CommentQueryProviderSet 提供开放 gRPC 评论统计查询能力。
+var CommentQueryProviderSet = wire.NewSet(
+	comment.NewQueryService,
+	wire.Bind(new(comment.QueryUseCase), new(*comment.QueryService)),
+)
+
 // ArticleReadingProviderSet 提供公开阅读、浏览消费和热榜领域能力。
 var ArticleReadingProviderSet = wire.NewSet(
 	articlerepo.NewReadingCache,

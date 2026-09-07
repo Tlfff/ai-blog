@@ -2,6 +2,9 @@ package consumer
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/consumer"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/app/job"
@@ -11,7 +14,9 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
 	"codeup.aliyun.com/qimao/leo/leo"
+	"codeup.aliyun.com/qimao/leo/leo/actuator"
 	"codeup.aliyun.com/qimao/leo/leo/log"
+	"codeup.aliyun.com/qimao/leo/leo/log/slog"
 	"codeup.aliyun.com/qimao/leo/leo/stream"
 	"github.com/spf13/cobra"
 )
@@ -22,17 +27,24 @@ var blogConsumerCmd = &cobra.Command{
 	Short: "blog-consumer",
 	Long:  `运行博客消息消费者`,
 	Run: func(cmd *cobra.Command, args []string) {
-		streamerApp, f, err := newBlogStreamerApp()
+		// 1. 初始化统一日志与 Wire 依赖
+		level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
 		if err != nil {
 			panic(err)
 		}
+		log.L().SetLevel(level)
+		logger := slog.New(slog.LevelAdapt(level))
+		streamerApp, f, err := newBlogStreamerApp()
+		if err != nil {
+			logger.Fatal(err)
+		}
 		defer f()
 		app := leo.NewApp(
-			leo.Logger(log.L()),
+			leo.Logger(logger),
 			leo.Runners(streamerApp),
 		)
 		if err := app.Run(context.Background()); err != nil {
-			panic(err)
+			logger.Info(err.Error())
 		}
 	},
 }
@@ -49,18 +61,22 @@ type consumerApplication struct {
 	likeDeadLetter    *eventstream.LikeEventDeadLetterPublisher    // likeDeadLetter 是点赞计数消费死信发布器。
 	likeOutbox        *job.LikeOutboxRelay                         // likeOutbox 是文章点赞 Outbox 补偿任务。
 	commentLikeOutbox *job.CommentLikeOutboxRelay                  // commentLikeOutbox 是评论点赞 Outbox 补偿任务。
+	actuator          *actuator.Server                             // actuator 是 Consumer 管理与诊断服务。
 }
 
 // Run 通过 Leo 生命周期并发运行消息流和 Kafka 发布器。
 func (app *consumerApplication) Run(ctx context.Context) error {
 	// 1. 统一管理订阅器、普通发布器、死信发布器和 Outbox 补偿退出
-	return leo.MutilRunner(app.streamer, app.viewEvents, app.deadLetter, app.commentEvents, app.commentDeadLetter, app.commentOutbox, app.likeEvents, app.likeDeadLetter, app.likeOutbox, app.commentLikeOutbox).Run(ctx)
+	if err := leo.MutilRunner(app.streamer, app.viewEvents, app.deadLetter, app.commentEvents, app.commentDeadLetter, app.commentOutbox, app.likeEvents, app.likeDeadLetter, app.likeOutbox, app.commentLikeOutbox, app.actuator).Run(ctx); err != nil {
+		return fmt.Errorf("运行博客消费者: %w", err)
+	}
+	return nil
 }
 
 // newBlogStreamer 创建博客消息消费应用。
 //
 // 参数说明：
-//   - cf：Kafka 消费配置，包含浏览、评论和点赞事件缓冲大小。
+//   - config：应用配置，包含 Kafka 缓冲大小和 Actuator 端口。
 //   - viewHandler：文章浏览事件处理器。
 //   - commentHandler：文章评论数事件处理器。
 //   - likeHandler：文章点赞数事件处理器。
@@ -75,7 +91,7 @@ func (app *consumerApplication) Run(ctx context.Context) error {
 //   - likeOutbox：文章点赞 Outbox 补偿任务。
 //   - commentLikeOutbox：评论点赞 Outbox 补偿任务。
 func newBlogStreamer(
-	cf *conf.Data,
+	config *conf.Config,
 	viewHandler *consumer.ArticleViewConsumer,
 	commentHandler *consumer.CommentCountConsumer,
 	likeHandler *consumer.LikeCountConsumer,
@@ -91,10 +107,11 @@ func newBlogStreamer(
 	commentLikeOutbox *job.CommentLikeOutboxRelay,
 ) *consumerApplication {
 	// 1. 使用全部消费者的最大缓冲配置创建 Leo Streamer
-	articleViewConfig := cf.GetKafka().GetConsumer().GetArticleView()
-	commentEventConfig := cf.GetKafka().GetConsumer().GetCommentEvent()
-	likeEventConfig := cf.GetKafka().GetConsumer().GetLikeEvent()
-	notificationConfig := cf.GetKafka().GetConsumer().GetArticleLikeNotification()
+	data := config.GetData()
+	articleViewConfig := data.GetKafka().GetConsumer().GetArticleView()
+	commentEventConfig := data.GetKafka().GetConsumer().GetCommentEvent()
+	likeEventConfig := data.GetKafka().GetConsumer().GetLikeEvent()
+	notificationConfig := data.GetKafka().GetConsumer().GetArticleLikeNotification()
 	messageBufferSize := maxConsumerMessageBufferSize(articleViewConfig, commentEventConfig, likeEventConfig, notificationConfig)
 	streamer := stream.NewStreamer(
 		stream.MessageBufferSize(int(messageBufferSize)),
@@ -103,7 +120,9 @@ func newBlogStreamer(
 			log.Error("error: ", err)
 		}),
 	)
-	return &consumerApplication{streamer: streamer, viewEvents: viewEvents, deadLetter: deadLetter, commentEvents: commentEvents, commentDeadLetter: commentDeadLetter, commentOutbox: commentOutbox, likeEvents: likeEvents, likeDeadLetter: likeDeadLetter, likeOutbox: likeOutbox, commentLikeOutbox: commentLikeOutbox}
+	// 2. Consumer 与其他进程一致暴露 Actuator，并由同一取消信号优雅退出
+	management := actuator.New(consumerActuatorPort(config), actuator.Logger(log.L()), actuator.ShutdownTimeout(10*time.Second))
+	return &consumerApplication{streamer: streamer, viewEvents: viewEvents, deadLetter: deadLetter, commentEvents: commentEvents, commentDeadLetter: commentDeadLetter, commentOutbox: commentOutbox, likeEvents: likeEvents, likeDeadLetter: likeDeadLetter, likeOutbox: likeOutbox, commentLikeOutbox: commentLikeOutbox, actuator: management}
 }
 
 // maxConsumerMessageBufferSize 返回全部业务消费者配置中的最大消息缓冲数。
@@ -116,6 +135,15 @@ func maxConsumerMessageBufferSize(configs ...*conf.KafkaConsumer_Config) int64 {
 		}
 	}
 	return maximum
+}
+
+// consumerActuatorPort 返回 Consumer 管理端口。
+func consumerActuatorPort(config *conf.Config) int {
+	// 1. 优先使用统一配置，未配置时使用 Consumer 独立默认端口
+	if port := int(config.GetManagement().GetPort()); port > 0 {
+		return port
+	}
+	return 16061
 }
 
 // newArticleViewConsumer 组装文章浏览领域处理器、订阅器和死信发布器。
@@ -138,7 +166,7 @@ func newLikeCountConsumer(articleProcessor article.LikeCountProcessor, commentPr
 
 // newNotificationConsumer 组装文章点赞通知消费者。
 func newNotificationConsumer(processor notification.Processor, subscriber *eventstream.ArticleLikeNotificationSubscriber, deadLetter notification.DeadLetterPublisher) *consumer.NotificationConsumer {
-	// 1. 使用独立消费组接收完整文章点赞事件流
+	// 1. 使用独立消费组和通知领域处理器创建 Leo Handler
 	return consumer.NewNotificationConsumer(subscriber, processor, deadLetter)
 }
 

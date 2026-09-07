@@ -3,6 +3,7 @@ package server
 import (
 	"context"
 	"os"
+	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/server"
@@ -22,8 +23,12 @@ var GrpcCmd = &cobra.Command{
 	Long:  `blog-grpc 提供 API 接口`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// 1. 初始化统一日志与 Wire 依赖
-		l, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
-		logger := slog.New(slog.LevelAdapt(l))
+		level, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
+		if err != nil {
+			panic(err)
+		}
+		log.L().SetLevel(level)
+		logger := slog.New(slog.LevelAdapt(level))
 		app, cancel, err := wireGrpcApp()
 		if err != nil {
 			logger.Fatal(err)
@@ -75,6 +80,8 @@ func newGrpcApp(
 		16060,
 		actuator.Handlers(grpcServer.ActuatorHandler()),
 		actuator.HealthCheckers(grpcServer.HealthChecker()),
+		actuator.Logger(log.L()),
+		actuator.ShutdownTimeout(10*time.Second),
 	)
 
 	// 3. 聚合为单个 Leo Runner，避免绕开统一退出流程

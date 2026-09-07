@@ -199,7 +199,15 @@ func wireGrpcApp() (*grpcApplication, func(), error) {
 		return nil, nil, err
 	}
 	userServiceServer := service.NewOpenUserGRPCServer(userService, resolver)
-	grpcServer := server.NewGrpcServer(greeterServer, bookServer, userServiceServer)
+	repoTransactionClient := repo3.ProvideTransactionClient(mysqlClient)
+	repository := repo3.NewRepository(mysqlClient, repoTransactionClient)
+	openQueryService := article.NewOpenQueryService(repository)
+	articleServiceServer := service.NewOpenArticleGRPCServer(openQueryService)
+	transactionClient2 := repo5.ProvideTransactionClient(mysqlClient)
+	repoRepository := repo5.NewRepository(mysqlClient, transactionClient2)
+	queryService := comment.NewQueryService(repoRepository)
+	commentServiceServer := service.NewOpenCommentGRPCServer(queryService)
+	grpcServer := server.NewGrpcServer(greeterServer, bookServer, userServiceServer, articleServiceServer, commentServiceServer)
 	grpcAuthSettings, err := middleware.ProvideGRPCAuthSettings(config)
 	if err != nil {
 		cleanup4()
