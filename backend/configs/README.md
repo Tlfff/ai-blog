@@ -160,4 +160,4 @@ data:
 
 ## Meilisearch 与 Meilisync 配置
 
-HTTP 搜索通过 `data.meilisearch.endpoint` 和 `data.meilisearch.api_key` 连接固定的 `articles` 索引。独立 Meilisync 进程读取 `configs/meilisync.yml`，使用 MySQL ROW Binlog 同步 `blog.articles`，并在 Redis 保存同步进度。索引设置和增量同步步骤见 `meilisync_plugin/README.md`；全量刷新与恢复由后续工单 #15 实现。
+HTTP 搜索通过 `data.meilisearch.endpoint` 和 `data.meilisearch.api_key` 连接固定的 `articles` 索引。独立 Meilisync 进程读取 `configs/meilisync.yml`，使用 MySQL ROW Binlog 同步 `blog.articles`，并在 Redis 保存同步进度。索引设置、增量同步暂停/恢复、全量刷新和一致性检查步骤见 `meilisync_plugin/README.md`。控制状态使用进度 Key 的 `:control` 与 `:worker` 派生 Key，不写入 MySQL 搜索字段或同步表。
