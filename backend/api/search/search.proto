@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package search.v1;
+
+import "google/api/annotations.proto";
+import "validate/validate.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/search;search";
+
+service SearchService {
+  rpc SearchArticles(SearchArticlesRequest) returns (SearchArticlesReply) {
+    option (google.api.http) = { get: "/article/search" };
+  }
+}
+
+message SearchArticlesRequest {
+  string keyword = 1 [(validate.rules).string = {min_len: 1}];
+  uint64 page = 2 [(validate.rules).uint64 = {gte: 1}];
+  uint64 page_size = 3 [(validate.rules).uint64 = {gte: 10, lte: 20}];
+}
+
+message SearchArticlesReply {
+  repeated SearchArticleItem list = 1;
+  uint64 total = 2;
+  uint64 page = 3;
+  uint64 page_size = 4;
+}
+
+message SearchArticleItem {
+  uint64 id = 1;
+  string title = 2;
+  string title_highlight = 3;
+  string summary = 4;
+  string tags = 5;
+}

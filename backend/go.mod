@@ -25,6 +25,7 @@ require (
 	github.com/google/wire v0.6.0
 	github.com/jinzhu/copier v0.4.0
 	github.com/mattn/go-sqlite3 v1.14.16
+	github.com/meilisearch/meilisearch-go v0.33.3
 	github.com/nacos-group/nacos-sdk-go/v2 v2.2.9
 	github.com/redis/go-redis/v9 v9.7.3
 	github.com/samber/lo v1.49.1
@@ -38,8 +39,10 @@ require (
 )
 
 require (
+	github.com/andybalholm/brotli v1.1.1 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
+	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/minio/crc64nvme v1.0.1 // indirect
 	github.com/minio/md5-simd v1.1.2 // indirect

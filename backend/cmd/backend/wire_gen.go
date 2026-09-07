@@ -12,6 +12,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/meilisearch"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/objectstorage"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
@@ -24,6 +25,7 @@ import (
 	repo4 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
 	repo6 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/search"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/middleware"
@@ -145,7 +147,18 @@ func wireApp() (*httpApplication, func(), error) {
 	repoUserReaderAdapter := repo6.NewUserReader(userService)
 	notificationService := notification.NewService(repository3, repoArticleReaderAdapter, repoUserReaderAdapter)
 	notificationServiceHTTPServerController := service.NewNotificationServer(notificationService)
-	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, likeServiceHTTPServerController, notificationServiceHTTPServerController, sessionRepository)
+	client, err := meilisearch.NewConfiguredClient(config)
+	if err != nil {
+		cleanup5()
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	searchService := search.NewService(client)
+	searchServiceHTTPServerController := service.NewSearchServer(searchService)
+	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, likeServiceHTTPServerController, notificationServiceHTTPServerController, searchServiceHTTPServerController, sessionRepository)
 	articleDeletionReconciler := job.NewArticleDeletionReconciler(articleService)
 	userSessionCleanupJob := job.NewUserSessionCleanupJob(userService)
 	articleHotRankJob := job.NewArticleHotRankJob(viewService)

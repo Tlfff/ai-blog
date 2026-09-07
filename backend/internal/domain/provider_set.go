@@ -11,6 +11,7 @@ import (
 	likerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
 	notification "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
 	notificationrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/search"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	userrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
 	"github.com/google/wire"
@@ -29,6 +30,8 @@ var DomainProviderAppSet = wire.NewSet(
 	wire.Bind(new(article.DeletionRecovery), new(*article.Service)),
 	CommentProviderSet,
 	NotificationProviderSet,
+	search.NewService,
+	wire.Bind(new(search.UseCase), new(*search.Service)),
 )
 
 // LikeProviderSet 提供点赞事实、Redis 集合、查询契约和领域服务。
