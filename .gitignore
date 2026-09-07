@@ -10,3 +10,7 @@ output/
 backend/internal/platform/ip/resource/*.xdb
 backend/sonar-scanner.sh
 backend/sonar-report/
+
+# Python runtime bytecode
+__pycache__/
+*.py[cod]

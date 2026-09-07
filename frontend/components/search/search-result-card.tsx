@@ -17,10 +17,30 @@ const ACCENTS = [
   "var(--search-lavender)",
 ] as const
 
+function hasExactHighlight(value: string, keyword: string) {
+  const normalizedKeyword = keyword.trim().toLocaleLowerCase()
+  if (!normalizedKeyword) return false
+
+  return Array.from(value.matchAll(/<em>([\s\S]*?)<\/em>/gi)).some(
+    (match) => match[1].trim().toLocaleLowerCase() === normalizedKeyword,
+  )
+}
+
 export function SearchResultCard({ article, index, keyword }: SearchResultCardProps) {
   const title = article.titleHighlight || article.title
   const articleNumber = String(index + 1).padStart(2, "0")
   const accent = ACCENTS[index % ACCENTS.length]
+  const normalizedKeyword = keyword.trim().toLocaleLowerCase()
+  const matchedTags = new Set(
+    article.tags
+      .filter((tag) => normalizedKeyword && tag.toLocaleLowerCase() === normalizedKeyword)
+      .map((tag) => tag.toLocaleLowerCase()),
+  )
+  const matchedAreas = [
+    hasExactHighlight(title, keyword) ? "标题" : "",
+    hasExactHighlight(article.summary, keyword) ? "正文" : "",
+    matchedTags.size > 0 ? "标签" : "",
+  ].filter(Boolean)
 
   return (
     <article
@@ -45,8 +65,11 @@ export function SearchResultCard({ article, index, keyword }: SearchResultCardPr
             {article.summary ? <p className="mt-2 line-clamp-2 text-sm leading-6 text-[var(--search-muted)]"><SearchHighlight value={article.summary} /></p> : <p className="mt-2 text-xs text-[var(--search-faint)]">关键词命中标题或标签</p>}
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {article.tags.map((tag) => <Link key={tag} href={`/search?q=${encodeURIComponent(tag)}&page=1`}><Badge className="rounded-full border-0 bg-[var(--search-tag)] px-2.5 py-1 text-xs font-medium text-[var(--search-muted)] transition-colors hover:bg-[var(--search-sky-soft)] hover:text-[var(--search-sky-deep)]">{tag}</Badge></Link>)}
-              {keyword ? <span className="ml-auto hidden text-xs text-[var(--search-faint)] sm:inline">命中「{keyword}」</span> : null}
+              {article.tags.map((tag) => {
+                const matched = matchedTags.has(tag.toLocaleLowerCase())
+                return <Link key={tag} href={`/search?q=${encodeURIComponent(tag)}&page=1`}><Badge className="rounded-full border-0 bg-[var(--search-tag)] px-2.5 py-1 text-xs font-medium text-[var(--search-muted)] transition-colors hover:bg-[var(--search-sky-soft)] hover:text-[var(--search-sky-deep)]"><SearchHighlight value={matched ? `<em>${tag}</em>` : tag} /></Badge></Link>
+              })}
+              {matchedAreas.length > 0 ? <span className="ml-auto hidden text-xs text-[var(--search-faint)] sm:inline">命中{matchedAreas.join("、")}「{keyword}」</span> : null}
             </div>
           </div>
         </div>

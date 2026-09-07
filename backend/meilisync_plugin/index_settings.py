@@ -31,7 +31,9 @@ def article_settings() -> dict[str, Any]:
             "updated_time",
             "content_plain",
         ],
-        "filterableAttributes": ["status"],
+        "filterableAttributes": ["status", "tags"],
+        "typoTolerance": {"enabled": False},
+        "prefixSearch": "disabled",
         "localizedAttributes": [
             {
                 "attributePatterns": ["title", "tags", "content_plain"],

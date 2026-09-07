@@ -7,6 +7,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 	"unicode"
@@ -19,7 +20,7 @@ const articlesIndex = "articles"
 
 // Client 是 Meilisearch 文章索引的 Go SDK 适配器。
 type Client struct {
-	index meilisearchsdk.IndexManager // index 提供固定 articles 索引的搜索能力。
+	service meilisearchsdk.ServiceManager // service 提供联合全文和精确标签搜索能力。
 }
 
 // NewClient 校验服务地址并创建 Meilisearch Go SDK 适配器。
@@ -42,7 +43,7 @@ func newClient(endpoint, apiKey string, httpClient *http.Client) *Client {
 		options = append(options, meilisearchsdk.WithAPIKey(apiKey))
 	}
 	service := meilisearchsdk.New(strings.TrimRight(endpoint, "/"), options...)
-	return &Client{index: service.Index(articlesIndex)}
+	return &Client{service: service}
 }
 
 // response 是 Meilisearch 文章搜索响应。
@@ -69,26 +70,48 @@ func (c *Client) Search(ctx context.Context, query search.Query) (*search.Result
 	}
 	offset := int64((query.Page - 1) * query.PageSize)
 
-	// 2. 通过 SDK 构造不可被客户端覆盖的公开搜索请求
-	request := &meilisearchsdk.SearchRequest{
-		Offset:                offset,
-		Limit:                 int64(query.PageSize),
+	// 2. 全文搜索排除标签字段，标签通过独立精确过滤查询参与联合排序
+	textRequest := &meilisearchsdk.SearchRequest{
+		IndexUID:              articlesIndex,
+		Query:                 query.Keyword,
+		AttributesToSearchOn:  []string{"title", "title_pinyin", "title_initials", "content_plain"},
 		AttributesToRetrieve:  []string{"id", "title", "content_plain", "tags", "status"},
 		AttributesToHighlight: []string{"title", "content_plain"},
 		AttributesToCrop:      []string{"content_plain:50"},
 		CropMarker:            "...",
 		HighlightPreTag:       "<em>",
 		HighlightPostTag:      "</em>",
+		MatchingStrategy:      "all",
 		Filter:                fmt.Sprintf("status = %d", search.DocumentStatusPublished),
+		FederationOptions:     &meilisearchsdk.SearchFederationOptions{Weight: 1},
 	}
-	payload, err := c.index.SearchRawWithContext(ctx, query.Keyword, request)
+	tagRequest := &meilisearchsdk.SearchRequest{
+		IndexUID:             articlesIndex,
+		Query:                "",
+		AttributesToRetrieve: []string{"id", "title", "content_plain", "tags", "status"},
+		AttributesToCrop:     []string{"content_plain:50"},
+		CropMarker:           "...",
+		Filter: []string{
+			fmt.Sprintf("status = %d", search.DocumentStatusPublished),
+			"tags = " + strconv.Quote(query.Keyword),
+		},
+		FederationOptions: &meilisearchsdk.SearchFederationOptions{Weight: 3},
+	}
+	searchResponse, err := c.service.MultiSearchWithContext(ctx, &meilisearchsdk.MultiSearchRequest{
+		Federation: &meilisearchsdk.MultiSearchFederation{Offset: offset, Limit: int64(query.PageSize)},
+		Queries:    []*meilisearchsdk.SearchRequest{textRequest, tagRequest},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("%w: 查询 Meilisearch: %w", search.ErrUnavailable, err)
 	}
 
 	// 3. 解码响应并回退缺少格式化字段的结果
+	payload, err := json.Marshal(searchResponse)
+	if err != nil {
+		return nil, fmt.Errorf("%w: 编码响应: %w", search.ErrUnavailable, err)
+	}
 	var decoded response
-	if err := json.Unmarshal(*payload, &decoded); err != nil {
+	if err := json.Unmarshal(payload, &decoded); err != nil {
 		return nil, fmt.Errorf("%w: 解码响应: %w", search.ErrUnavailable, err)
 	}
 	result := &search.Result{Total: decoded.EstimatedTotalHits, Page: query.Page, PageSize: query.PageSize, Items: make([]search.Item, 0, len(decoded.Hits))}

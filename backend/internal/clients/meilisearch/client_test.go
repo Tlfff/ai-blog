@@ -43,18 +43,29 @@ func TestNewClientRejectsInvalidEndpoint(t *testing.T) {
 func TestClientAppendsPublishedFilterAndFormatsResults(t *testing.T) {
 	// 1. 捕获 SDK 请求并验证客户端不能覆盖已发布状态过滤
 	client := newTestClient("secret", func(request *http.Request) (*http.Response, error) {
-		if request.URL.String() != "http://meili.test/indexes/articles/search" || request.Header.Get("Authorization") != "Bearer secret" {
+		if request.URL.String() != "http://meili.test/multi-search" || request.Header.Get("Authorization") != "Bearer secret" {
 			t.Fatalf("url=%s authorization=%q", request.URL, request.Header.Get("Authorization"))
 		}
-		var payload meilisearchsdk.SearchRequest
+		var payload meilisearchsdk.MultiSearchRequest
 		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
 			t.Fatal(err)
 		}
-		if payload.Query != "原" || payload.Filter != "status = 3" || payload.Offset != 10 || payload.Limit != 10 || payload.MatchingStrategy != "all" {
+		if payload.Federation == nil || payload.Federation.Offset != 10 || payload.Federation.Limit != 10 || len(payload.Queries) != 2 {
 			t.Fatalf("payload=%#v", payload)
 		}
-		if len(payload.AttributesToRetrieve) != 5 || payload.AttributesToRetrieve[4] != "status" || len(payload.AttributesToHighlight) != 2 || payload.AttributesToHighlight[0] != "title" || payload.AttributesToHighlight[1] != "content_plain" || len(payload.AttributesToCrop) != 1 || payload.AttributesToCrop[0] != "content_plain:50" || payload.HighlightPreTag != "<em>" || payload.HighlightPostTag != "</em>" {
-			t.Fatalf("formatting payload=%#v", payload)
+		textQuery, tagQuery := payload.Queries[0], payload.Queries[1]
+		if textQuery.IndexUID != articlesIndex || textQuery.Query != "原" || textQuery.Filter != "status = 3" || textQuery.MatchingStrategy != "all" || len(textQuery.AttributesToSearchOn) != 4 || textQuery.AttributesToSearchOn[3] != "content_plain" {
+			t.Fatalf("text query=%#v", textQuery)
+		}
+		if len(textQuery.AttributesToRetrieve) != 5 || textQuery.AttributesToRetrieve[4] != "status" || len(textQuery.AttributesToHighlight) != 2 || textQuery.AttributesToHighlight[0] != "title" || textQuery.AttributesToHighlight[1] != "content_plain" || len(textQuery.AttributesToCrop) != 1 || textQuery.AttributesToCrop[0] != "content_plain:50" || textQuery.HighlightPreTag != "<em>" || textQuery.HighlightPostTag != "</em>" {
+			t.Fatalf("formatting query=%#v", textQuery)
+		}
+		filter, err := json.Marshal(tagQuery.Filter)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if tagQuery.IndexUID != articlesIndex || tagQuery.Query != "" || string(filter) != `["status = 3","tags = \"原\""]` || tagQuery.FederationOptions == nil || tagQuery.FederationOptions.Weight != 3 {
+			t.Fatalf("tag query=%#v filter=%s", tagQuery, filter)
 		}
 		body := `{"estimatedTotalHits":1,"hits":[{"id":7,"title":"原题","tags":"后端 Go","status":3,"_formatted":{"title":"<em>原</em>题","content_plain":"包含<em>现象</em>的摘要..."}}]}`
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
