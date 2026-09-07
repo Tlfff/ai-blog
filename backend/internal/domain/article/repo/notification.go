@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"fmt"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/repo/po"
@@ -13,7 +14,7 @@ func (r *Repository) FindNotificationSnapshot(ctx context.Context, id uint64) (*
 	row := new(po.Article)
 	found, err := r.client.Context(ctx).ID(id).Cols("id", "author_id", "title").Get(row)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("查询文章通知快照: %w", err)
 	}
 	if !found {
 		return nil, article.ErrArticleNotFound

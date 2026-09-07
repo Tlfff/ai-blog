@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	article "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
@@ -28,7 +29,10 @@ func (r *ArticleReaderAdapter) FindArticleSnapshot(ctx context.Context, id uint6
 	// 1. 将文章上下文快照转换为通知上下文契约
 	articleSnapshot, err := r.reader.FindNotificationSnapshot(ctx, id)
 	if err != nil {
-		return nil, err
+		if errors.Is(err, article.ErrArticleNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("读取文章通知快照: %w", err)
 	}
 	return &notification.ArticleSnapshot{ID: articleSnapshot.ID, AuthorID: articleSnapshot.AuthorID, Title: articleSnapshot.Title}, nil
 }
@@ -49,13 +53,13 @@ func NewUserReader(reader user.QueryUseCase) *UserReaderAdapter {
 
 // FindSenderSnapshot 查询正常用户的昵称和头像快照。
 func (r *UserReaderAdapter) FindSenderSnapshot(ctx context.Context, id uint64) (*notification.SenderSnapshot, error) {
-	// 1. 用户不存在时返回空快照，由通知领域决定是否重试
+	// 1. 用户不存在时返回空快照，由通知领域归类为永久无效事件
 	profile, err := r.reader.GetProfile(ctx, id)
 	if err != nil {
 		if errors.Is(err, user.ErrUserNotFound) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, fmt.Errorf("读取通知发送者快照: %w", err)
 	}
 	return &notification.SenderSnapshot{ID: profile.ID, Nickname: profile.Nickname, Avatar: profile.Avatar}, nil
 }

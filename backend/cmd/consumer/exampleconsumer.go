@@ -64,6 +64,7 @@ func (app *consumerApplication) Run(ctx context.Context) error {
 //   - viewHandler：文章浏览事件处理器。
 //   - commentHandler：文章评论数事件处理器。
 //   - likeHandler：文章点赞数事件处理器。
+//   - notificationHandler：文章点赞通知事件处理器。
 //   - viewEvents：文章浏览事件发布器。
 //   - deadLetter：文章浏览消费死信发布器。
 //   - commentEvents：评论 Outbox 事件发布器。
@@ -89,17 +90,12 @@ func newBlogStreamer(
 	likeOutbox *job.LikeOutboxRelay,
 	commentLikeOutbox *job.CommentLikeOutboxRelay,
 ) *consumerApplication {
-	// 1. 使用三类消费者的最大缓冲配置创建 Leo Streamer
+	// 1. 使用全部消费者的最大缓冲配置创建 Leo Streamer
 	articleViewConfig := cf.GetKafka().GetConsumer().GetArticleView()
 	commentEventConfig := cf.GetKafka().GetConsumer().GetCommentEvent()
 	likeEventConfig := cf.GetKafka().GetConsumer().GetLikeEvent()
-	messageBufferSize := articleViewConfig.GetMessageBufferSize()
-	if commentEventConfig.GetMessageBufferSize() > messageBufferSize {
-		messageBufferSize = commentEventConfig.GetMessageBufferSize()
-	}
-	if likeEventConfig.GetMessageBufferSize() > messageBufferSize {
-		messageBufferSize = likeEventConfig.GetMessageBufferSize()
-	}
+	notificationConfig := cf.GetKafka().GetConsumer().GetArticleLikeNotification()
+	messageBufferSize := maxConsumerMessageBufferSize(articleViewConfig, commentEventConfig, likeEventConfig, notificationConfig)
 	streamer := stream.NewStreamer(
 		stream.MessageBufferSize(int(messageBufferSize)),
 		stream.Handlers(viewHandler, commentHandler, likeHandler, notificationHandler),
@@ -108,6 +104,18 @@ func newBlogStreamer(
 		}),
 	)
 	return &consumerApplication{streamer: streamer, viewEvents: viewEvents, deadLetter: deadLetter, commentEvents: commentEvents, commentDeadLetter: commentDeadLetter, commentOutbox: commentOutbox, likeEvents: likeEvents, likeDeadLetter: likeDeadLetter, likeOutbox: likeOutbox, commentLikeOutbox: commentLikeOutbox}
+}
+
+// maxConsumerMessageBufferSize 返回全部业务消费者配置中的最大消息缓冲数。
+func maxConsumerMessageBufferSize(configs ...*conf.KafkaConsumer_Config) int64 {
+	// 1. 使用最大值满足共享 Streamer 中所有订阅器的缓冲需求
+	var maximum int64
+	for _, config := range configs {
+		if config.GetMessageBufferSize() > maximum {
+			maximum = config.GetMessageBufferSize()
+		}
+	}
+	return maximum
 }
 
 // newArticleViewConsumer 组装文章浏览领域处理器、订阅器和死信发布器。

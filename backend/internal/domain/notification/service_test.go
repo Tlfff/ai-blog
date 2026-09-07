@@ -9,13 +9,15 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification/entity"
 )
 
+// fakeRepository 记录通知领域服务的仓储调用。
 type fakeRepository struct {
-	items      map[string]*entity.Notification
-	query      PageQuery
-	unreadUser uint64
-	readUser   uint64
+	items      map[string]*entity.Notification // items 按事件标识保存通知。
+	query      PageQuery                       // query 是最近一次列表分页参数。
+	unreadUser uint64                          // unreadUser 是未读统计接收者。
+	readUser   uint64                          // readUser 是全部已读接收者。
 }
 
+// Create 按事件标识幂等保存通知。
 func (f *fakeRepository) Create(_ context.Context, item *entity.Notification) error {
 	if f.items == nil {
 		f.items = map[string]*entity.Notification{}
@@ -26,24 +28,38 @@ func (f *fakeRepository) Create(_ context.Context, item *entity.Notification) er
 	}
 	return nil
 }
+
+// List 记录分页参数并返回类型1～4通知。
 func (f *fakeRepository) List(_ context.Context, q PageQuery) (*ListResult, error) {
 	f.query = q
 	return &ListResult{Items: []*entity.Notification{{Type: 1}, {Type: 2}, {Type: 3}, {Type: 4}}, Page: q.Page, PageSize: q.PageSize}, nil
 }
+
+// CountUnread 记录接收者并返回预设未读数量。
 func (f *fakeRepository) CountUnread(_ context.Context, id uint64) (int64, error) {
 	f.unreadUser = id
 	return 3, nil
 }
+
+// MarkAllRead 记录被标记已读的接收者。
 func (f *fakeRepository) MarkAllRead(_ context.Context, id uint64) error { f.readUser = id; return nil }
 
-type fakeArticleReader struct{ snapshot *ArticleSnapshot }
+// fakeArticleReader 返回预设文章通知快照。
+type fakeArticleReader struct {
+	snapshot *ArticleSnapshot // snapshot 是预设文章通知快照。
+}
 
+// FindArticleSnapshot 返回预设文章通知快照。
 func (f fakeArticleReader) FindArticleSnapshot(context.Context, uint64) (*ArticleSnapshot, error) {
 	return f.snapshot, nil
 }
 
-type fakeUserReader struct{ snapshot *SenderSnapshot }
+// fakeUserReader 返回预设通知发送者快照。
+type fakeUserReader struct {
+	snapshot *SenderSnapshot // snapshot 是预设发送者快照。
+}
 
+// FindSenderSnapshot 返回预设通知发送者快照。
 func (f fakeUserReader) FindSenderSnapshot(context.Context, uint64) (*SenderSnapshot, error) {
 	return f.snapshot, nil
 }

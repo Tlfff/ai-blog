@@ -3,6 +3,7 @@ package eventstream
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"sync"
 	"time"
@@ -13,6 +14,8 @@ import (
 	leokafka "codeup.aliyun.com/qimao/leo/leo/stream/kafka"
 	confluent "github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
+
+var errMissingArticleLikeNotificationConsumerConfig = errors.New("缺少文章点赞通知 Kafka consumer 配置")
 
 // LikeEventPublisher 同步发布点赞 Outbox 事件。
 type LikeEventPublisher struct {
@@ -132,7 +135,7 @@ func NewArticleLikeNotificationSubscriber(config *conf.Config) (*ArticleLikeNoti
 	// 1. 通知使用独立消费组读取与点赞计数相同的 Topic
 	cfg := config.GetData().GetKafka().GetConsumer().GetArticleLikeNotification()
 	if cfg.GetBootstrapServers() == "" || cfg.GetTopic() == "" || cfg.GetGroupId() == "" {
-		return nil, fmt.Errorf("缺少文章点赞通知 Kafka consumer 配置")
+		return nil, errMissingArticleLikeNotificationConsumerConfig
 	}
 	// 2. 创建关闭自动提交的 Kafka Consumer，由 Leo 控制确认
 	factory := func() (*confluent.Consumer, error) {
@@ -144,7 +147,7 @@ func NewArticleLikeNotificationSubscriber(config *conf.Config) (*ArticleLikeNoti
 	}
 	subscriber, err := leokafka.NewSubscriber(cfg.GetTopic(), factory, leokafka.AutoCommit(false))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("创建文章点赞通知 Kafka 订阅器: %w", err)
 	}
 	return &ArticleLikeNotificationSubscriber{Subscriber: subscriber}, nil
 }
@@ -167,5 +170,8 @@ func (p *LikeEventDeadLetterPublisher) publishDeadLetter(ctx context.Context, pa
 	message := &stream.Message{Payload: append([]byte(nil), payload...), Header: stream.Header{}}
 	message.Header.Set("x-dead-letter-error", cause)
 	_, err := p.publisher.Publish(ctx, message)
-	return err
+	if err != nil {
+		return fmt.Errorf("发布点赞事件死信: %w", err)
+	}
+	return nil
 }

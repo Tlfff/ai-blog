@@ -3,11 +3,18 @@ package clients
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
+)
+
+var (
+	errMissingMongoConfig  = errors.New("通知 MongoDB 配置缺失")
+	errEmptyMongoTarget    = errors.New("通知 MongoDB URI 或数据库名为空")
+	errInvalidMongoTimeout = errors.New("通知 MongoDB 连接超时配置无效")
 )
 
 // MongoClient 聚合通知 MongoDB 客户端与数据库名。
@@ -20,17 +27,17 @@ type MongoClient struct {
 func NewMongoClient(config *conf.Config) (*MongoClient, func(), error) {
 	// 1. 校验通知文档存储配置
 	if config == nil || config.GetData() == nil || config.GetData().GetMongo() == nil {
-		return nil, nil, errors.New("通知 MongoDB 配置缺失")
+		return nil, nil, errMissingMongoConfig
 	}
 	mongoConfig := config.GetData().GetMongo()
 	if mongoConfig.GetUri() == "" || mongoConfig.GetDatabase() == "" {
-		return nil, nil, errors.New("通知 MongoDB URI 或数据库名为空")
+		return nil, nil, errEmptyMongoTarget
 	}
 	timeout := 5 * time.Second
 	if mongoConfig.GetConnectTimeout() != "" {
 		parsed, err := time.ParseDuration(mongoConfig.GetConnectTimeout())
 		if err != nil || parsed <= 0 {
-			return nil, nil, errors.New("通知 MongoDB 连接超时配置无效")
+			return nil, nil, errInvalidMongoTimeout
 		}
 		timeout = parsed
 	}
@@ -40,11 +47,11 @@ func NewMongoClient(config *conf.Config) (*MongoClient, func(), error) {
 	defer cancel()
 	client, err := mongo.Connect(options.Client().ApplyURI(mongoConfig.GetUri()))
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("连接通知 MongoDB: %w", err)
 	}
 	if err := client.Ping(ctx, nil); err != nil {
 		_ = client.Disconnect(context.Background())
-		return nil, nil, err
+		return nil, nil, fmt.Errorf("探测通知 MongoDB: %w", err)
 	}
 
 	// 3. 返回由 Wire 清理链统一关闭的客户端

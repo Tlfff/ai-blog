@@ -1,6 +1,9 @@
 package article
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // NotificationSnapshot 是点赞通知所需的文章所有权与标题快照。
 type NotificationSnapshot struct {
@@ -32,5 +35,9 @@ func NewNotificationQuery(repository NotificationRepository) *NotificationQuery 
 // FindNotificationSnapshot 查询文章作者和标题，不泄漏文章仓储。
 func (q *NotificationQuery) FindNotificationSnapshot(ctx context.Context, id uint64) (*NotificationSnapshot, error) {
 	// 1. 只向通知上下文暴露稳定快照字段
-	return q.repository.FindNotificationSnapshot(ctx, id)
+	snapshot, err := q.repository.FindNotificationSnapshot(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("查询文章通知快照: %w", err)
+	}
+	return snapshot, nil
 }

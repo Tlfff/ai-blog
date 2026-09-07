@@ -1,8 +1,10 @@
 package repo
 
 import (
+	"errors"
 	"testing"
 
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
@@ -42,6 +44,25 @@ func TestNotificationFromDocumentPreservesLegacyTypes(t *testing.T) {
 		item := notificationFromDocument(document{Type: notificationType, ReceiverID: 7, SenderNickname: "存量用户"})
 		if item.Type != notificationType || item.ReceiverID != 7 || item.SenderNickname != "存量用户" {
 			t.Fatalf("item=%#v", item)
+		}
+	}
+}
+
+// TestNotificationSkipRejectsOverflow 验证极端页码不会回绕为负数 MongoDB skip。
+func TestNotificationSkipRejectsOverflow(t *testing.T) {
+	// 1. 正常分页计算稳定 Offset
+	skip, err := notificationSkip(notification.PageQuery{Page: 3, PageSize: 10})
+	if err != nil || skip != 20 {
+		t.Fatalf("skip=%d err=%v", skip, err)
+	}
+
+	// 2. 超过 int64 上限的分页参数按业务参数错误返回
+	for _, query := range []notification.PageQuery{
+		{Page: ^uint64(0), PageSize: 10},
+		{Page: 1, PageSize: ^uint64(0)},
+	} {
+		if _, err := notificationSkip(query); !errors.Is(err, notification.ErrInvalidInput) {
+			t.Fatalf("query=%#v err=%v", query, err)
 		}
 	}
 }

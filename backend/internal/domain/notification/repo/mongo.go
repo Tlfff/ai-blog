@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
@@ -13,7 +14,12 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 )
 
-const notificationCollection = "notifications"
+var errMissingMongoClient = errors.New("通知 MongoDB 仓储缺少客户端")
+
+const (
+	notificationCollection = "notifications"
+	maxMongoSkip           = uint64(1<<63 - 1)
+)
 
 // document 表示 MongoDB 中兼容类型1～4的通知文档。
 type document struct {
@@ -39,7 +45,7 @@ type Repository struct {
 func NewRepository(client *clients.MongoClient) (*Repository, error) {
 	// 1. 启动阶段拒绝缺少 MongoDB 客户端
 	if client == nil || client.Client == nil || client.Database == "" {
-		return nil, errors.New("通知 MongoDB 仓储缺少客户端")
+		return nil, errMissingMongoClient
 	}
 	collection := client.Client.Database(client.Database).Collection(notificationCollection)
 
@@ -48,7 +54,7 @@ func NewRepository(client *clients.MongoClient) (*Repository, error) {
 	defer cancel()
 	_, err := collection.Indexes().CreateMany(ctx, notificationIndexes())
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("创建通知 MongoDB 索引: %w", err)
 	}
 	return &Repository{collection: collection}, nil
 }
@@ -69,27 +75,37 @@ func (r *Repository) Create(ctx context.Context, item *entity.Notification) erro
 	if mongo.IsDuplicateKeyError(err) {
 		return nil
 	}
-	return err
+	if err != nil {
+		return fmt.Errorf("写入通知文档: %w", err)
+	}
+	return nil
 }
 
 // List 按接收者和时间倒序分页查询通知。
 func (r *Repository) List(ctx context.Context, query notification.PageQuery) (*notification.ListResult, error) {
-	// 1. 过滤当前接收者并按时间、文档标识稳定倒序分页
-	findOptions := options.Find().
-		SetSort(bson.D{{Key: "created_time", Value: -1}, {Key: "_id", Value: -1}}).
-		SetSkip(int64((query.Page - 1) * query.PageSize)).
-		SetLimit(int64(query.PageSize))
-	cursor, err := r.collection.Find(ctx, receiverFilter(query.UserID), findOptions)
+	// 1. 拒绝 MongoDB int64 skip 无法表达的极端页码
+	skip, err := notificationSkip(query)
 	if err != nil {
 		return nil, err
+	}
+
+	// 2. 过滤当前接收者并按时间、文档标识稳定倒序分页
+	limit := int64(query.PageSize) // #nosec G115 -- notificationSkip 已验证 PageSize 不超过 int64 上限。
+	findOptions := options.Find().
+		SetSort(bson.D{{Key: "created_time", Value: -1}, {Key: "_id", Value: -1}}).
+		SetSkip(skip).
+		SetLimit(limit)
+	cursor, err := r.collection.Find(ctx, receiverFilter(query.UserID), findOptions)
+	if err != nil {
+		return nil, fmt.Errorf("查询通知文档: %w", err)
 	}
 	defer cursor.Close(ctx)
 	rows := make([]document, 0, query.PageSize)
 	if err := cursor.All(ctx, &rows); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("读取通知文档: %w", err)
 	}
 
-	// 2. 不过滤类型字段，兼容读取类型2～4的存量文档
+	// 3. 不过滤类型字段，兼容读取类型2～4的存量文档
 	items := make([]*entity.Notification, 0, len(rows))
 	for _, row := range rows {
 		items = append(items, notificationFromDocument(row))
@@ -97,17 +113,34 @@ func (r *Repository) List(ctx context.Context, query notification.PageQuery) (*n
 	return &notification.ListResult{Items: items, Page: query.Page, PageSize: query.PageSize}, nil
 }
 
+// notificationSkip 将 Offset 分页参数安全转换为 MongoDB int64 skip。
+func notificationSkip(query notification.PageQuery) (int64, error) {
+	// 1. 仓储拒绝未规范化参数及乘法溢出
+	if query.Page == 0 || query.PageSize == 0 || query.PageSize > maxMongoSkip || query.Page-1 > maxMongoSkip/query.PageSize {
+		return 0, notification.ErrInvalidInput
+	}
+	skip := int64((query.Page - 1) * query.PageSize) // #nosec G115 -- 上述边界检查保证结果不超过 int64。
+	return skip, nil
+}
+
 // CountUnread 统计当前接收者未读通知。
 func (r *Repository) CountUnread(ctx context.Context, userID uint64) (int64, error) {
 	// 1. 接收者条件防止跨用户读取未读数量
-	return r.collection.CountDocuments(ctx, unreadFilter(userID))
+	count, err := r.collection.CountDocuments(ctx, unreadFilter(userID))
+	if err != nil {
+		return 0, fmt.Errorf("统计未读通知文档: %w", err)
+	}
+	return count, nil
 }
 
 // MarkAllRead 仅更新当前接收者未读通知。
 func (r *Repository) MarkAllRead(ctx context.Context, userID uint64) error {
 	// 1. 接收者和未读条件共同限制批量更新范围
 	_, err := r.collection.UpdateMany(ctx, unreadFilter(userID), bson.M{"$set": bson.M{"is_read": true}})
-	return err
+	if err != nil {
+		return fmt.Errorf("更新未读通知文档: %w", err)
+	}
+	return nil
 }
 
 // notificationIndexes 返回通知幂等和接收者查询索引。

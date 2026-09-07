@@ -3,6 +3,7 @@ package notification
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification/entity"
@@ -116,7 +117,7 @@ func (s *Service) ConsumeArticleLike(ctx context.Context, event like.Integration
 	}
 	articleSnapshot, err := s.articles.FindArticleSnapshot(ctx, event.ArticleID)
 	if err != nil {
-		return err
+		return fmt.Errorf("查询文章通知快照: %w", err)
 	}
 
 	// 2. 作者自赞不创建通知
@@ -128,7 +129,7 @@ func (s *Service) ConsumeArticleLike(ctx context.Context, event like.Integration
 	}
 	sender, err := s.users.FindSenderSnapshot(ctx, event.UserID)
 	if err != nil {
-		return err
+		return fmt.Errorf("查询通知发送者快照: %w", err)
 	}
 	if sender == nil || sender.ID != event.UserID {
 		return ErrInvalidInput
@@ -136,12 +137,15 @@ func (s *Service) ConsumeArticleLike(ctx context.Context, event like.Integration
 	createdAt := event.OccurredAt
 
 	// 3. 保存类型1及创建时用户、文章快照，事件ID保证幂等
-	return s.repository.Create(ctx, &entity.Notification{
+	if err := s.repository.Create(ctx, &entity.Notification{
 		SourceEventID: event.EventID, ReceiverID: articleSnapshot.AuthorID,
 		Type: TypeArticleLike, CreatedTime: createdAt, SenderID: sender.ID,
 		SenderNickname: sender.Nickname, SenderAvatar: sender.Avatar,
 		ArticleID: articleSnapshot.ID, Title: articleSnapshot.Title,
-	})
+	}); err != nil {
+		return fmt.Errorf("创建文章点赞通知: %w", err)
+	}
+	return nil
 }
 
 // List 查询当前用户通知并规范化分页。
@@ -156,7 +160,11 @@ func (s *Service) List(ctx context.Context, query PageQuery) (*ListResult, error
 	if query.PageSize < 10 || query.PageSize >= 200 {
 		query.PageSize = 10
 	}
-	return s.repository.List(ctx, query)
+	result, err := s.repository.List(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("查询通知列表: %w", err)
+	}
+	return result, nil
 }
 
 // CountUnread 查询当前用户未读数量。
@@ -165,7 +173,11 @@ func (s *Service) CountUnread(ctx context.Context, userID uint64) (int64, error)
 	if userID == 0 {
 		return 0, ErrInvalidInput
 	}
-	return s.repository.CountUnread(ctx, userID)
+	count, err := s.repository.CountUnread(ctx, userID)
+	if err != nil {
+		return 0, fmt.Errorf("统计未读通知: %w", err)
+	}
+	return count, nil
 }
 
 // MarkAllRead 将当前用户全部未读通知标记为已读。
@@ -174,5 +186,8 @@ func (s *Service) MarkAllRead(ctx context.Context, userID uint64) error {
 	if userID == 0 {
 		return ErrInvalidInput
 	}
-	return s.repository.MarkAllRead(ctx, userID)
+	if err := s.repository.MarkAllRead(ctx, userID); err != nil {
+		return fmt.Errorf("标记全部通知已读: %w", err)
+	}
+	return nil
 }

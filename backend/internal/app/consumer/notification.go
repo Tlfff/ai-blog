@@ -12,13 +12,16 @@ import (
 	"codeup.aliyun.com/qimao/leo/leo/stream"
 )
 
-const notificationConsumeAttempts = 3
+const (
+	notificationInitialRetryBackoff = 100 * time.Millisecond
+	notificationMaxRetryBackoff     = 5 * time.Second
+)
 
 // NotificationConsumer 消费文章点赞事件并创建通知。
 type NotificationConsumer struct {
 	subscriber stream.Subscriber                // subscriber 是通知独立消费组订阅器。
 	processor  notification.Processor           // processor 提供通知领域生成能力。
-	deadLetter notification.DeadLetterPublisher // deadLetter 提供最终失败消息投递能力。
+	deadLetter notification.DeadLetterPublisher // deadLetter 提供永久无效消息投递能力。
 }
 
 // NewNotificationConsumer 创建通知消费者。
@@ -36,7 +39,7 @@ func (c *NotificationConsumer) Subscriber() (stream.Subscriber, error) {
 	return c.subscriber, nil
 }
 
-// Handle 解析文章点赞事件并有限重试通知生成。
+// Handle 解析文章点赞事件并持续重试瞬时失败。
 func (c *NotificationConsumer) Handle(ctx context.Context, message *stream.Message) error {
 	// 1. 损坏消息直接进入通知死信
 	var event like.IntegrationEvent
@@ -44,26 +47,31 @@ func (c *NotificationConsumer) Handle(ctx context.Context, message *stream.Messa
 		return c.deadLetterResult(ctx, message.Payload, err)
 	}
 
-	// 2. MongoDB 或快照查询瞬时失败时有限指数退避重试
-	var processErr error
-	for attempt := 0; attempt < notificationConsumeAttempts; attempt++ {
-		processErr = c.processor.ConsumeArticleLike(ctx, event)
+	// 2. 永久无效事件进入死信，瞬时依赖失败持续退避直至成功或进程退出
+	retryBackoff := notificationInitialRetryBackoff
+	for {
+		processErr := c.processor.ConsumeArticleLike(ctx, event)
 		if processErr == nil {
 			return nil
 		}
-		if attempt < notificationConsumeAttempts-1 {
-			timer := time.NewTimer(time.Duration(1<<attempt) * 100 * time.Millisecond)
-			select {
-			case <-ctx.Done():
-				timer.Stop()
-				return errors.Join(processErr, ctx.Err())
-			case <-timer.C:
-			}
+		if errors.Is(processErr, notification.ErrInvalidInput) {
+			return c.deadLetterResult(ctx, message.Payload, processErr)
+		}
+
+		// 3. 不返回瞬时错误，防止后续 Kafka Offset 提交越过失败消息
+		timer := time.NewTimer(retryBackoff)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return errors.Join(processErr, ctx.Err())
+		case <-timer.C:
+		}
+		if retryBackoff < notificationMaxRetryBackoff/2 {
+			retryBackoff *= 2
+		} else {
+			retryBackoff = notificationMaxRetryBackoff
 		}
 	}
-
-	// 3. 重试耗尽后死信成功即确认源消息
-	return c.deadLetterResult(ctx, message.Payload, processErr)
 }
 
 // deadLetterResult 发布通知消费失败的原始消息。
