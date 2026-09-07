@@ -34,7 +34,7 @@ def article_settings() -> dict[str, Any]:
         "filterableAttributes": ["status"],
         "localizedAttributes": [
             {
-                "attributePatterns": ["title", "content_plain"],
+                "attributePatterns": ["title", "tags", "content_plain"],
                 "locales": ["zho"],
             }
         ],

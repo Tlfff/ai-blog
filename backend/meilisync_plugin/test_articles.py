@@ -55,6 +55,7 @@ class ArticleTransformTest(unittest.TestCase):
         self.assertEqual("2026-09-07T10:00:00.123456", document["updated_time"])
 
     def test_plugin_mutates_incremental_event(self):
+        self.assertFalse(articles.ArticlePlugin.is_global)
         event = FakeEvent({"id": 1, "title": "搜索", "content": "正文", "tags": "", "status": 2})
         returned = asyncio.run(articles.ArticlePlugin().pre_event(event))
         self.assertIs(event, returned)
@@ -71,11 +72,19 @@ class MeilisyncConfigTest(unittest.TestCase):
         self.assertIn("type: redis", config)
         self.assertIn("type: mysql", config)
         self.assertIn("server_id:", config)
+        self.assertIn("charset: utf8mb4", config)
         self.assertIn("table: articles", config)
         self.assertIn("index: articles", config)
         self.assertIn("meilisync_plugin.articles.ArticlePlugin", config)
-        for field in ("      id:", "      title:", "      content:", "      tags:", "      status:", "      updated_time:"):
-            self.assertIn(field, config)
+        self.assertNotIn("    fields:", config)
+
+    def test_plugin_fields_are_preserved_for_meilisync(self):
+        event = FakeEvent({"id": 1, "title": "搜索", "content": "正文", "tags": "中文", "status": 3})
+        asyncio.run(articles.ArticlePlugin().pre_event(event))
+        self.assertEqual(
+            {"id", "title", "title_pinyin", "title_initials", "content_plain", "tags", "status", "updated_time"},
+            set(event.data),
+        )
 
 
 class IndexSettingsTest(unittest.TestCase):
@@ -88,6 +97,7 @@ class IndexSettingsTest(unittest.TestCase):
             settings["searchableAttributes"],
         )
         self.assertEqual(["status"], settings["filterableAttributes"])
+        self.assertEqual(["title", "tags", "content_plain"], settings["localizedAttributes"][0]["attributePatterns"])
         self.assertEqual(["zho"], settings["localizedAttributes"][0]["locales"])
 
     def test_configure_waits_for_successful_task(self):

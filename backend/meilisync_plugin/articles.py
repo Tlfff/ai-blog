@@ -88,7 +88,7 @@ def transform(row: dict[str, Any]) -> dict[str, Any]:
 class ArticlePlugin:
     """ArticlePlugin 在 Meilisync 写入前转换文章 ROW 事件。"""
 
-    is_global = True
+    is_global = False
 
     async def pre_event(self, event: Any) -> Any:
         """使用同一转换处理 INSERT、UPDATE 和 DELETE 事件数据。"""

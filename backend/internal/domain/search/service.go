@@ -6,6 +6,14 @@ import (
 	"strings"
 )
 
+// DocumentStatus 表示搜索索引中的文章公开状态。
+type DocumentStatus int8
+
+const (
+	// DocumentStatusPublished 表示可由公开搜索返回的已发表文章。
+	DocumentStatusPublished DocumentStatus = 3
+)
+
 var (
 	// ErrInvalidQuery 表示搜索关键词或分页参数不符合公开接口约束。
 	ErrInvalidQuery = errors.New("搜索参数不合法")

@@ -13,6 +13,7 @@ source:
   user: root
   password: ""
   database: blog
+  charset: utf8mb4
 meilisearch:
   api_url: http://127.0.0.1:7700
   api_key: ""
@@ -22,12 +23,5 @@ sync:
   - table: articles
     index: articles
     full: false
-    fields:
-      id:
-      title:
-      content:
-      tags:
-      status:
-      updated_time:
     plugins:
       - meilisync_plugin.articles.ArticlePlugin

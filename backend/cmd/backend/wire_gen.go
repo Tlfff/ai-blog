@@ -123,7 +123,14 @@ func wireApp() (*httpApplication, func(), error) {
 	availabilityQuery := comment.NewAvailabilityQuery(repoRepository)
 	likeService := like.NewService(repository2, publicationQuery, availabilityQuery, cache)
 	likeServiceHTTPServerController := service.NewLikeServer(likeService)
-	client := meilisearch.NewConfiguredClient(config)
+	client, err := meilisearch.NewConfiguredClient(config)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
 	searchService := search.NewService(client)
 	searchServiceHTTPServerController := service.NewSearchServer(searchService)
 	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, likeServiceHTTPServerController, searchServiceHTTPServerController, sessionRepository)
