@@ -18,7 +18,7 @@ export function SearchHighlight({ value, className }: SearchHighlightProps) {
         return (
           <mark
             key={index}
-            className="rounded-sm bg-sakura-wash px-0.5 text-inherit"
+            className="rounded bg-[var(--search-highlight)] px-0.5 text-inherit"
           >
             {match[1]}
           </mark>

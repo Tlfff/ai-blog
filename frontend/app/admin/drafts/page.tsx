@@ -1,164 +1,59 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Trash2, Edit3, ArrowLeft, Send, ChevronLeft, ChevronRight } from "lucide-react"
+import { Edit3, FileText, PenLine, Send, Trash2 } from "lucide-react"
 import useSWR from "swr"
-import { getAdminArticleList, deleteArticle, publishArticle } from "@/api/articles"
-import { Container } from "@/components/layout/container"
-import { SiteShell } from "@/components/layout/site-shell"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { deleteArticle, getAdminArticleList, publishArticle } from "@/api/articles"
+import { AdminShell } from "@/components/admin/admin-shell"
+import { AdminEmptyState, AdminPageHeader, AdminPagination, AdminPanel, AdminStatusBadge } from "@/components/admin/admin-ui"
 import { Button } from "@/components/ui/button"
-import { useAuth } from "@/hooks/use-auth"
 import { LoadingState } from "@/components/ui/spinner"
+import { useAuth } from "@/hooks/use-auth"
 import { formatDate } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
 export default function AdminDraftsPage() {
   const { isAdmin } = useAuth()
-  const router = useRouter()
   const [deleting, setDeleting] = useState<string | null>(null)
   const [publishing, setPublishing] = useState<string | null>(null)
   const [page, setPage] = useState(1)
-
-  useEffect(() => {
-    if (!isAdmin) {
-      router.push("/")
-    }
-  }, [isAdmin, router])
-
-  if (!isAdmin) {
-    return null
-  }
-
-  const { data: drafts, isLoading, mutate } = useSWR(
-    ["admin-drafts", page],
-    () => getAdminArticleList(2, page),
-  )
+  const { data: drafts, isLoading, mutate } = useSWR(isAdmin ? ["admin-drafts", page] : null, () => getAdminArticleList(2, page))
 
   async function handleDelete(id: string) {
     if (!confirm("确定要删除这个草稿吗？")) return
     setDeleting(id)
-    try {
-      await deleteArticle(id)
-      mutate()
-    } finally {
-      setDeleting(null)
-    }
+    try { await deleteArticle(id); await mutate() } finally { setDeleting(null) }
   }
 
   async function handlePublish(id: string) {
     setPublishing(id)
-    try {
-      await publishArticle(id)
-      mutate()
-    } finally {
-      setPublishing(null)
-    }
+    try { await publishArticle(id); await mutate() } finally { setPublishing(null) }
   }
 
   const totalPages = drafts ? Math.ceil(drafts.total / drafts.pageSize) : 0
 
   return (
-    <SiteShell>
-      <Container className="py-8 md:py-12">
-        <div className="mb-8 flex items-end justify-between gap-4 border-b border-border pb-6">
-          <div className="flex items-center gap-3">
-            <Link href="/admin" className="label-meta inline-flex items-center gap-2 text-ink transition-colors hover:text-sakura-deep">
-              <ArrowLeft className="size-4" />
-              back
-            </Link>
-            <div>
-              <p className="label-meta text-sakura-deep">control room / drafts</p>
-              <h1 className="title-display mt-2 text-4xl text-ink">草稿管理</h1>
-            </div>
-          </div>
-          <Link href="/editor">
-            <Button>新建文章</Button>
-          </Link>
-        </div>
-
-        {isLoading ? (
-          <LoadingState />
-        ) : (
-          <Card className="rounded-sm">
-            <CardContent>
-              {drafts?.items.length === 0 ? (
-                <div className="py-12 text-center text-muted-foreground">暂无草稿</div>
-              ) : (
-                <>
-                  <div className="flex flex-col gap-3">
-                    {drafts?.items.map((draft) => (
-                      <div
-                        key={draft.id}
-                        className="flex items-center justify-between gap-4 rounded-sm border border-border p-4 transition-colors hover:border-sakura-deep hover:bg-sakura-wash"
-                      >
-                        <div className="flex-1">
-                          <h3 className="font-medium">{draft.title}</h3>
-                          <p className="mt-1 text-sm text-muted-foreground">
-                            作者：{draft.author.username} · 更新于 {formatDate(draft.updatedAt)}
-                          </p>
-                        </div>
-                        <div className="flex flex-wrap items-center justify-end gap-2">
-                          <Link href={`/editor?id=${draft.id}`}>
-                            <Button variant="outline" size="sm">
-                              <Edit3 className="size-3.5" />
-                              编辑
-                            </Button>
-                          </Link>
-                          <Button
-                            variant="default"
-                            size="sm"
-                            onClick={() => handlePublish(draft.id)}
-                            disabled={publishing === draft.id}
-                          >
-                            <Send className={cn("size-3.5", publishing === draft.id && "animate-pulse")} />
-                            {publishing === draft.id ? "发布中..." : "发布"}
-                          </Button>
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleDelete(draft.id)}
-                            disabled={deleting === draft.id}
-                          >
-                            <Trash2 className={cn("size-3.5", deleting === draft.id && "animate-pulse")} />
-                            删除
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {totalPages > 1 && (
-                    <div className="mt-6 flex items-center justify-center gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page === 1}
-                        onClick={() => setPage(page - 1)}
-                      >
-                        <ChevronLeft className="size-4" />
-                      </Button>
-                      <span className="text-sm text-muted-foreground">
-                        第 {page} / {totalPages} 页
-                      </span>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        disabled={page === totalPages}
-                        onClick={() => setPage(page + 1)}
-                      >
-                        <ChevronRight className="size-4" />
-                      </Button>
-                    </div>
-                  )}
-                </>
-              )}
-            </CardContent>
-          </Card>
-        )}
-      </Container>
-    </SiteShell>
+    <AdminShell>
+      <AdminPageHeader eyebrow="control room / drafts" title="草稿箱" description="继续完成尚未发布的内容。" actions={<Link href="/editor"><Button className="rounded-full bg-[var(--admin-sky)] text-white hover:bg-[var(--admin-sky-deep)]"><PenLine className="size-4" />新建文章</Button></Link>} />
+      {isLoading ? <LoadingState /> : (
+        <AdminPanel className="overflow-hidden">
+          {drafts?.items.length ? (
+            <>
+              <div className="border-b border-[var(--admin-border)] bg-[var(--admin-yellow-soft)] px-5 py-4 text-sm text-[var(--admin-yellow-deep)] sm:px-6"><FileText className="mr-2 inline size-4" />共有 {drafts.total} 篇草稿，发布前可以继续编辑和检查。</div>
+              <div className="divide-y divide-[var(--admin-border)]">
+                {drafts.items.map((draft) => (
+                  <article key={draft.id} className="flex flex-col gap-4 p-5 transition-colors hover:bg-[var(--admin-sky-soft)]/35 sm:flex-row sm:items-center sm:px-6">
+                    <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h2 className="font-semibold text-[var(--admin-ink)]">{draft.title}</h2><AdminStatusBadge status="draft" /></div><p className="mt-2 text-xs text-[var(--admin-faint)]">更新于 {formatDate(draft.updatedAt)} · {draft.tags.map((tag) => tag.name).join(" · ") || "暂无标签"}</p></div>
+                    <div className="flex flex-wrap items-center gap-2 sm:justify-end"><Link href={`/editor?id=${draft.id}`}><Button variant="outline" size="sm" className="rounded-full border-[var(--admin-border-strong)] bg-transparent"><Edit3 className="size-3.5" />继续写</Button></Link><Button size="sm" onClick={() => handlePublish(draft.id)} disabled={publishing === draft.id} className="rounded-full bg-[var(--admin-teal-deep)] text-white"><Send className={cn("size-3.5", publishing === draft.id && "animate-pulse")} />{publishing === draft.id ? "发布中" : "发布"}</Button><Button variant="ghost" size="sm" onClick={() => handleDelete(draft.id)} disabled={deleting === draft.id} className="rounded-full text-[var(--admin-coral)] hover:bg-[var(--admin-coral-soft)] hover:text-[var(--admin-coral)]"><Trash2 className={cn("size-3.5", deleting === draft.id && "animate-pulse")} />删除</Button></div>
+                  </article>
+                ))}
+              </div>
+              <AdminPagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            </>
+          ) : <AdminEmptyState title="草稿箱是空的" description="所有灵感都已经整理发布，或者还没开始书写。" />}
+        </AdminPanel>
+      )}
+    </AdminShell>
   )
 }

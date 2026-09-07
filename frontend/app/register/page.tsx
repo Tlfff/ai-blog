@@ -1,13 +1,13 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Eye, EyeOff, User, Phone } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { register } from "@/api/users"
-import { useAuth } from "@/hooks/use-auth"
+import { useEffect, useState } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { ArrowRight, Eye, EyeOff, LockKeyhole, Phone, UserRound } from "lucide-react"
+import { register } from "@/api/users"
+import { AuthField, AuthNotice, AuthShell, authInputClass } from "@/components/auth/auth-shell"
+import { Button } from "@/components/ui/button"
+import { useAuth } from "@/hooks/use-auth"
 
 export default function RegisterPage() {
   const router = useRouter()
@@ -20,54 +20,30 @@ export default function RegisterPage() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
 
-  if (isLoggedIn) {
-    router.push("/")
-    return null
-  }
+  useEffect(() => {
+    if (isLoggedIn) router.replace("/")
+  }, [isLoggedIn, router])
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  if (isLoggedIn) return null
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
     setError("")
+    const normalizedNickname = nickname.trim()
+    const normalizedPhone = phone.trim()
 
-    if (!nickname.trim()) {
-      setError("请输入昵称")
-      return
-    }
-
-    if (!phone.trim()) {
-      setError("请输入手机号")
-      return
-    }
-
-    if (!/^1[3-9]\d{9}$/.test(phone.trim())) {
-      setError("请输入有效的手机号")
-      return
-    }
-
-    if (!password.trim()) {
-      setError("请输入密码")
-      return
-    }
-
-    if (password.length < 6) {
-      setError("密码长度至少为6位")
-      return
-    }
-
-    if (password !== confirmPassword) {
-      setError("两次输入的密码不一致")
-      return
-    }
+    if (!normalizedNickname) { setError("请输入昵称"); return }
+    if (!normalizedPhone) { setError("请输入手机号"); return }
+    if (!/^1[3-9]\d{9}$/.test(normalizedPhone)) { setError("请输入有效的手机号"); return }
+    if (!password) { setError("请输入密码"); return }
+    if (password.length < 6) { setError("密码长度至少为 6 位"); return }
+    if (password !== confirmPassword) { setError("两次输入的密码不一致"); return }
 
     setLoading(true)
     try {
-      await register({
-        nickname: nickname.trim(),
-        phone: phone.trim(),
-        password: password.trim(),
-      })
+      await register({ nickname: normalizedNickname, phone: normalizedPhone, password })
       router.push("/login")
-    } catch (err) {
+    } catch {
       setError("注册失败，请稍后重试")
     } finally {
       setLoading(false)
@@ -75,99 +51,39 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-            <User className="h-6 w-6 text-primary" />
-          </div>
-          <CardTitle className="text-xl">创建账号</CardTitle>
-          <CardDescription>注册成为会员，开启您的博客之旅</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">昵称</label>
-              <div className="relative">
-                <User className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  value={nickname}
-                  onChange={(e) => setNickname(e.target.value)}
-                  placeholder="请输入昵称"
-                  className="w-full rounded-lg border border-border px-10 py-2 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/40"
-                  disabled={loading}
-                />
-              </div>
-            </div>
+    <AuthShell variant="register">
+      <p className="font-mono text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[var(--auth-teal-deep)]">create account / 01</p>
+      <h2 className="auth-heading mt-3 font-playful text-4xl font-bold tracking-[-0.04em]">开始新的记录</h2>
+      <p className="mt-2 text-sm text-[var(--auth-muted)]">填写基本信息即可创建账号。</p>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">手机号</label>
-              <div className="relative">
-                <Phone className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                  placeholder="请输入手机号"
-                  className="w-full rounded-lg border border-border px-10 py-2 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/40"
-                  disabled={loading}
-                />
-              </div>
-            </div>
+      <form onSubmit={handleSubmit} className="mt-7 space-y-4">
+        <AuthField label="昵称" icon={<UserRound className="size-5" />}>
+          <input type="text" autoComplete="nickname" value={nickname} onChange={(event) => setNickname(event.target.value.slice(0, 20))} placeholder="请输入昵称" disabled={loading} maxLength={20} className={`${authInputClass} pl-12`} />
+        </AuthField>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">密码</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="请输入密码（至少6位）"
-                  className="w-full rounded-lg border border-border px-3 py-2 pr-10 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/40"
-                  disabled={loading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
-              </div>
-            </div>
+        <AuthField label="手机号" icon={<Phone className="size-5" />}>
+          <input type="tel" inputMode="numeric" autoComplete="tel" value={phone} onChange={(event) => setPhone(event.target.value.replace(/\D/g, "").slice(0, 11))} placeholder="请输入 11 位手机号" disabled={loading} className={`${authInputClass} pl-12`} />
+        </AuthField>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium">确认密码</label>
-              <input
-                type={showPassword ? "text" : "password"}
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="请再次输入密码"
-                className="w-full rounded-lg border border-border px-3 py-2 text-sm outline-none transition-colors focus:border-ring focus:ring-2 focus:ring-ring/40"
-                disabled={loading}
-              />
-            </div>
+        <AuthField label="密码" icon={<LockKeyhole className="size-5" />}>
+          <input type={showPassword ? "text" : "password"} autoComplete="new-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="至少 6 个字符" disabled={loading} className={`${authInputClass} pl-12 pr-12`} />
+          <button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "隐藏密码" : "显示密码"} className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--auth-faint)] hover:text-[var(--auth-ink)]">{showPassword ? <EyeOff className="size-5" /> : <Eye className="size-5" />}</button>
+        </AuthField>
 
-            {error && (
-              <div className="rounded-lg bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
-              </div>
-            )}
+        <AuthField label="确认密码" icon={<LockKeyhole className="size-5" />}>
+          <input type={showPassword ? "text" : "password"} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="请再次输入密码" disabled={loading} className={`${authInputClass} pl-12`} />
+        </AuthField>
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? "注册中..." : "注册"}
-            </Button>
-          </form>
+        {error ? <p role="alert" className="rounded-xl bg-[var(--auth-coral-soft)] px-4 py-3 text-sm text-[var(--auth-coral)]">{error}</p> : null}
 
-          <div className="mt-4 text-center text-sm text-muted-foreground">
-            已有账号？{" "}
-            <Link href="/login" className="text-primary hover:underline">
-              立即登录
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
+        <Button type="submit" disabled={loading} className="h-12 w-full rounded-full bg-[var(--auth-teal-deep)] text-white hover:bg-[var(--auth-sky-deep)]">
+          {loading ? "注册中..." : <><span>创建账号</span><ArrowRight className="ml-auto size-4" /></>}
+        </Button>
+      </form>
+
+      <div className="my-6 flex items-center gap-4"><span className="h-px flex-1 bg-[var(--auth-border)]" /><span className="text-xs text-[var(--auth-faint)]">已经有账号？</span><span className="h-px flex-1 bg-[var(--auth-border)]" /></div>
+      <div className="text-center"><Link href="/login" className="inline-flex rounded-full bg-[var(--auth-teal-soft)] px-6 py-2.5 text-sm font-semibold text-[var(--auth-teal-deep)] hover:opacity-80">返回登录</Link></div>
+      <div className="mt-7"><AuthNotice tone="yellow" title="注册提示">手机号仅用于账号登录，不会展示在公开页面。</AuthNotice></div>
+    </AuthShell>
   )
 }

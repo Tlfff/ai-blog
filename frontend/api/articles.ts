@@ -24,6 +24,15 @@ export interface ArticleSearchResult {
   pageSize: number
 }
 
+export interface HotArticle {
+  id: string
+  title: string
+  hot: number
+  views: number
+  likes: number
+  commentsCount: number
+}
+
 export interface ArticleQuery {
   page?: number
   pageSize?: number
@@ -314,7 +323,7 @@ export async function getArticleById(id: string): Promise<Article | undefined> {
   }
 }
 
-export async function getHotArticles(limit = 10): Promise<Article[]> {
+export async function getHotArticles(limit = 10): Promise<HotArticle[]> {
   const data = await request<{
     list: { article_id: number; title: string; hot: number; view_count: number; comment_count: number; like_count: number }[]
   }>("/article/hot-rank")
@@ -322,23 +331,10 @@ export async function getHotArticles(limit = 10): Promise<Article[]> {
   return data.list.slice(0, limit).map((item) => ({
     id: String(item.article_id),
     title: item.title,
-    summary: "",
-    content: "",
-    author: {
-      id: "",
-      username: "",
-      avatar: "",
-      role: "user",
-      location: "",
-      joinedAt: new Date().toISOString(),
-    },
-    tags: [],
-    status: "published",
+    hot: item.hot,
     views: item.view_count,
     likes: item.like_count,
     commentsCount: item.comment_count,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
   }))
 }
 

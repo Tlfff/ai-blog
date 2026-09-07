@@ -189,6 +189,19 @@
   --home-accent: #d94170;
   --home-accent-hover: #bd2e5c;
   --home-wave: #f2c9d4;
+  --home-sidebar-card: rgb(255 253 249 / 0.92);
+  --home-sidebar-border: rgb(36 34 42 / 0.12);
+  --home-sidebar-shadow: rgb(36 34 42 / 0.08);
+  --home-hot-button: #f1f6f7;
+  --home-hot-sky: #4ea7b9;
+  --home-hot-coral: #f47c78;
+  --home-hot-coral-soft: #fff0e7;
+  --home-hot-yellow: #f2c96d;
+  --home-hot-yellow-deep: #ad8018;
+  --home-hot-teal: #56c9be;
+  --home-hot-teal-deep: #31877f;
+  --home-hot-lavender: #b8a7e8;
+  --home-hot-muted: #9eb3bd;
 
   --article-background: #fbf7f0;
   --article-surface: #ffffff;
@@ -270,6 +283,19 @@
   --home-accent: #f46f98;
   --home-accent-hover: #ff91b2;
   --home-wave: #f2c9d4;
+  --home-sidebar-card: rgb(32 32 39 / 0.92);
+  --home-sidebar-border: rgb(255 255 255 / 0.13);
+  --home-sidebar-shadow: rgb(0 0 0 / 0.24);
+  --home-hot-button: #25252d;
+  --home-hot-sky: #78c4d4;
+  --home-hot-coral: #ff918e;
+  --home-hot-coral-soft: rgb(244 124 120 / 0.15);
+  --home-hot-yellow: #e8c467;
+  --home-hot-yellow-deep: #f1d071;
+  --home-hot-teal: #60cbbf;
+  --home-hot-teal-deep: #91e2d9;
+  --home-hot-lavender: #bca9ed;
+  --home-hot-muted: #829ba6;
 
   --article-background: #17171d;
   --article-surface: #202027;
@@ -1270,4 +1296,352 @@ body {
     opacity: 1;
     transform: translateY(0);
   }
+}
+
+/* =========================================================
+   管理后台：藏蓝控制栏、天空蓝与云白工作区
+   ========================================================= */
+.admin-page {
+  --admin-background: #eef5f6;
+  --admin-surface: #ffffff;
+  --admin-card: #ffffff;
+  --admin-input: #f3f8f9;
+  --admin-rail: #15374f;
+  --admin-ink: #18354b;
+  --admin-muted: #6f8794;
+  --admin-faint: #96a9b0;
+  --admin-border: rgb(45 101 120 / 0.15);
+  --admin-border-strong: rgb(45 101 120 / 0.25);
+  --admin-shadow: rgb(18 67 88 / 0.14);
+  --admin-shadow-soft: rgb(18 67 88 / 0.07);
+  --admin-navy: #15374f;
+  --admin-sky: #4ea7e0;
+  --admin-sky-deep: #318fc4;
+  --admin-sky-soft: #e7f4fb;
+  --admin-teal: #56c9be;
+  --admin-teal-deep: #31877f;
+  --admin-teal-soft: #e7f7f4;
+  --admin-yellow: #f2c96d;
+  --admin-yellow-deep: #ad8018;
+  --admin-yellow-soft: #fff6da;
+  --admin-coral: #df766f;
+  --admin-coral-soft: #fff0e7;
+  --admin-lavender: #8068c9;
+  --admin-lavender-soft: #f2edff;
+}
+
+.admin-rail {
+  background-image:
+    radial-gradient(circle at 100% 8%, rgb(78 167 224 / 0.13), transparent 22%),
+    radial-gradient(circle at 0% 90%, rgb(86 201 190 / 0.08), transparent 25%);
+}
+
+.admin-mobile-nav {
+  scrollbar-width: none;
+}
+
+.admin-mobile-nav::-webkit-scrollbar {
+  display: none;
+}
+
+.dark .admin-page {
+  --admin-background: #0c202d;
+  --admin-surface: #142b3a;
+  --admin-card: #183344;
+  --admin-input: #102735;
+  --admin-rail: #0b2130;
+  --admin-ink: #f1f8fa;
+  --admin-muted: #b2c5cd;
+  --admin-faint: #829ea8;
+  --admin-border: rgb(145 199 211 / 0.16);
+  --admin-border-strong: rgb(145 199 211 / 0.28);
+  --admin-shadow: rgb(0 0 0 / 0.32);
+  --admin-shadow-soft: rgb(0 0 0 / 0.18);
+  --admin-sky: #52aeda;
+  --admin-sky-deep: #91d5f0;
+  --admin-sky-soft: rgb(78 167 224 / 0.16);
+  --admin-teal-deep: #8fe2d7;
+  --admin-teal-soft: rgb(72 181 171 / 0.16);
+  --admin-yellow-deep: #f1d071;
+  --admin-yellow-soft: rgb(242 201 109 / 0.15);
+  --admin-coral: #ffaaa0;
+  --admin-coral-soft: rgb(244 124 120 / 0.15);
+  --admin-lavender: #c5b4f2;
+  --admin-lavender-soft: rgb(184 167 232 / 0.15);
+}
+
+/* =========================================================
+   浏览历史与通知中心：轻量内容中心
+   ========================================================= */
+.utility-center-page {
+  --utility-background: #f0f7f7;
+  --utility-card: rgb(255 255 255 / 0.96);
+  --utility-input: #f3f8f9;
+  --utility-ink: #18354b;
+  --utility-muted: #6d8693;
+  --utility-faint: #95a9b1;
+  --utility-border: rgb(44 101 120 / 0.15);
+  --utility-border-strong: rgb(44 101 120 / 0.25);
+  --utility-shadow: rgb(18 69 90 / 0.12);
+  --utility-sky: #4ea7e0;
+  --utility-sky-deep: #318fc4;
+  --utility-sky-soft: #e7f4fb;
+  --utility-teal: #56c9be;
+  --utility-teal-deep: #31877f;
+  --utility-teal-soft: #e7f7f4;
+  --utility-yellow: #f2c96d;
+  --utility-yellow-soft: #fff6da;
+  --utility-coral: #f47c78;
+  --utility-coral-soft: #fff0e7;
+  --utility-lavender: #8068c9;
+  --utility-lavender-soft: #f2edff;
+  --utility-wave: #dff2ef;
+  color: var(--utility-ink);
+}
+
+.utility-notifications {
+  --utility-background: #f3f5fa;
+  --utility-wave: #ebe6f4;
+}
+
+.dark .utility-center-page {
+  --utility-background: #0e2230;
+  --utility-card: rgb(24 49 66 / 0.96);
+  --utility-input: #102837;
+  --utility-ink: #f1f8fa;
+  --utility-muted: #b4c7cf;
+  --utility-faint: #85a1ac;
+  --utility-border: rgb(145 199 211 / 0.16);
+  --utility-border-strong: rgb(145 199 211 / 0.28);
+  --utility-shadow: rgb(0 0 0 / 0.3);
+  --utility-sky: #67b9e7;
+  --utility-sky-deep: #93d6f2;
+  --utility-sky-soft: rgb(78 167 224 / 0.15);
+  --utility-teal: #66d6cb;
+  --utility-teal-deep: #91e2d9;
+  --utility-teal-soft: rgb(72 181 171 / 0.15);
+  --utility-yellow-soft: rgb(242 201 109 / 0.15);
+  --utility-coral: #ffaaa0;
+  --utility-coral-soft: rgb(244 124 120 / 0.15);
+  --utility-lavender: #c3b2f2;
+  --utility-lavender-soft: rgb(184 167 232 / 0.16);
+  --utility-wave: #173443;
+}
+
+.dark .utility-notifications {
+  --utility-background: #151d31;
+  --utility-card: rgb(30 40 65 / 0.96);
+  --utility-border: rgb(190 180 235 / 0.16);
+  --utility-wave: #222b47;
+}
+
+/* =========================================================
+   登录与注册：败犬蓝天插画与云白表单
+   ========================================================= */
+.auth-page {
+  --auth-background: #f8fbfb;
+  --auth-card: rgb(255 255 255 / 0.96);
+  --auth-input: #ffffff;
+  --auth-ink: #18354b;
+  --auth-muted: #708894;
+  --auth-faint: #98aab2;
+  --auth-border: rgb(44 101 120 / 0.15);
+  --auth-border-strong: rgb(44 101 120 / 0.24);
+  --auth-shadow: rgb(18 69 90 / 0.15);
+  --auth-navy: #245f80;
+  --auth-sky: #4ea7e0;
+  --auth-sky-deep: #318fc4;
+  --auth-sky-soft: #e7f4fb;
+  --auth-teal: #56c9be;
+  --auth-teal-deep: #31877f;
+  --auth-teal-soft: #e7f7f4;
+  --auth-yellow: #f2c96d;
+  --auth-yellow-deep: #9f7619;
+  --auth-yellow-soft: #fff6da;
+  --auth-coral: #e87572;
+  --auth-coral-soft: #fff0e7;
+  --auth-lavender: #8068c9;
+  --auth-lavender-soft: #f2edff;
+  color: var(--auth-ink);
+}
+
+.auth-page .auth-heading,
+.auth-page .auth-label {
+  color: #18354b;
+}
+
+.dark .auth-page {
+  --auth-background: #102431;
+  --auth-card: rgb(24 49 66 / 0.97);
+  --auth-input: #102837;
+  --auth-ink: #f1f8fa;
+  --auth-muted: #b4c7cf;
+  --auth-faint: #85a1ac;
+  --auth-border: rgb(145 199 211 / 0.16);
+  --auth-border-strong: rgb(145 199 211 / 0.28);
+  --auth-shadow: rgb(0 0 0 / 0.34);
+  --auth-navy: #398fba;
+  --auth-sky: #67b9e7;
+  --auth-sky-deep: #93d6f2;
+  --auth-sky-soft: rgb(78 167 224 / 0.15);
+  --auth-teal: #66d6cb;
+  --auth-teal-deep: #91e2d9;
+  --auth-teal-soft: rgb(72 181 171 / 0.15);
+  --auth-yellow-deep: #f1d071;
+  --auth-yellow-soft: rgb(242 201 109 / 0.15);
+  --auth-coral: #ffaaa0;
+  --auth-coral-soft: rgb(244 124 120 / 0.15);
+  --auth-lavender: #c3b2f2;
+  --auth-lavender-soft: rgb(184 167 232 / 0.16);
+}
+
+.dark .auth-page .auth-heading,
+.dark .auth-page .auth-label {
+  color: #f1f8fa;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth-form-card {
+    animation: auth-form-in 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes auth-form-in {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* =========================================================
+   文章搜索：天空蓝封面与文章列表结果
+   ========================================================= */
+.search-page {
+  --search-background: #eef6f6;
+  --search-card: rgb(255 255 255 / 0.96);
+  --search-result-card: #fbfdfd;
+  --search-input: #ffffff;
+  --search-tag: #f3f8f9;
+  --search-highlight: #dff3fb;
+  --search-ink: #18354b;
+  --search-muted: #6d8693;
+  --search-faint: #95a9b1;
+  --search-border: rgb(44 101 120 / 0.15);
+  --search-border-strong: rgb(44 101 120 / 0.25);
+  --search-shadow: rgb(18 69 90 / 0.12);
+  --search-shadow-soft: rgb(18 69 90 / 0.06);
+  --search-sky: #4ea7e0;
+  --search-sky-deep: #318fc4;
+  --search-sky-soft: #e7f4fb;
+  --search-teal: #56c9be;
+  --search-teal-deep: #31877f;
+  --search-teal-soft: #e7f7f4;
+  --search-yellow: #f2c96d;
+  --search-coral: #f47c78;
+  --search-coral-soft: #fff0e7;
+  --search-lavender: #b8a7e8;
+  --search-lavender-soft: #f2edff;
+  --search-wave: #dff2ef;
+  color: var(--search-ink);
+}
+
+.search-page .search-heading {
+  color: #18354b;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .search-result-card {
+    animation: search-result-in 520ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes search-result-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dark .search-page {
+  --search-background: #0e2230;
+  --search-card: rgb(24 49 66 / 0.96);
+  --search-result-card: #183344;
+  --search-input: #102837;
+  --search-tag: #1d4051;
+  --search-highlight: #23556c;
+  --search-ink: #f1f8fa;
+  --search-muted: #b4c7cf;
+  --search-faint: #85a1ac;
+  --search-border: rgb(145 199 211 / 0.16);
+  --search-border-strong: rgb(145 199 211 / 0.28);
+  --search-shadow: rgb(0 0 0 / 0.3);
+  --search-shadow-soft: rgb(0 0 0 / 0.18);
+  --search-sky: #67b9e7;
+  --search-sky-deep: #93d6f2;
+  --search-sky-soft: rgb(78 167 224 / 0.15);
+  --search-teal: #66d6cb;
+  --search-teal-deep: #91e2d9;
+  --search-teal-soft: rgb(72 181 171 / 0.15);
+  --search-coral: #ffaaa0;
+  --search-coral-soft: rgb(244 124 120 / 0.15);
+  --search-lavender: #c3b2f2;
+  --search-lavender-soft: rgb(184 167 232 / 0.16);
+  --search-wave: #173443;
+}
+
+.dark .search-page .search-heading {
+  color: #f1f8fa;
+}
+
+/* =========================================================
+   系统状态：404、错误与加载
+   ========================================================= */
+.system-state-page {
+  --system-background: #eef6f6;
+  --system-card: rgb(255 255 255 / 0.95);
+  --system-ink: #18354b;
+  --system-muted: #6d8693;
+  --system-faint: #95a9b1;
+  --system-border: rgb(44 101 120 / 0.16);
+  --system-shadow: rgb(18 69 90 / 0.16);
+  --system-navy: #245f80;
+  --system-accent: #318fc4;
+  --system-sky-soft: #e7f4fb;
+  --system-wave: #dff2ef;
+  --system-skeleton: #e7f0f2;
+  color: var(--system-ink);
+}
+
+.system-state-error {
+  --system-background: #f3f5fa;
+  --system-wave: #ebe6f4;
+  --system-accent: #8068c9;
+  --system-sky-soft: #f2edff;
+}
+
+.dark .system-state-page {
+  --system-background: #0e2230;
+  --system-card: rgb(24 49 66 / 0.97);
+  --system-ink: #f1f8fa;
+  --system-muted: #b4c7cf;
+  --system-faint: #85a1ac;
+  --system-border: rgb(145 199 211 / 0.17);
+  --system-shadow: rgb(0 0 0 / 0.34);
+  --system-navy: #398fba;
+  --system-accent: #93d6f2;
+  --system-sky-soft: rgb(78 167 224 / 0.15);
+  --system-wave: #173443;
+  --system-skeleton: #244557;
+}
+
+.dark .system-state-error {
+  --system-background: #151d31;
+  --system-card: rgb(30 40 65 / 0.97);
+  --system-border: rgb(190 180 235 / 0.16);
+  --system-accent: #c3b2f2;
+  --system-sky-soft: rgb(184 167 232 / 0.16);
+  --system-wave: #222b47;
+  --system-skeleton: #303b5a;
 }
