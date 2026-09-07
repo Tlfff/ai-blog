@@ -19,13 +19,13 @@ export const SITE_IMAGES = {
   articles: {
     detailFallbackCover: imagePath("articles/defaults/bocchi-lace.jpg"),
     mockCovers: {
-      go: imagePath("articles/covers/go-programming-blog-cover.png"),
-      react: imagePath("articles/covers/react-server-components.png"),
-      typescript: imagePath("articles/covers/typescript-code-abstract.png"),
-      database: imagePath("articles/covers/database-optimization-concept.png"),
-      frontend: imagePath("articles/covers/frontend-engineering-workflow.png"),
-      distributedSystems: imagePath("articles/covers/distributed-systems-network.png"),
-      career: imagePath("articles/covers/career-growth-path.png"),
+      go: imagePath("articles/covers/sq-1.jpg"),
+      react: imagePath("articles/covers/sq-2.jpg"),
+      typescript: imagePath("articles/covers/sq-3.jpg"),
+      database: imagePath("articles/covers/yln-1.jpg"),
+      frontend: imagePath("articles/covers/sq-1.jpg"),
+      distributedSystems: imagePath("articles/covers/sq-2.jpg"),
+      career: imagePath("articles/covers/sq-3.jpg"),
     },
   },
   avatars: {
