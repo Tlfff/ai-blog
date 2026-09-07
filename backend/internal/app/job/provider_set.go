@@ -15,4 +15,5 @@ var ArticleHTTPJobProviderSet = wire.NewSet(
 	NewUserSessionCleanupJob,
 	NewArticleLikeCacheRebuildJob,
 	NewCommentLikeRebuildJob,
+	NewArticleInteractionReconcileJob,
 )

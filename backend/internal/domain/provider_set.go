@@ -26,6 +26,8 @@ var DomainProviderAppSet = wire.NewSet(
 	wire.Bind(new(article.Repository), new(*articlerepo.Repository)),
 	wire.Bind(new(article.SubmissionGuard), new(*articlerepo.SubmissionGuard)),
 	article.NewService,
+	article.NewInteractionProjectionService,
+	wire.Bind(new(article.InteractionProjectionRepairer), new(*article.InteractionProjectionService)),
 	wire.Bind(new(article.UseCase), new(*article.Service)),
 	wire.Bind(new(article.DeletionRecovery), new(*article.Service)),
 	CommentProviderSet,
@@ -53,6 +55,7 @@ var LikeProviderSet = wire.NewSet(
 	wire.Bind(new(like.UseCase), new(*like.Service)),
 	wire.Bind(new(like.CacheRebuilder), new(*like.Service)),
 	wire.Bind(new(like.CommentCacheRebuilder), new(*like.Service)),
+	wire.Bind(new(like.ArticleProjectionFactReader), new(*likerepo.Repository)),
 )
 
 // CommentProviderSet 提供评论上下文的仓储、查询适配器和领域服务。
@@ -69,6 +72,7 @@ var CommentProviderSet = wire.NewSet(
 	commentrepo.NewUserReader,
 	wire.Bind(new(comment.UserReader), new(*commentrepo.UserReaderAdapter)),
 	wire.Bind(new(comment.SubmissionGuard), new(*articlerepo.SubmissionGuard)),
+	wire.Bind(new(comment.ArticleProjectionFactReader), new(*commentrepo.Repository)),
 	comment.NewService,
 	wire.Bind(new(comment.UseCase), new(*comment.Service)),
 )
@@ -95,6 +99,7 @@ var ArticleRepositoryProviderSet = wire.NewSet(
 	wire.Bind(new(article.CommentCountRepository), new(*articlerepo.Repository)),
 	wire.Bind(new(article.LikeCountRepository), new(*articlerepo.Repository)),
 	wire.Bind(new(article.NotificationRepository), new(*articlerepo.Repository)),
+	wire.Bind(new(article.InteractionProjectionRepository), new(*articlerepo.Repository)),
 )
 
 // ArticleCommentCountProviderSet 提供文章评论数投影能力。

@@ -165,7 +165,9 @@ func wireApp() (*httpApplication, func(), error) {
 	articleLikeCacheRebuildJob := job.NewArticleLikeCacheRebuildJob(likeService)
 	likeCountProjector := comment.NewLikeCountProjector(repoRepository)
 	commentLikeRebuildJob := job.NewCommentLikeRebuildJob(likeService, likeCountProjector)
-	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, userSessionCleanupJob, articleHotRankJob, articleLikeCacheRebuildJob, commentLikeRebuildJob, articleViewPublisher)
+	interactionProjectionService := article.NewInteractionProjectionService(repository)
+	articleInteractionReconcileJob := job.NewArticleInteractionReconcileJob(repoRepository, repository2, interactionProjectionService)
+	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, userSessionCleanupJob, articleHotRankJob, articleLikeCacheRebuildJob, commentLikeRebuildJob, articleInteractionReconcileJob, articleViewPublisher)
 	return serverHttpApplication, func() {
 		cleanup5()
 		cleanup4()
