@@ -31,6 +31,8 @@ const (
 
 	userBasicInfoMethod  = blogopenv1.UserService_GetUserBasicInfo_FullMethodName
 	publicUserInfoMethod = blogopenv1.UserService_GetPublicUserInfo_FullMethodName
+	articleListMethod    = blogopenv1.ArticleService_GetAvailableList_FullMethodName
+	commentStatsMethod   = blogopenv1.CommentService_GetCommentStats_FullMethodName
 
 	defaultHMACTimeWindow = 60 * time.Second
 	minimumSecretBytes    = 32
@@ -141,19 +143,19 @@ func NewGRPCAuthenticator(settings GRPCAuthSettings, nonces userdomain.GRPCNonce
 
 // UnaryServerInterceptor 返回接入 Leo gRPC Server 的统一认证拦截器。
 func (a *GRPCAuthenticator) UnaryServerInterceptor() grpc.UnaryServerInterceptor {
-	// 1. 仅拦截本工单新增的开放用户 RPC，保持存量示例接口兼容
+	// 1. 仅拦截已声明认证策略的开放 RPC，保持存量示例接口兼容
 	return func(ctx context.Context, req any, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
-		// 1.1 未配置认证策略的方法直接沿用原处理链
-		required := requiredCallerKind(info.FullMethod)
-		if required == 0 {
+		// 1.1 未配置认证策略的方法直接沿用原处理链；开放查询方法要求任一认证类型
+		required, protected := requiredCallerKind(info.FullMethod)
+		if !protected {
 			return handler(ctx, req)
 		}
-		// 1.2 校验凭据并限制内部、外部调用方只能访问对应 RPC
+		// 1.2 校验凭据，并在有明确策略时限制内部、外部调用方只能访问对应 RPC
 		caller, authErr := a.authenticate(ctx, req, info.FullMethod)
 		if authErr != nil {
 			return nil, status.Error(authErr.code, authErr.message)
 		}
-		if caller.Kind != required {
+		if required != 0 && caller.Kind != required {
 			return nil, status.Error(codes.PermissionDenied, "调用方无权访问该 RPC")
 		}
 
@@ -339,16 +341,20 @@ func hmacSignature(secret []byte, fullMethod, accessKeyID, timestamp, nonce stri
 	return mac.Sum(nil), nil
 }
 
-// requiredCallerKind 返回开放用户 RPC 要求的调用方认证类型。
-func requiredCallerKind(fullMethod string) GRPCCallerKind {
-	// 1. 只为本工单新增的两个 RPC 声明认证策略
+// requiredCallerKind 返回方法的认证要求和调用方类型限制。
+func requiredCallerKind(fullMethod string) (GRPCCallerKind, bool) {
+	// 1. 用户查询保留内部、外部调用方隔离策略
 	switch fullMethod {
 	case userBasicInfoMethod:
-		return GRPCCallerInternal
+		return GRPCCallerInternal, true
 	case publicUserInfoMethod:
-		return GRPCCallerExternal
+		return GRPCCallerExternal, true
+	case articleListMethod, commentStatsMethod:
+		// 2. 文章和评论公开查询均要求认证，但兼容两类已认证调用方
+		return 0, true
 	default:
-		return 0
+		// 3. 存量示例 RPC 不改变原有未认证兼容行为
+		return 0, false
 	}
 }
 

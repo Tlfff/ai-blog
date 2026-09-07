@@ -346,6 +346,64 @@ func TestGRPCAuthenticationEnforcesRPCAuthType(t *testing.T) {
 	}
 }
 
+// TestGRPCAuthenticationProtectsArticleAndCommentQueries 验证新增文章和评论查询必须经过认证。
+func TestGRPCAuthenticationProtectsArticleAndCommentQueries(t *testing.T) {
+	// 1. 无凭据不能进入新增开放查询 RPC 的 Handler
+	authenticator := testAuthenticator(t, &memoryNonceStore{}, time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC))
+	tests := []struct {
+		name    string
+		method  string
+		request any
+	}{
+		{name: "文章列表", method: articleListMethod, request: &blogopenv1.GetAvailableListRequest{Page: 1, PageSize: 10}},
+		{name: "评论统计", method: commentStatsMethod, request: &blogopenv1.GetCommentStatsRequest{CommentId: 9}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			handled := false
+			_, err := authenticator.UnaryServerInterceptor()(context.Background(), test.request, &grpc.UnaryServerInfo{FullMethod: test.method}, func(context.Context, any) (any, error) {
+				handled = true
+				return nil, nil
+			})
+			if status.Code(err) != codes.Unauthenticated || handled {
+				t.Fatalf("unauthenticated query: handled=%v err=%v", handled, err)
+			}
+		})
+	}
+}
+
+// TestGRPCAuthenticationAllowsBothCallerKindsForOpenQueries 验证开放查询接受两类已认证调用方。
+func TestGRPCAuthenticationAllowsBothCallerKindsForOpenQueries(t *testing.T) {
+	// 1. 内部 JWT 和外部 HMAC 均可调用文章与评论查询
+	now := time.Date(2026, 9, 6, 12, 0, 0, 0, time.UTC)
+	token := signJWT(t, testJWTSecret, testIssuer, "article-service", now.Add(-time.Minute), now.Add(time.Minute), jwt.SigningMethodHS256)
+	jwtCtx := metadata.NewIncomingContext(context.Background(), metadata.Pairs(metadataAuthorization, "Bearer "+token))
+	tests := []struct {
+		method  string
+		request any
+	}{
+		{method: articleListMethod, request: &blogopenv1.GetAvailableListRequest{Page: 1, PageSize: 10}},
+		{method: commentStatsMethod, request: &blogopenv1.GetCommentStatsRequest{CommentId: 9}},
+	}
+	for _, test := range tests {
+		caller, err := invokeAuth(t, testAuthenticator(t, &memoryNonceStore{}, now), jwtCtx, test.request, test.method)
+		if err != nil || caller.Kind != GRPCCallerInternal {
+			t.Fatalf("JWT method=%s caller=%#v err=%v", test.method, caller, err)
+		}
+	}
+
+	request := &blogopenv1.GetCommentStatsRequest{CommentId: 9}
+	timestamp := strconv.FormatInt(now.Unix(), 10)
+	signature, err := BuildHMACSignature([]byte(testHMACSecret), commentStatsMethod, testAccessKey, timestamp, "nonce-open-query-17", request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	caller, err := invokeAuth(t, testAuthenticator(t, &memoryNonceStore{}, now), hmacContext(testAccessKey, signature, timestamp, "nonce-open-query-17"), request, commentStatsMethod)
+	if err != nil || caller.Kind != GRPCCallerExternal {
+		t.Fatalf("HMAC caller=%#v err=%v", caller, err)
+	}
+}
+
 // TestGRPCAuthenticationLeavesLegacyRPCsUnchanged 验证存量示例 RPC 不受新认证策略影响。
 func TestGRPCAuthenticationLeavesLegacyRPCsUnchanged(t *testing.T) {
 	// 1. 无凭据调用存量 RPC 时应直接进入原 Handler

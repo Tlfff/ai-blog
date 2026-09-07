@@ -27,8 +27,11 @@ func NewOpenCommentGRPCServer(comments commentdomain.QueryUseCase) blogopenv1.Co
 
 // GetCommentStats 返回评论点赞数与点赞数加回复数的热度值。
 func (s *OpenCommentGRPCService) GetCommentStats(ctx context.Context, request *blogopenv1.GetCommentStatsRequest) (*blogopenv1.GetCommentStatsReply, error) {
-	// 1. 在调用评论上下文前校验评论标识
-	if request == nil || request.GetCommentId() == 0 {
+	// 1. 使用 Proto 生成的验证逻辑校验评论标识
+	if request == nil {
+		return nil, status.Error(codes.InvalidArgument, "comment_id 必须大于 0")
+	}
+	if err := request.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, "comment_id 必须大于 0")
 	}
 

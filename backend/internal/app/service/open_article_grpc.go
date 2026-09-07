@@ -27,8 +27,11 @@ func NewOpenArticleGRPCServer(articles articledomain.OpenQueryUseCase) blogopenv
 
 // GetAvailableList 使用 Offset 分页返回已发表文章。
 func (s *OpenArticleGRPCService) GetAvailableList(ctx context.Context, request *blogopenv1.GetAvailableListRequest) (*blogopenv1.GetAvailableListReply, error) {
-	// 1. 在调用文章上下文前校验开放协议分页边界
-	if request == nil || request.GetPage() == 0 || request.GetPageSize() == 0 || request.GetPageSize() > 100 {
+	// 1. 使用 Proto 生成的验证逻辑校验开放协议分页边界
+	if request == nil {
+		return nil, status.Error(codes.InvalidArgument, "page 必须大于 0，page_size 必须位于 1 至 100")
+	}
+	if err := request.Validate(); err != nil {
 		return nil, status.Error(codes.InvalidArgument, "page 必须大于 0，page_size 必须位于 1 至 100")
 	}
 

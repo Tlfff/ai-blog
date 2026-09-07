@@ -1,6 +1,9 @@
 package comment
 
-import "context"
+import (
+	"context"
+	"fmt"
+)
 
 // Stats 表示评论上下文公开的互动统计。
 type Stats struct {
@@ -45,7 +48,10 @@ func (s *QueryService) GetStats(ctx context.Context, commentID uint64) (*Stats, 
 	// 2. 只返回评论上下文拥有的正常评论统计
 	current, err := s.repository.FindByID(ctx, commentID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("查询评论: %w", err)
+	}
+	if current == nil {
+		return nil, ErrCommentNotFound
 	}
 	if current.Status != StatusNormal {
 		return nil, ErrCommentNotFound

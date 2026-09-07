@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"fmt"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/book"
 )
@@ -39,7 +40,7 @@ func newBlogJob(current task) *BlogJob {
 func (job *BlogJob) Run(ctx context.Context) error {
 	// 1. 任务失败立即返回，由 Leo 取消同进程其他 Runner
 	if err := job.task.Job(); err != nil {
-		return err
+		return fmt.Errorf("执行后台任务: %w", err)
 	}
 
 	// 2. 任务完成后保留 Actuator，收到退出信号时优雅结束

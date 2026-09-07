@@ -2,6 +2,7 @@ package consumer
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -34,7 +35,7 @@ var blogConsumerCmd = &cobra.Command{
 		logger := slog.New(slog.LevelAdapt(level))
 		streamerApp, f, err := newBlogStreamerApp()
 		if err != nil {
-			panic(err)
+			logger.Fatal(err)
 		}
 		defer f()
 		app := leo.NewApp(
@@ -42,7 +43,7 @@ var blogConsumerCmd = &cobra.Command{
 			leo.Runners(streamerApp),
 		)
 		if err := app.Run(context.Background()); err != nil {
-			panic(err)
+			logger.Info(err.Error())
 		}
 	},
 }
@@ -65,7 +66,10 @@ type consumerApplication struct {
 // Run 通过 Leo 生命周期并发运行消息流和 Kafka 发布器。
 func (app *consumerApplication) Run(ctx context.Context) error {
 	// 1. 统一管理订阅器、普通发布器、死信发布器和 Outbox 补偿退出
-	return leo.MutilRunner(app.streamer, app.viewEvents, app.deadLetter, app.commentEvents, app.commentDeadLetter, app.commentOutbox, app.likeEvents, app.likeDeadLetter, app.likeOutbox, app.commentLikeOutbox, app.actuator).Run(ctx)
+	if err := leo.MutilRunner(app.streamer, app.viewEvents, app.deadLetter, app.commentEvents, app.commentDeadLetter, app.commentOutbox, app.likeEvents, app.likeDeadLetter, app.likeOutbox, app.commentLikeOutbox, app.actuator).Run(ctx); err != nil {
+		return fmt.Errorf("运行博客消费者: %w", err)
+	}
+	return nil
 }
 
 // newBlogStreamer 创建博客消息消费应用。

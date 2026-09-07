@@ -2,6 +2,7 @@ package article
 
 import (
 	"context"
+	"fmt"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/entity"
 )
@@ -51,7 +52,7 @@ func (s *OpenQueryService) ListAvailable(ctx context.Context, command AvailableL
 	// 2. 复用文章上下文已发表状态查询，不向 gRPC 层暴露仓储
 	articles, total, err := s.repository.ListPublished(ctx, PublicListQuery{Page: command.Page, PageSize: command.PageSize, IsDesc: command.IsDesc})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("查询已发表文章: %w", err)
 	}
 	available := make([]*entity.Article, 0, len(articles))
 	for _, current := range articles {

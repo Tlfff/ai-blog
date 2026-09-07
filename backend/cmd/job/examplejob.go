@@ -2,6 +2,7 @@ package job
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -50,7 +51,10 @@ type jobApplication struct {
 // Run 并发运行后台任务和 Actuator，并共享优雅退出信号。
 func (app *jobApplication) Run(ctx context.Context) error {
 	// 1. 任一 Runner 失败时由 Leo 取消另一 Runner
-	return leo.MutilRunner(app.job, app.actuator).Run(ctx)
+	if err := leo.MutilRunner(app.job, app.actuator).Run(ctx); err != nil {
+		return fmt.Errorf("运行博客任务: %w", err)
+	}
+	return nil
 }
 
 // newJobApplication 创建 Job 进程应用。
