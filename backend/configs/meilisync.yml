@@ -4,6 +4,7 @@ debug: false
 progress:
   type: redis
   dsn: redis://127.0.0.1:6379/0
+  # pause/resume/refresh 另外使用该 Key 的 :control 与 :worker 派生 Key。
   key: blog:meilisync:articles:binlog-position
 source:
   type: mysql
