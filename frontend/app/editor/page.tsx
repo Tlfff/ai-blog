@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import { useRouter, useSearchParams } from "next/navigation"
@@ -24,6 +25,7 @@ import {
   uploadArticleImage,
 } from "@/api/articles"
 import { cn } from "@/lib/utils"
+import { getImageSizeError } from "@/lib/image-upload"
 
 const ALLOWED_IMAGE_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"])
 const IMAGE_MIME_EXTENSIONS: Record<string, string> = {
@@ -69,6 +71,7 @@ export default function EditorPage() {
 
   const [title, setTitle] = useState("")
   const [content, setContent] = useState("")
+  const [plainText, setPlainText] = useState("")
   const [selectedTags, setSelectedTags] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
   const [publishing, setPublishing] = useState(false)
@@ -108,7 +111,7 @@ export default function EditorPage() {
   const displayedTags = Array.from(
     new Set([...DEFAULT_TAGS, ...availableTags.map((tag) => tag.name), ...selectedTags]),
   )
-  const wordCount = content.replace(/!\[[^\]]*\]\([^)]*\)/g, "").replace(/\s/g, "").length
+  const wordCount = plainText.replace(/\s/g, "").length
   const contentImageCount = (content.match(/!\[[^\]]*\]\([^)]*\)/g) ?? []).length
 
   useEffect(() => {
@@ -192,7 +195,7 @@ export default function EditorPage() {
     setUploadMessage(`正在上传 ${image.file.name || "文章图片"}...`)
 
     try {
-      const credential = await getArticleImageUploadURL(image.fileExt)
+      const credential = await getArticleImageUploadURL(image.fileExt, image.file.size)
       await uploadArticleImage(image.file, credential.upload_url)
 
       const systemSource = `image://${credential.image_id}`
@@ -226,6 +229,12 @@ export default function EditorPage() {
   }
 
   function prepareImageUpload(file: File): PreparedEditorImage | null {
+    const sizeError = getImageSizeError(file, "文章图片")
+    if (sizeError) {
+      setUploadMessage(sizeError)
+      return null
+    }
+
     const fileExt = getImageFileExtension(file)
     if (!fileExt) {
       setUploadMessage("仅支持 JPG、JPEG、PNG 和 WebP 图片")
@@ -368,7 +377,7 @@ export default function EditorPage() {
     <SiteShell immersiveHeader>
       <section className="editor-hero relative min-h-52 overflow-hidden">
         <Image
-          src="/kv/bq-1.png"
+          src={SITE_IMAGES.pages.primarySky}
           alt=""
           fill
           priority
@@ -517,6 +526,7 @@ export default function EditorPage() {
                   ref={editorRef}
                   value={content}
                   onChange={setContent}
+                  onTextChange={setPlainText}
                   disabled={isSubmitting}
                   imagePreviews={imagePreviews}
                   onPrepareImage={prepareImageUpload}
@@ -536,7 +546,7 @@ export default function EditorPage() {
             <aside className="space-y-5 lg:sticky lg:top-20">
               <div className="overflow-hidden rounded-2xl border border-[var(--editor-border)] bg-[var(--editor-surface)] shadow-[0_14px_40px_var(--editor-shadow)]">
                 <div className="relative aspect-[16/10] overflow-hidden">
-                  <Image src="/kv/bq-1.png" alt="蓝天与云朵" fill sizes="286px" className="object-cover" />
+                  <Image src={SITE_IMAGES.pages.primarySky} alt="蓝天与云朵" fill sizes="286px" className="object-cover" />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#173652]/75 via-transparent to-transparent" />
                   <span className="absolute bottom-3 left-4 font-mono text-xs font-semibold tracking-[0.14em] text-white">TODAY / SUMMER BLUE</span>
                 </div>

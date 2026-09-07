@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import useSWR from "swr"
 import {
   ArrowDown,
@@ -47,7 +48,7 @@ export default function AboutPage() {
     <SiteShell immersiveHeader>
       <div className="profile-page overflow-hidden">
         <section className="profile-hero relative isolate min-h-[610px] overflow-hidden text-white sm:min-h-[660px]">
-          <div className="absolute inset-0 bg-[url('/kv/bq-3.png')] bg-cover bg-center" aria-hidden />
+          <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${SITE_IMAGES.pages.aboutHero})` }} aria-hidden />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(8,42,64,0.88)_0%,rgba(8,42,64,0.42)_52%,rgba(8,42,64,0.12)_100%)]" aria-hidden />
           <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-[#082a40]/80 to-transparent" aria-hidden />
 
@@ -84,7 +85,7 @@ export default function AboutPage() {
             <div className="profile-identity relative z-10 -mt-3 grid gap-6 rounded-[1.5rem] border border-[var(--profile-border)] bg-[var(--profile-card)] p-5 shadow-[0_18px_55px_var(--profile-shadow)] sm:grid-cols-[auto_1fr_auto] sm:items-center sm:gap-8 sm:p-8">
               <div className="relative mx-auto sm:mx-0">
                 <span className="absolute -inset-2 rounded-full border border-[var(--profile-teal)]/45 bg-[var(--profile-teal)]/10" aria-hidden />
-                <Avatar src="/kv/bocchi-sunglasses.jpg" alt="睦子米" size={126} className="relative border-4 border-white shadow-[0_8px_24px_rgba(22,96,117,0.18)] dark:border-[var(--profile-card)]" />
+                <Avatar src={SITE_IMAGES.avatars.authorFallback} alt="睦子米" size={126} className="relative border-4 border-white shadow-[0_8px_24px_rgba(22,96,117,0.18)] dark:border-[var(--profile-card)]" />
               </div>
 
               <div className="min-w-0 text-center sm:text-left">

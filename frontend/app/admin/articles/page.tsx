@@ -55,8 +55,8 @@ export default function AdminArticlesPage() {
           {articles?.items.length ? (
             <>
               <div className="hidden overflow-x-auto md:block">
-                <table className="w-full min-w-[900px] text-sm">
-                  <thead><tr className="border-b border-[var(--admin-border)] bg-[var(--admin-input)] text-left text-xs text-[var(--admin-faint)]"><th className="px-6 py-4 font-medium">标题</th><th className="px-4 py-4 font-medium">状态</th><th className="px-4 py-4 font-medium">阅读 / 点赞 / 评论</th><th className="px-4 py-4 font-medium">更新时间</th><th className="px-6 py-4 text-right font-medium">操作</th></tr></thead>
+                <table className="w-full min-w-[1120px] text-sm">
+                  <thead><tr className="border-b border-[var(--admin-border)] bg-[var(--admin-input)] text-left text-xs text-[var(--admin-faint)]"><th className="px-6 py-4 font-medium">标题</th><th className="px-4 py-4 font-medium">标签</th><th className="px-4 py-4 font-medium">状态</th><th className="px-4 py-4 font-medium">阅读 / 点赞 / 评论</th><th className="px-4 py-4 font-medium">创建时间</th><th className="px-4 py-4 font-medium">更新时间</th><th className="px-6 py-4 text-right font-medium">操作</th></tr></thead>
                   <tbody className="divide-y divide-[var(--admin-border)]">
                     {articles.items.map((article) => <ArticleTableRow key={article.id} article={article} deleting={deleting === article.id} publishing={publishing === article.id} onDelete={handleDelete} onPublish={handlePublish} />)}
                   </tbody>
@@ -80,9 +80,11 @@ type ArticleActions = { article: ManagedArticle; deleting: boolean; publishing: 
 function ArticleTableRow({ article, deleting, publishing, onDelete, onPublish }: ArticleActions) {
   return (
     <tr className="transition-colors hover:bg-[var(--admin-sky-soft)]/40">
-      <td className="px-6 py-4"><Link href={`/editor?id=${article.id}`} className="font-semibold text-[var(--admin-ink)] hover:text-[var(--admin-sky-deep)]">{article.title}</Link><p className="mt-1 text-xs text-[var(--admin-faint)]">{article.tags.slice(0, 3).map((tag) => tag.name).join(" · ") || "暂无标签"}</p></td>
+      <td className="px-6 py-4"><Link href={`/editor?id=${article.id}`} className="font-semibold text-[var(--admin-ink)] hover:text-[var(--admin-sky-deep)]">{article.title}</Link></td>
+      <td className="px-4 py-4 text-xs text-[var(--admin-muted)]">{article.tags.slice(0, 3).map((tag) => tag.name).join(" · ") || "暂无标签"}</td>
       <td className="px-4 py-4"><AdminStatusBadge status={article.status} /></td>
       <td className="px-4 py-4 text-xs text-[var(--admin-muted)]">{formatNumber(article.views)} / {formatNumber(article.likes)} / {article.commentsCount}</td>
+      <td className="px-4 py-4 text-xs text-[var(--admin-muted)]">{formatDate(article.createdAt)}</td>
       <td className="px-4 py-4 text-xs text-[var(--admin-muted)]">{formatDate(article.updatedAt)}</td>
       <td className="px-6 py-4"><ArticleButtons article={article} deleting={deleting} publishing={publishing} onDelete={onDelete} onPublish={onPublish} /></td>
     </tr>
@@ -90,7 +92,7 @@ function ArticleTableRow({ article, deleting, publishing, onDelete, onPublish }:
 }
 
 function ArticleMobileCard({ article, deleting, publishing, onDelete, onPublish }: ArticleActions) {
-  return <article className="p-5"><div className="flex items-start justify-between gap-3"><div><Link href={`/editor?id=${article.id}`} className="font-semibold text-[var(--admin-ink)]">{article.title}</Link><p className="mt-2 text-xs text-[var(--admin-faint)]">{formatDate(article.updatedAt)} · {formatNumber(article.views)} 阅读</p></div><AdminStatusBadge status={article.status} /></div><div className="mt-4"><ArticleButtons article={article} deleting={deleting} publishing={publishing} onDelete={onDelete} onPublish={onPublish} /></div></article>
+  return <article className="p-5"><div className="flex items-start justify-between gap-3"><div><Link href={`/editor?id=${article.id}`} className="font-semibold text-[var(--admin-ink)]">{article.title}</Link><p className="mt-2 text-xs text-[var(--admin-faint)]">{article.tags.slice(0, 3).map((tag) => tag.name).join(" · ") || "暂无标签"}</p><p className="mt-1 text-xs text-[var(--admin-faint)]">创建于 {formatDate(article.createdAt)} · {formatNumber(article.views)} 阅读</p></div><AdminStatusBadge status={article.status} /></div><div className="mt-4"><ArticleButtons article={article} deleting={deleting} publishing={publishing} onDelete={onDelete} onPublish={onPublish} /></div></article>
 }
 
 function ArticleButtons({ article, deleting, publishing, onDelete, onPublish }: ArticleActions) {

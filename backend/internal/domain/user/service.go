@@ -54,7 +54,7 @@ type UseCase interface {
 	// UpdatePhone 校验手机号唯一性后更新当前正常用户的手机号。
 	UpdatePhone(ctx context.Context, command UpdatePhoneCommand) error
 	// GetAvatarUploadURL 为当前用户生成受扩展名白名单约束的头像预签名上传地址。
-	GetAvatarUploadURL(ctx context.Context, userID uint64, extension string) (*AvatarUploadResult, error)
+	GetAvatarUploadURL(ctx context.Context, userID uint64, extension string, fileSize uint64) (*AvatarUploadResult, error)
 	// ConfirmAvatar 校验头像对象属于当前用户后保存对象 Key，不检查对象是否存在。
 	ConfirmAvatar(ctx context.Context, userID uint64, objectKey string) (string, error)
 }

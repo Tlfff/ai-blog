@@ -1,4 +1,5 @@
 // Mock 数据 —— 后端接入后可整体移除
+import { SITE_IMAGES } from "@/lib/site-images"
 import type { Article, Comment, Notification, Tag, User } from "@/types"
 
 export const tags: Tag[] = [
@@ -18,7 +19,7 @@ export const users: User[] = [
   {
     id: "u1",
     username: "陈可可",
-    avatar: "/avatars/user-chen.png",
+    avatar: SITE_IMAGES.avatars.chen,
     role: "user",
     location: "浙江",
     joinedAt: "2023-03-12",
@@ -26,7 +27,7 @@ export const users: User[] = [
   {
     id: "u2",
     username: "林深",
-    avatar: "/avatars/user-lin.png",
+    avatar: SITE_IMAGES.avatars.lin,
     role: "user",
     location: "北京",
     joinedAt: "2022-11-05",
@@ -34,7 +35,7 @@ export const users: User[] = [
   {
     id: "u3",
     username: "苏晚",
-    avatar: "/avatars/user-su.png",
+    avatar: SITE_IMAGES.avatars.su,
     role: "user",
     location: "广东",
     joinedAt: "2024-01-20",
@@ -42,7 +43,7 @@ export const users: User[] = [
   {
     id: "u4",
     username: "阿泽",
-    avatar: "/avatars/user-ze.png",
+    avatar: SITE_IMAGES.avatars.ze,
     role: "user",
     location: "上海",
     joinedAt: "2023-07-18",
@@ -50,7 +51,7 @@ export const users: User[] = [
   {
     id: "admin",
     username: "站长",
-    avatar: "/avatars/admin.png",
+    avatar: SITE_IMAGES.avatars.admin,
     role: "admin",
     location: "内网",
     joinedAt: "2021-01-01",
@@ -98,7 +99,7 @@ export const articles: Article[] = [
     title: "从零构建一个高性能 Go 博客后端",
     summary: "分享我在使用 Go 构建博客后端时的架构思考、分层设计与性能优化经验。",
     content: markdownSample,
-    cover: "/go-programming-blog-cover.png",
+    cover: SITE_IMAGES.articles.mockCovers.go,
     author: users[0],
     tags: findTags("Go", "后端", "架构设计"),
     status: "published",
@@ -114,7 +115,7 @@ export const articles: Article[] = [
     title: "React Server Components 深度解析",
     summary: "RSC 到底解决了什么问题？本文带你彻底理解服务端组件的渲染模型。",
     content: markdownSample,
-    cover: "/react-server-components.png",
+    cover: SITE_IMAGES.articles.mockCovers.react,
     author: users[1],
     tags: findTags("React", "前端", "TypeScript"),
     status: "published",
@@ -129,7 +130,7 @@ export const articles: Article[] = [
     id: "a3",
     title: "TypeScript 类型体操：从入门到放弃再到精通",
     summary: "深入 TypeScript 高级类型，掌握条件类型、映射类型与模板字面量类型。",
-    cover: "/typescript-code-abstract.png",
+    cover: SITE_IMAGES.articles.mockCovers.typescript,
     content: markdownSample,
     author: users[2],
     tags: findTags("TypeScript", "前端"),
@@ -144,7 +145,7 @@ export const articles: Article[] = [
     id: "a4",
     title: "PostgreSQL 索引优化实战",
     summary: "慢查询频发？本文教你如何通过索引设计将查询性能提升 10 倍。",
-    cover: "/database-optimization-concept.png",
+    cover: SITE_IMAGES.articles.mockCovers.database,
     content: markdownSample,
     author: users[3],
     tags: findTags("数据库", "后端"),
@@ -159,7 +160,7 @@ export const articles: Article[] = [
     id: "a5",
     title: "前端工程化：从零搭建现代化构建体系",
     summary: "Monorepo、模块联邦、CI/CD，一文讲透前端工程化的方方面面。",
-    cover: "/frontend-engineering-workflow.png",
+    cover: SITE_IMAGES.articles.mockCovers.frontend,
     content: markdownSample,
     author: users[1],
     tags: findTags("前端", "DevOps"),
@@ -174,7 +175,7 @@ export const articles: Article[] = [
     id: "a6",
     title: "分布式系统中的一致性算法：Raft 详解",
     summary: "用最通俗的语言讲清楚 Raft 共识算法的选举、日志复制与安全性。",
-    cover: "/distributed-systems-network.png",
+    cover: SITE_IMAGES.articles.mockCovers.distributedSystems,
     content: markdownSample,
     author: users[0],
     tags: findTags("架构设计", "算法", "后端"),
@@ -189,7 +190,7 @@ export const articles: Article[] = [
     id: "a7",
     title: "我的三年后端进阶之路",
     summary: "从初级到资深，聊聊这三年我踩过的坑和积累的经验。",
-    cover: "/career-growth-path.png",
+    cover: SITE_IMAGES.articles.mockCovers.career,
     content: markdownSample,
     author: users[2],
     tags: findTags("职业成长", "后端"),

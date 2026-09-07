@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useMemo, useState, useEffect, type ReactNode } from "react"
 import type { Role, User } from "@/types"
 import { getMyProfile, login, logout as logoutRequest } from "@/api/users"
+import { LoginRequiredPrompt } from "@/components/auth/login-required-prompt"
 
 interface AuthContextValue {
   user: User | null
@@ -12,6 +13,12 @@ interface AuthContextValue {
   login: (account: string, password: string) => Promise<void>
   logout: () => Promise<void>
   refreshProfile: () => Promise<void>
+  requireLogin: (redirectTo?: string) => boolean
+}
+
+interface LoginPromptState {
+  id: number
+  redirectTo: string
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null)
@@ -19,6 +26,7 @@ const AuthContext = createContext<AuthContextValue | null>(null)
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
+  const [loginPrompt, setLoginPrompt] = useState<LoginPromptState | null>(null)
 
   const refreshProfile = useCallback(async () => {
     try {
@@ -48,11 +56,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("access_token", response.access_token)
     const profile = await getMyProfile()
     setUser(profile)
+    setLoginPrompt(null)
   }, [])
+
+  const requireLogin = useCallback((redirectTo?: string) => {
+    if (user) return true
+    const currentPath = typeof window === "undefined"
+      ? "/"
+      : `${window.location.pathname}${window.location.search}${window.location.hash}`
+    setLoginPrompt({ id: Date.now(), redirectTo: redirectTo || currentPath })
+    return false
+  }, [user])
 
   const logout = useCallback(async () => {
     try {
       await logoutRequest()
+    } catch (error) {
+      console.warn("Failed to invalidate the remote session; clearing local session instead:", error)
     } finally {
       localStorage.removeItem("access_token")
       setUser(null)
@@ -68,15 +88,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       login: loginFn,
       logout,
       refreshProfile,
+      requireLogin,
     }),
-    [user, loginFn, logout, refreshProfile],
+    [user, loginFn, logout, refreshProfile, requireLogin],
   )
 
   if (loading) {
     return null
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {loginPrompt ? (
+        <LoginRequiredPrompt
+          key={loginPrompt.id}
+          redirectTo={loginPrompt.redirectTo}
+          onClose={() => setLoginPrompt(null)}
+        />
+      ) : null}
+    </AuthContext.Provider>
+  )
 }
 
 export function useAuth() {

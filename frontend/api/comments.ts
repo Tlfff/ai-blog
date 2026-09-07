@@ -62,6 +62,27 @@ export async function getComments(query: CommentQuery): Promise<Paginated<Commen
   }
 }
 
+export async function getCommentCount(articleId: string): Promise<number> {
+  const firstPage = await getComments({ articleId, page: 1, pageSize: 20 })
+  const pages = [firstPage]
+  const totalPages = Math.ceil(firstPage.total / firstPage.pageSize)
+
+  if (totalPages > 1) {
+    const remainingPages = await Promise.all(
+      Array.from({ length: totalPages - 1 }, (_, index) =>
+        getComments({ articleId, page: index + 2, pageSize: 20 }),
+      ),
+    )
+    pages.push(...remainingPages)
+  }
+
+  return pages.reduce(
+    (total, currentPage) =>
+      total + currentPage.items.reduce((count, comment) => count + 1 + (comment.replyCount ?? 0), 0),
+    0,
+  )
+}
+
 async function getReplyPage(rootId: string, page = 1, pageSize = 20): Promise<Paginated<Comment>> {
   const params = new URLSearchParams()
   params.set("root_id", rootId)

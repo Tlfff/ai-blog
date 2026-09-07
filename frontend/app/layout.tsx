@@ -1,6 +1,7 @@
 import { Analytics } from '@vercel/analytics/next'
 import type { Metadata, Viewport } from 'next'
 import { AuthProvider } from '@/hooks/use-auth'
+import { SITE_IMAGES } from '@/lib/site-images'
 import './globals.css'
 
 const geistSans = { variable: '--font-geist-sans' }
@@ -20,6 +21,14 @@ export const metadata: Metadata = {
   title: 'Link start！· 睦子米的个人博客',
   description: '睦子米的个人博客：记录技术、生活与正在发生的灵感。',
   generator: 'v0.app',
+  icons: {
+    icon: [
+      { url: SITE_IMAGES.brand.icon, type: 'image/svg+xml' },
+      { url: SITE_IMAGES.brand.iconLight, media: '(prefers-color-scheme: dark)' },
+      { url: SITE_IMAGES.brand.iconDark, media: '(prefers-color-scheme: light)' },
+    ],
+    apple: SITE_IMAGES.brand.appleIcon,
+  },
 }
 
 export const viewport: Viewport = {

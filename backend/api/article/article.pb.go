@@ -26,6 +26,7 @@ const (
 type GetImageUploadURLRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileExt       string                 `protobuf:"bytes,1,opt,name=file_ext,json=fileExt,proto3" json:"file_ext"`
+	FileSize      uint64                 `protobuf:"varint,2,opt,name=file_size,json=fileSize,proto3" json:"file_size"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -65,6 +66,13 @@ func (x *GetImageUploadURLRequest) GetFileExt() string {
 		return x.FileExt
 	}
 	return ""
+}
+
+func (x *GetImageUploadURLRequest) GetFileSize() uint64 {
+	if x != nil {
+		return x.FileSize
+	}
+	return 0
 }
 
 type ImageUploadURLReply struct {
@@ -865,6 +873,7 @@ type PublicArticleListItem struct {
 	ViewCount     int64                  `protobuf:"varint,6,opt,name=view_count,json=viewCount,proto3" json:"view_count"`
 	LikeCount     int64                  `protobuf:"varint,7,opt,name=like_count,json=likeCount,proto3" json:"like_count"`
 	CommentCount  int64                  `protobuf:"varint,8,opt,name=comment_count,json=commentCount,proto3" json:"comment_count"`
+	Tags          []string               `protobuf:"bytes,9,rep,name=tags,proto3" json:"tags"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -953,6 +962,13 @@ func (x *PublicArticleListItem) GetCommentCount() int64 {
 		return x.CommentCount
 	}
 	return 0
+}
+
+func (x *PublicArticleListItem) GetTags() []string {
+	if x != nil {
+		return x.Tags
+	}
+	return nil
 }
 
 type HotRankReply struct {
@@ -1098,6 +1114,10 @@ type ArticleDetailReply struct {
 	IsLiked       bool                   `protobuf:"varint,11,opt,name=is_liked,json=isLiked,proto3" json:"is_liked"`
 	LikeCount     int64                  `protobuf:"varint,12,opt,name=like_count,json=likeCount,proto3" json:"like_count"`
 	Images        []*ArticleImage        `protobuf:"bytes,13,rep,name=images,proto3" json:"images"`
+	AuthorId      uint64                 `protobuf:"varint,14,opt,name=author_id,json=authorId,proto3" json:"author_id"`
+	ViewCount     int64                  `protobuf:"varint,15,opt,name=view_count,json=viewCount,proto3" json:"view_count"`
+	CommentCount  int64                  `protobuf:"varint,16,opt,name=comment_count,json=commentCount,proto3" json:"comment_count"`
+	Summary       string                 `protobuf:"bytes,17,opt,name=summary,proto3" json:"summary"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1223,6 +1243,34 @@ func (x *ArticleDetailReply) GetImages() []*ArticleImage {
 	return nil
 }
 
+func (x *ArticleDetailReply) GetAuthorId() uint64 {
+	if x != nil {
+		return x.AuthorId
+	}
+	return 0
+}
+
+func (x *ArticleDetailReply) GetViewCount() int64 {
+	if x != nil {
+		return x.ViewCount
+	}
+	return 0
+}
+
+func (x *ArticleDetailReply) GetCommentCount() int64 {
+	if x != nil {
+		return x.CommentCount
+	}
+	return 0
+}
+
+func (x *ArticleDetailReply) GetSummary() string {
+	if x != nil {
+		return x.Summary
+	}
+	return ""
+}
+
 type ArticleImage struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id"`
@@ -1280,10 +1328,11 @@ var File_article_article_proto protoreflect.FileDescriptor
 const file_article_article_proto_rawDesc = "" +
 	"\n" +
 	"\x15article/article.proto\x12\n" +
-	"article.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17validate/validate.proto\"@\n" +
+	"article.v1\x1a\x1cgoogle/api/annotations.proto\x1a\x17validate/validate.proto\"f\n" +
 	"\x18GetImageUploadURLRequest\x12$\n" +
 	"\bfile_ext\x18\x01 \x01(\tB\t\xfaB\x06r\x04\x10\x01\x18\n" +
-	"R\afileExt\"a\n" +
+	"R\afileExt\x12$\n" +
+	"\tfile_size\x18\x02 \x01(\x04B\a\xfaB\x042\x02 \x00R\bfileSize\"a\n" +
 	"\x13ImageUploadURLReply\x12\x19\n" +
 	"\bimage_id\x18\x01 \x01(\x04R\aimageId\x12\x1d\n" +
 	"\n" +
@@ -1342,7 +1391,7 @@ const file_article_article_proto_rawDesc = "" +
 	"\alast_id\x18\x02 \x01(\x04R\x06lastId\x12\x14\n" +
 	"\x05total\x18\x03 \x01(\x04R\x05total\x12\x12\n" +
 	"\x04page\x18\x04 \x01(\x04R\x04page\x12\x1b\n" +
-	"\tpage_size\x18\x05 \x01(\x04R\bpageSize\"\xfa\x01\n" +
+	"\tpage_size\x18\x05 \x01(\x04R\bpageSize\"\x8e\x02\n" +
 	"\x15PublicArticleListItem\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
@@ -1353,7 +1402,8 @@ const file_article_article_proto_rawDesc = "" +
 	"view_count\x18\x06 \x01(\x03R\tviewCount\x12\x1d\n" +
 	"\n" +
 	"like_count\x18\a \x01(\x03R\tlikeCount\x12#\n" +
-	"\rcomment_count\x18\b \x01(\x03R\fcommentCount\";\n" +
+	"\rcomment_count\x18\b \x01(\x03R\fcommentCount\x12\x12\n" +
+	"\x04tags\x18\t \x03(\tR\x04tags\";\n" +
 	"\fHotRankReply\x12+\n" +
 	"\x04list\x18\x01 \x03(\v2\x17.article.v1.HotRankItemR\x04list\"\xb7\x01\n" +
 	"\vHotRankItem\x12\x1d\n" +
@@ -1365,7 +1415,7 @@ const file_article_article_proto_rawDesc = "" +
 	"view_count\x18\x04 \x01(\x03R\tviewCount\x12#\n" +
 	"\rcomment_count\x18\x05 \x01(\x03R\fcommentCount\x12\x1d\n" +
 	"\n" +
-	"like_count\x18\x06 \x01(\x03R\tlikeCount\"\x88\x03\n" +
+	"like_count\x18\x06 \x01(\x03R\tlikeCount\"\x83\x04\n" +
 	"\x12ArticleDetailReply\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x18\n" +
@@ -1382,7 +1432,12 @@ const file_article_article_proto_rawDesc = "" +
 	"\bis_liked\x18\v \x01(\bR\aisLiked\x12\x1d\n" +
 	"\n" +
 	"like_count\x18\f \x01(\x03R\tlikeCount\x120\n" +
-	"\x06images\x18\r \x03(\v2\x18.article.v1.ArticleImageR\x06images\"0\n" +
+	"\x06images\x18\r \x03(\v2\x18.article.v1.ArticleImageR\x06images\x12\x1b\n" +
+	"\tauthor_id\x18\x0e \x01(\x04R\bauthorId\x12\x1d\n" +
+	"\n" +
+	"view_count\x18\x0f \x01(\x03R\tviewCount\x12#\n" +
+	"\rcomment_count\x18\x10 \x01(\x03R\fcommentCount\x12\x18\n" +
+	"\asummary\x18\x11 \x01(\tR\asummary\"0\n" +
 	"\fArticleImage\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x10\n" +
 	"\x03url\x18\x02 \x01(\tR\x03url2\xdb\v\n" +

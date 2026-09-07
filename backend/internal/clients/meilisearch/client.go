@@ -9,6 +9,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"unicode"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/search"
 	meilisearchsdk "github.com/meilisearch/meilisearch-go"
@@ -50,7 +51,7 @@ type response struct {
 		ID           uint64                `json:"id"`            // ID 是文章标识。
 		Title        string                `json:"title"`         // Title 是文章原始标题。
 		ContentPlain string                `json:"content_plain"` // ContentPlain 是未格式化正文。
-		Tags         string                `json:"tags"`          // Tags 是规范化标签。
+		Tags         tagList               `json:"tags"`          // Tags 是兼容新旧索引格式的标签集合。
 		Status       search.DocumentStatus `json:"status"`        // Status 是搜索文档状态。
 		Formatted    struct {
 			Title   string `json:"title"`         // Title 是标题高亮结果。
@@ -73,7 +74,7 @@ func (c *Client) Search(ctx context.Context, query search.Query) (*search.Result
 		Offset:                offset,
 		Limit:                 int64(query.PageSize),
 		AttributesToRetrieve:  []string{"id", "title", "content_plain", "tags", "status"},
-		AttributesToHighlight: []string{"title"},
+		AttributesToHighlight: []string{"title", "content_plain"},
 		AttributesToCrop:      []string{"content_plain:50"},
 		CropMarker:            "...",
 		HighlightPreTag:       "<em>",
@@ -104,7 +105,54 @@ func (c *Client) Search(ctx context.Context, query search.Query) (*search.Result
 		if summary == "" {
 			summary = hit.ContentPlain
 		}
-		result.Items = append(result.Items, search.Item{ID: hit.ID, Title: hit.Title, TitleHighlight: title, Summary: summary, Tags: hit.Tags})
+		result.Items = append(result.Items, search.Item{ID: hit.ID, Title: hit.Title, TitleHighlight: title, Summary: summary, Tags: append([]string{}, hit.Tags...)})
 	}
 	return result, nil
+}
+
+// tagList 兼容 Meilisearch 中旧字符串与新数组两种标签格式。
+type tagList []string
+
+// UnmarshalJSON 将索引标签统一解码为字符串数组。
+func (tags *tagList) UnmarshalJSON(data []byte) error {
+	// 1. 优先读取新索引使用的字符串数组
+	var values []string
+	if err := json.Unmarshal(data, &values); err == nil {
+		*tags = cleanTags(values)
+		return nil
+	}
+
+	// 2. 兼容旧索引中使用空格或标点连接的标签文本
+	var value string
+	if err := json.Unmarshal(data, &value); err != nil {
+		return err
+	}
+	*tags = splitTags(value)
+	return nil
+}
+
+// splitTags 拆分旧索引中空格或标点连接的标签文本。
+func splitTags(value string) []string {
+	return cleanTags(strings.FieldsFunc(value, func(char rune) bool {
+		return unicode.IsSpace(char) || strings.ContainsRune(",，、;；", char)
+	}))
+}
+
+// cleanTags 清理空标签并保持原始顺序去重。
+func cleanTags(values []string) []string {
+	tags := make([]string, 0, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		key := strings.ToLower(value)
+		if value == "" {
+			continue
+		}
+		if _, exists := seen[key]; exists {
+			continue
+		}
+		seen[key] = struct{}{}
+		tags = append(tags, value)
+	}
+	return tags
 }

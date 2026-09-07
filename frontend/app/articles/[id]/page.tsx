@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import { use, useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
@@ -31,9 +32,10 @@ import { ReadingProgress } from "@/components/article/reading-progress"
 
 export default function ArticleDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
-  const { isLoggedIn } = useAuth()
+  const { requireLogin } = useAuth()
   const [likes, setLikes] = useState(0)
   const [liked, setLiked] = useState(false)
+  const [commentsCount, setCommentsCount] = useState(0)
   const [shareCopied, setShareCopied] = useState(false)
 
   const { data: article, isLoading } = useSWR(["article", id], () => getArticleById(id))
@@ -42,6 +44,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
     if (!article) return
     setLikes(article.likes)
     setLiked(article.liked ?? false)
+    setCommentsCount(article.commentsCount)
   }, [article])
 
   useEffect(() => {
@@ -60,12 +63,12 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
   const headings = extractArticleHeadings(article.content)
   const wordCount = article.content.replace(/\s/g, "").length
   const readingMinutes = Math.max(1, Math.ceil(wordCount / 400))
-  const cover = article.cover || "/kv/bocchi-lace.jpg"
+  const cover = article.cover || SITE_IMAGES.articles.detailFallbackCover
   const articleId = article.id
-  const summary = cleanArticleSummary(article.summary)
+  const summary = article.summary
 
   async function handleLike() {
-    if (!isLoggedIn) return
+    if (!requireLogin(`/articles/${articleId}`)) return
     const updated = await toggleArticleLike(articleId)
     if (updated) {
       setLikes(updated.likes)
@@ -104,7 +107,7 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
       <section className="bg-[var(--article-background)] transition-colors duration-300">
         <Container className="max-w-[1240px] pb-20 pt-8 sm:pt-12 lg:pb-28">
           <div className="grid items-start gap-10 lg:grid-cols-[250px_minmax(0,1fr)] lg:gap-14 xl:gap-20">
-            <aside className="lg:sticky lg:top-20">
+            <aside className="lg:sticky lg:top-20 lg:max-h-[calc(100dvh-6rem)] lg:overflow-y-auto lg:overscroll-contain lg:pr-2">
               <ArticleSidebar article={article} headings={headings} />
             </aside>
 
@@ -158,7 +161,6 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
                     variant={liked ? "default" : "outline"}
                     size="sm"
                     onClick={handleLike}
-                    disabled={!isLoggedIn}
                     className={cn(
                       "rounded-full",
                       liked && "bg-[var(--article-accent)] text-white hover:bg-[var(--article-accent-hover)]",
@@ -176,16 +178,18 @@ export default function ArticleDetailPage({ params }: { params: Promise<{ id: st
                       <Eye className="size-3.5" />
                       {formatNumber(article.views)}
                     </span>
-                    <span>{article.commentsCount} 条评论</span>
+                    <span>{commentsCount} 条评论</span>
                   </div>
                 </div>
 
                 <section id="comments" className="mt-14 border-t border-[var(--article-divider)] pt-8">
                   <p className="label-meta text-[var(--article-accent)]">community / responses</p>
-                  <h2 className="font-playful mt-2 text-3xl font-bold text-[var(--article-text)]">
-                    评论（{article.commentsCount}）
-                  </h2>
-                  <CommentList articleId={article.id} authorId={article.author.id} />
+                  <CommentList
+                    articleId={article.id}
+                    authorId={article.author.id}
+                    totalCount={commentsCount}
+                    onTotalCountChange={setCommentsCount}
+                  />
                 </section>
               </div>
             </article>
@@ -258,17 +262,6 @@ function ArticleCover({
   )
 }
 
-function cleanArticleSummary(summary: string): string {
-  return summary
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/!\[[^\]]*\]\([^)]*\)/g, "")
-    .replace(/^#{1,6}\s+/gm, "")
-    .replace(/[*_`~]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 220)
-}
-
 function ArticleSidebar({
   article,
   headings,
@@ -279,7 +272,7 @@ function ArticleSidebar({
   return (
     <div className="article-sidebar text-center lg:text-left">
       <div className="mx-auto size-28 overflow-hidden rounded-full border-2 border-[var(--article-avatar-ring)] bg-[var(--article-image-surface)] shadow-[0_0_0_6px_var(--article-avatar-halo)] lg:mx-0">
-        <Avatar src={article.author.avatar || "/kv/bocchi-sunglasses.jpg"} alt={article.author.username} size={112} className="size-full rounded-full border-0" />
+        <Avatar src={article.author.avatar || SITE_IMAGES.avatars.authorFallback} alt={article.author.username} size={112} className="size-full rounded-full border-0" />
       </div>
       <h2 className="font-playful mt-5 text-2xl font-bold text-[var(--article-text)]">{article.author.username}</h2>
       <p className="mt-3 text-sm leading-7 text-[var(--article-muted)]">

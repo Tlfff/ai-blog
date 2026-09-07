@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev --webpack",
+    "dev:turbopack": "next dev",
+    "clean:dev": "rm -rf .next tsconfig.tsbuildinfo",
     "build": "next build",
     "start": "next start",
     "lint": "eslint ."

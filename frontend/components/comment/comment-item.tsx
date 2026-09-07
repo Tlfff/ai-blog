@@ -20,7 +20,7 @@ interface CommentItemProps {
 }
 
 export function CommentItem({ comment, articleId, articleAuthorId, onChanged }: CommentItemProps) {
-  const { user, isLoggedIn } = useAuth()
+  const { user, requireLogin } = useAuth()
   const [expanded, setExpanded] = useState(false)
   const [replying, setReplying] = useState(false)
   const [deleting, setDeleting] = useState(false)
@@ -33,11 +33,16 @@ export function CommentItem({ comment, articleId, articleAuthorId, onChanged }: 
   )
 
   async function handleLike() {
-    if (!isLoggedIn) return
+    if (!requireLogin(`/articles/${articleId}#comments`)) return
     await toggleCommentLike(comment.id, liked)
     const newLiked = !liked
     setLiked(newLiked)
     setLikes(likes + (newLiked ? 1 : -1))
+  }
+
+  function handleReply() {
+    if (!requireLogin(`/articles/${articleId}#comments`)) return
+    setReplying((current) => !current)
   }
 
   async function handleDelete() {
@@ -88,13 +93,12 @@ export function CommentItem({ comment, articleId, articleAuthorId, onChanged }: 
             {comment.content}
           </div>
 
-          <div className="mt-2 flex items-center gap-4">
+          <div className="mt-3 flex flex-wrap items-center gap-x-2.5 gap-y-2 text-xs">
             <Button
               variant="ghost"
-              size="icon-xs"
+              size="sm"
               onClick={handleLike}
-              disabled={!isLoggedIn}
-              className={cn(liked && "text-primary")}
+              className={cn("h-8 rounded-full px-2.5 text-muted-foreground hover:text-foreground", liked && "text-primary")}
               aria-label={liked ? "取消点赞" : "点赞"}
             >
               <ThumbsUp className={cn("size-3.5", liked && "fill-primary")} />
@@ -103,10 +107,9 @@ export function CommentItem({ comment, articleId, articleAuthorId, onChanged }: 
 
             <Button
               variant="ghost"
-              size="icon-xs"
-              onClick={() => setReplying(!replying)}
-              disabled={!isLoggedIn}
-              className="text-muted-foreground hover:text-foreground"
+              size="sm"
+              onClick={handleReply}
+              className="h-8 rounded-full border-l border-border pl-3 text-muted-foreground hover:text-foreground"
               aria-label="回复"
             >
               <Reply className="size-3.5" />
@@ -116,9 +119,9 @@ export function CommentItem({ comment, articleId, articleAuthorId, onChanged }: 
             {comment.parentId === null && comment.replyCount && comment.replyCount > 0 ? (
               <Button
                 variant="ghost"
-                size="icon-xs"
+                size="sm"
                 onClick={() => setExpanded(!expanded)}
-                className="text-muted-foreground hover:text-foreground"
+                className="h-8 rounded-full border-l border-border pl-3 text-muted-foreground hover:text-foreground"
               >
                 {expanded ? <ChevronUp className="size-3.5" /> : <ChevronDown className="size-3.5" />}
                 <span className="ml-1 text-xs">{comment.replyCount} 条回复</span>
@@ -128,10 +131,10 @@ export function CommentItem({ comment, articleId, articleAuthorId, onChanged }: 
             {user?.id === comment.author.id && (
               <Button
                 variant="ghost"
-                size="icon-xs"
+                size="sm"
                 onClick={handleDelete}
                 disabled={deleting}
-                className="text-muted-foreground hover:text-destructive"
+                className="h-8 rounded-full border-l border-border pl-3 text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:ml-2"
                 aria-label="删除评论"
               >
                 <Trash2 className="size-3.5" />

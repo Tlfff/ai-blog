@@ -22,6 +22,7 @@ const (
 	codeInvalidLogin       = 44030104 // codeInvalidLogin 表示登录请求账号字段不合法。
 	codeInvalidPhone       = 44020104 // codeInvalidPhone 表示手机号格式不合法。
 	codeInvalidAvatar      = 44020105 // codeInvalidAvatar 表示头像对象或扩展名不合法。
+	codeAvatarTooLarge     = 44020106 // codeAvatarTooLarge 表示头像超过上传上限。
 	codeInvalidChangeToken = 44030105 // codeInvalidChangeToken 表示改密凭证无效。
 )
 
@@ -125,6 +126,7 @@ func (s *UserService) profileReply(profile *entity.User) *userapi.ProfileReply {
 		Role:          int32(profile.Role),
 		LastLoginTime: unixSeconds(profile.LastLoginTime),
 		LastLoginIp:   region,
+		Phone:         profile.Phone,
 	}
 }
 
@@ -151,6 +153,8 @@ func userHTTPError(err error) error {
 		return errassets.NewError(codeInvalidPhone, err.Error())
 	case errors.Is(err, userdomain.ErrInvalidAvatarObjectKey):
 		return errassets.NewError(codeInvalidAvatar, err.Error())
+	case errors.Is(err, userdomain.ErrAvatarTooLarge):
+		return errassets.NewError(codeAvatarTooLarge, err.Error())
 	case errors.Is(err, userdomain.ErrPasswordChangeTokenInvalid):
 		return errassets.NewError(codeInvalidChangeToken, err.Error())
 	case errors.Is(err, userdomain.ErrInvalidLogin):
@@ -220,7 +224,7 @@ func (s *UserService) GetAvatarUploadURL(ctx *gin.Context, request *userapi.GetA
 	if !ok {
 		return nil, errassets.NewError(codeUnauthenticated, "未登录")
 	}
-	result, err := s.useCase.GetAvatarUploadURL(ctx.Request.Context(), currentUser.ID, request.GetFileExt())
+	result, err := s.useCase.GetAvatarUploadURL(ctx.Request.Context(), currentUser.ID, request.GetFileExt(), request.GetFileSize())
 	if err != nil {
 		return nil, userHTTPError(err)
 	}

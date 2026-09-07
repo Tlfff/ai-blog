@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import Image from "next/image"
 import Link from "next/link"
 import { BookOpen, FileText, MessageSquare, PenLine, Trash2 } from "lucide-react"
@@ -40,7 +41,7 @@ export default function AdminPage() {
   return (
     <AdminShell>
       <section className="relative min-h-44 overflow-hidden rounded-[1.35rem] bg-[#2678ad] text-white shadow-[0_18px_45px_var(--admin-shadow)]">
-        <Image src="/kv/bq-1.png" alt="蓝天与云朵" fill priority sizes="(min-width: 1024px) calc(100vw - 322px), 100vw" className="object-cover object-[center_22%]" />
+        <Image src={SITE_IMAGES.pages.primarySky} alt="蓝天与云朵" fill priority sizes="(min-width: 1024px) calc(100vw - 322px), 100vw" className="object-cover object-[center_22%]" />
         <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(19,79,119,0.88),rgba(29,137,173,0.52),rgba(57,176,177,0.38))]" />
         <div className="relative flex min-h-44 flex-col items-start justify-center p-6 sm:p-8">
           <p className="font-mono text-[0.6rem] font-semibold uppercase tracking-[0.22em] text-white/80">today / keep the notes in order</p>

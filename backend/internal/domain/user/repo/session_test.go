@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,6 +38,26 @@ func TestSessionRepositoryCreateAndDelete(t *testing.T) {
 	}
 	if writer.deletedKey != authTokenKeyPrefix+"web-token" || writer.removedMember != "web-token" {
 		t.Fatalf("delete key=%q removed=%q", writer.deletedKey, writer.removedMember)
+	}
+}
+
+// TestSessionRepositoryDeleteAllSessionsUsesAtomicLua 验证改密后通过单个 Lua 原子删除全部会话。
+func TestSessionRepositoryDeleteAllSessionsUsesAtomicLua(t *testing.T) {
+	t.Parallel()
+
+	writer := &fakeSessionWriter{}
+	repository := &SessionRepository{client: writer, writer: writer}
+	if err := repository.DeleteAllSessions(context.Background(), 7); err != nil {
+		t.Fatalf("DeleteAllSessions() error = %v", err)
+	}
+	if len(writer.evalKeys) != 1 || writer.evalKeys[0] != authUserTokensKeyPrefix+"7" {
+		t.Fatalf("eval keys = %#v", writer.evalKeys)
+	}
+	if len(writer.evalArgs) != 1 || writer.evalArgs[0] != authTokenKeyPrefix {
+		t.Fatalf("eval args = %#v", writer.evalArgs)
+	}
+	if !strings.Contains(writer.evalScript, "SMEMBERS") || !strings.Contains(writer.evalScript, "redis.call('DEL', KEYS[1])") {
+		t.Fatalf("eval script does not atomically clear all sessions: %s", writer.evalScript)
 	}
 }
 
@@ -105,6 +126,9 @@ type fakeSessionWriter struct {
 	ttl             time.Duration // ttl 是 Token 会话有效期。
 	deletedKey      string        // deletedKey 是删除的 Token Key。
 	removedMember   string        // removedMember 是从用户集合移除的 Token。
+	evalScript      string        // evalScript 是会话清理使用的 Lua。
+	evalKeys        []string      // evalKeys 是 Lua 收到的 Redis Key。
+	evalArgs        []interface{} // evalArgs 是 Lua 收到的参数。
 }
 
 // Get 返回空查询结果，本测试不使用读取路径。
@@ -114,8 +138,9 @@ func (f *fakeSessionWriter) Get(context.Context, string) *redis.StringCmd {
 }
 
 // Eval 返回测试用 Redis 脚本结果。
-func (f *fakeSessionWriter) Eval(context.Context, string, []string, ...interface{}) *redis.Cmd {
-	// 1. 模拟会话收敛 Lua 脚本执行成功
+func (f *fakeSessionWriter) Eval(_ context.Context, script string, keys []string, args ...interface{}) *redis.Cmd {
+	// 1. 记录会话收敛 Lua 输入并模拟执行成功
+	f.evalScript, f.evalKeys, f.evalArgs = script, keys, args
 	return redis.NewCmdResult(int64(1), nil)
 }
 

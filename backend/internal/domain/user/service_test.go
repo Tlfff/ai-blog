@@ -408,3 +408,15 @@ func (f *fakeSessionManager) DeleteOtherSessions(_ context.Context, token string
 	f.deletedToken, f.deletedUserID = token, userID
 	return nil
 }
+
+// DeleteAllSessions 清空测试用户的全部设备会话。
+func (f *fakeSessionManager) DeleteAllSessions(_ context.Context, userID uint64) error {
+	// 1. 只删除属于指定用户的会话，模拟改密后的全量失效
+	for token, session := range f.byToken {
+		if session.UserID == userID {
+			delete(f.byToken, token)
+		}
+	}
+	f.deletedUserID = userID
+	return nil
+}

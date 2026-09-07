@@ -30,11 +30,11 @@ type Query struct {
 
 // Item 表示公开搜索结果中的文章摘要。
 type Item struct {
-	ID             uint64 // ID 是文章标识。
-	Title          string // Title 是文章原始标题。
-	TitleHighlight string // TitleHighlight 是含高亮标签的标题。
-	Summary        string // Summary 是正文裁剪摘要。
-	Tags           string // Tags 是规范化标签。
+	ID             uint64   // ID 是文章标识。
+	Title          string   // Title 是文章原始标题。
+	TitleHighlight string   // TitleHighlight 是含高亮标签的标题。
+	Summary        string   // Summary 是正文裁剪摘要。
+	Tags           []string // Tags 是规范化标签集合。
 }
 
 // Result 表示搜索结果及分页信息。

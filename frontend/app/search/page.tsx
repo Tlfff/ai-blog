@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import { Suspense, useEffect, useState, type FormEvent } from "react"
 import Image from "next/image"
 import Link from "next/link"
@@ -30,25 +31,26 @@ function SearchPageContent() {
   useEffect(() => setKeyword(queryKeyword), [queryKeyword])
 
   const { data, error, isLoading, isValidating, mutate } = useSWR(
-    queryKeyword ? ["article-search", queryKeyword, page, PAGE_SIZE] : null,
+    ["article-search", queryKeyword || "all", page, PAGE_SIZE],
     () => searchArticles({ keyword: queryKeyword, page, pageSize: PAGE_SIZE }),
   )
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1
   const startIndex = data ? (data.page - 1) * data.pageSize : 0
 
   function navigateToSearch(nextKeyword: string, nextPage = 1) {
-    const params = new URLSearchParams({ q: nextKeyword, page: String(nextPage) })
+    const params = new URLSearchParams({ page: String(nextPage) })
+    if (nextKeyword) params.set("q", nextKeyword)
     router.push(`/search?${params.toString()}`)
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const nextKeyword = keyword.trim()
-    if (nextKeyword) navigateToSearch(nextKeyword)
+    navigateToSearch(nextKeyword)
   }
 
   function handlePageChange(nextPage: number) {
-    if (!queryKeyword || nextPage < 1 || nextPage > totalPages) return
+    if (nextPage < 1 || nextPage > totalPages) return
     navigateToSearch(queryKeyword, nextPage)
     window.scrollTo({ top: 0, behavior: "smooth" })
   }
@@ -57,7 +59,7 @@ function SearchPageContent() {
     <SiteShell immersiveHeader>
       <div className="search-page min-h-screen overflow-hidden bg-[var(--search-background)] text-[var(--search-ink)]">
         <section className="relative isolate min-h-[330px] overflow-hidden text-white sm:min-h-[390px]">
-          <Image src="/kv/bq-1.png" alt="" fill priority sizes="100vw" className="object-cover object-[center_28%]" />
+          <Image src={SITE_IMAGES.pages.primarySky} alt="" fill priority sizes="100vw" className="object-cover object-[center_28%]" />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(9,61,96,0.86),rgba(25,130,165,0.57),rgba(48,166,157,0.34))]" aria-hidden />
           <div className="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-[#19546c]/55 to-transparent" aria-hidden />
 
@@ -85,7 +87,7 @@ function SearchPageContent() {
                 aria-label="文章搜索关键词"
                 className="h-14 w-full rounded-full border border-white/65 bg-white/96 pl-12 pr-28 text-sm text-[#18354b] shadow-[0_12px_35px_rgba(15,70,91,0.18)] outline-none transition placeholder:text-[#92a7af] focus:ring-4 focus:ring-white/25 sm:pr-32"
               />
-              <Button type="submit" disabled={!keyword.trim() || isValidating} className="absolute right-1.5 top-1/2 h-11 -translate-y-1/2 rounded-full bg-[#245f80] px-6 text-white hover:bg-[#1d526f]">
+              <Button type="submit" disabled={isValidating} className="absolute right-1.5 top-1/2 h-11 -translate-y-1/2 rounded-full bg-[#245f80] px-6 text-white hover:bg-[#1d526f]">
                 {isValidating ? "搜索中" : "搜索"}
               </Button>
             </form>
@@ -140,7 +142,7 @@ function SearchResultsHeader({ queryKeyword, data, totalPages }: { queryKeyword:
       <div>
         <p className="font-mono text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-[var(--search-sky-deep)]">result / relevance</p>
         <p className="mt-2 text-sm text-[var(--search-muted)]">
-          {queryKeyword ? <>“<strong className="text-[var(--search-ink)]">{queryKeyword}</strong>” {data ? <>共找到 <strong className="text-[var(--search-ink)]">{data.total}</strong> 篇文章</> : "正在查找文章"}</> : "从一个关键词开始搜索文章"}
+          {queryKeyword ? <>“<strong className="text-[var(--search-ink)]">{queryKeyword}</strong>” {data ? <>共找到 <strong className="text-[var(--search-ink)]">{data.total}</strong> 篇文章</> : "正在查找文章"}</> : data ? <>当前共 <strong className="text-[var(--search-ink)]">{data.total}</strong> 篇文章</> : "正在加载全部文章"}
         </p>
       </div>
       {data ? <span className="hidden font-mono text-[0.58rem] uppercase tracking-[0.15em] text-[var(--search-faint)] sm:block">page {String(data.page).padStart(2, "0")} / {String(totalPages).padStart(2, "0")}</span> : null}
@@ -149,10 +151,9 @@ function SearchResultsHeader({ queryKeyword, data, totalPages }: { queryKeyword:
 }
 
 function SearchResultsBody({ queryKeyword, data, error, isLoading, startIndex, mutate }: { queryKeyword: string; data: Awaited<ReturnType<typeof searchArticles>> | undefined; error: unknown; isLoading: boolean; startIndex: number; mutate: () => Promise<unknown> }) {
-  if (!queryKeyword) return <SearchState icon={<Search className="size-7" />} title="从一个关键词开始" description="试试技术名称、文章主题、标签，或中文标题的完整拼音。" />
   if (isLoading && !data) return <LoadingState label="正在搜索文章..." />
   if (error) return <SearchState icon={<AlertCircle className="size-7" />} title="搜索暂时不可用" description={error instanceof Error ? error.message : "文章搜索服务暂不可用"} action={<Button variant="outline" onClick={() => void mutate()} className="mt-5 rounded-full border-[var(--search-border-strong)] bg-transparent"><RefreshCw className="size-4" />重新搜索</Button>} tone="coral" />
-  if (!data || data.items.length === 0) return <SearchState icon={<Sparkles className="size-7" />} title="没有找到相关文章" description={`没有找到与“${queryKeyword}”相关的内容，请尝试缩短关键词或使用完整拼音。`} />
+  if (!data || data.items.length === 0) return <SearchState icon={<Sparkles className="size-7" />} title={queryKeyword ? "没有找到相关文章" : "暂时没有文章"} description={queryKeyword ? `没有找到与“${queryKeyword}”相关的内容，请尝试缩短关键词或使用完整拼音。` : "文章发布后会显示在这里。"} />
   return <div className="space-y-3 p-4 sm:p-5">{data.items.map((article, index) => <SearchResultCard key={article.id} article={article} index={startIndex + index} keyword={queryKeyword} />)}</div>
 }
 

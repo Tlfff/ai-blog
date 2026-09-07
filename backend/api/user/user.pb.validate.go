@@ -1340,6 +1340,17 @@ func (m *GetAvatarUploadURLRequest) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
+	if m.GetFileSize() <= 0 {
+		err := GetAvatarUploadURLRequestValidationError{
+			field:  "FileSize",
+			reason: "value must be greater than 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
 	if len(errors) > 0 {
 		return GetAvatarUploadURLRequestMultiError(errors)
 	}
@@ -1773,6 +1784,8 @@ func (m *ProfileReply) validate(all bool) error {
 	// no validation rules for LastLoginTime
 
 	// no validation rules for LastLoginIp
+
+	// no validation rules for Phone
 
 	if len(errors) > 0 {
 		return ProfileReplyMultiError(errors)

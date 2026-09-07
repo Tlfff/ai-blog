@@ -43,7 +43,7 @@ type articleFake struct {
 // ListPublished 返回固定公开文章列表。
 func (*articleFake) ListPublished(context.Context, article.PublicListCommand) (*article.PublicListResult, error) {
 	// 1. 返回带 Unicode 摘要和互动统计的已发表文章
-	item := &entity.Article{ID: 9, AuthorID: 7, Title: "公开文章", Status: article.StatusPublished, ViewCount: 3, LikeCount: 2, CommentCount: 1, UpdatedTime: time.Unix(20, 0)}
+	item := &entity.Article{ID: 9, AuthorID: 7, Title: "公开文章", Tags: []string{"Go", "后端"}, Status: article.StatusPublished, ViewCount: 3, LikeCount: 2, CommentCount: 1, UpdatedTime: time.Unix(20, 0)}
 	return &article.PublicListResult{Items: []*article.PublicListItem{{Article: item, Summary: "摘要"}}, LastID: 9, Total: 1, Page: 1, PageSize: 10}, nil
 }
 
@@ -61,7 +61,7 @@ func (*articleFake) HotRank(context.Context) ([]*article.HotRankItem, error) {
 }
 
 // UploadImage 返回测试图片上传凭证。
-func (*articleFake) UploadImage(context.Context, uint64, string) (*article.UploadResult, error) {
+func (*articleFake) UploadImage(context.Context, uint64, string, uint64) (*article.UploadResult, error) {
 	// 1. 返回固定上传凭证
 	return &article.UploadResult{ImageID: 8, UploadURL: "upload", URL: "preview"}, nil
 }
@@ -147,7 +147,7 @@ func (f *articleFake) Clear(_ context.Context, articleID, authorID uint64) error
 func (*articleFake) Detail(context.Context, uint64, uint64) (*entity.Detail, error) {
 	// 1. 返回固定后台详情
 	return &entity.Detail{
-		Article: &entity.Article{ID: 1, Title: "标题", Content: "正文", Status: 3, LikeCount: 2,
+		Article: &entity.Article{ID: 1, AuthorID: 7, Title: "标题", Content: "# **正文**", Status: 3, ViewCount: 11, LikeCount: 2, CommentCount: 5,
 			CreatedTime: time.Unix(10, 0), UpdatedTime: time.Unix(20, 0)},
 		AuthorNickname: "作者", AuthorIP: "203.0.113.8", IsLiked: true, Images: []*entity.Image{{ID: 8, ObjectKey: "image.png"}},
 	}, nil
@@ -309,9 +309,13 @@ func TestArticleDetailHTTPIncludesLikeState(t *testing.T) {
 	response := httptest.NewRecorder()
 	router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/admin/article/me/detail?id=1", nil))
 
-	// 2. 点赞状态、点赞数和图片映射必须进入响应
+	// 2. 作者、互动统计、点赞状态和图片映射必须进入响应
 	if !bytes.Contains(response.Body.Bytes(), []byte(`"is_liked":true`)) ||
 		!bytes.Contains(response.Body.Bytes(), []byte(`"like_count":2`)) ||
+		!bytes.Contains(response.Body.Bytes(), []byte(`"author_id":7`)) ||
+		!bytes.Contains(response.Body.Bytes(), []byte(`"view_count":11`)) ||
+		!bytes.Contains(response.Body.Bytes(), []byte(`"comment_count":5`)) ||
+		!bytes.Contains(response.Body.Bytes(), []byte(`"summary":"正文"`)) ||
 		!bytes.Contains(response.Body.Bytes(), []byte(`"url":"preview"`)) ||
 		!bytes.Contains(response.Body.Bytes(), []byte(`"ip":"浙江"`)) {
 		t.Fatalf("response = %s", response.Body.String())
@@ -347,6 +351,7 @@ func TestPublicListAndHotRankHTTPContract(t *testing.T) {
 
 	// 2. 列表返回摘要与统计，热榜返回当前热度
 	if !bytes.Contains(listResponse.Body.Bytes(), []byte(`"summary":"摘要"`)) ||
+		!bytes.Contains(listResponse.Body.Bytes(), []byte(`"tags":["Go","后端"]`)) ||
 		!bytes.Contains(listResponse.Body.Bytes(), []byte(`"view_count":3`)) ||
 		!bytes.Contains(hotResponse.Body.Bytes(), []byte(`"hot":6`)) ||
 		!bytes.Contains(hotResponse.Body.Bytes(), []byte(`"title":"热门文章"`)) {

@@ -565,6 +565,7 @@ func (x *UpdateMyAccountRequest) GetPhone() string {
 type GetAvatarUploadURLRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	FileExt       string                 `protobuf:"bytes,1,opt,name=file_ext,json=fileExt,proto3" json:"file_ext"`
+	FileSize      uint64                 `protobuf:"varint,2,opt,name=file_size,json=fileSize,proto3" json:"file_size"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -604,6 +605,13 @@ func (x *GetAvatarUploadURLRequest) GetFileExt() string {
 		return x.FileExt
 	}
 	return ""
+}
+
+func (x *GetAvatarUploadURLRequest) GetFileSize() uint64 {
+	if x != nil {
+		return x.FileSize
+	}
+	return 0
 }
 
 type ConfirmAvatarRequest struct {
@@ -756,6 +764,7 @@ type ProfileReply struct {
 	Role          int32                  `protobuf:"varint,4,opt,name=role,proto3" json:"role"`
 	LastLoginTime int64                  `protobuf:"varint,5,opt,name=last_login_time,json=lastLoginTime,proto3" json:"last_login_time"`
 	LastLoginIp   string                 `protobuf:"bytes,6,opt,name=last_login_ip,json=lastLoginIp,proto3" json:"last_login_ip"`
+	Phone         string                 `protobuf:"bytes,7,opt,name=phone,proto3" json:"phone"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -828,6 +837,13 @@ func (x *ProfileReply) GetLastLoginTime() int64 {
 func (x *ProfileReply) GetLastLoginIp() string {
 	if x != nil {
 		return x.LastLoginIp
+	}
+	return ""
+}
+
+func (x *ProfileReply) GetPhone() string {
+	if x != nil {
+		return x.Phone
 	}
 	return ""
 }
@@ -927,9 +943,10 @@ const file_user_user_proto_rawDesc = "" +
 	"\fchange_token\x18\x01 \x01(\tB\a\xfaB\x04r\x02\x10\x01R\vchangeToken\x12*\n" +
 	"\fnew_password\x18\x02 \x01(\tB\a\xfaB\x04r\x02\x10\x06R\vnewPassword\"9\n" +
 	"\x16UpdateMyAccountRequest\x12\x1f\n" +
-	"\x05phone\x18\x01 \x01(\tB\t\xfaB\x06r\x04\x10\x01\x182R\x05phone\"A\n" +
+	"\x05phone\x18\x01 \x01(\tB\t\xfaB\x06r\x04\x10\x01\x182R\x05phone\"g\n" +
 	"\x19GetAvatarUploadURLRequest\x12$\n" +
-	"\bfile_ext\x18\x01 \x01(\tB\t\xfaB\x06r\x04\x10\x01\x18\x10R\afileExt\"A\n" +
+	"\bfile_ext\x18\x01 \x01(\tB\t\xfaB\x06r\x04\x10\x01\x18\x10R\afileExt\x12$\n" +
+	"\tfile_size\x18\x02 \x01(\x04B\a\xfaB\x042\x02 \x00R\bfileSize\"A\n" +
 	"\x14ConfirmAvatarRequest\x12)\n" +
 	"\n" +
 	"object_key\x18\x01 \x01(\tB\n" +
@@ -942,14 +959,15 @@ const file_user_user_proto_rawDesc = "" +
 	"\n" +
 	"avatar_url\x18\x03 \x01(\tR\tavatarUrl\"\f\n" +
 	"\n" +
-	"EmptyReply\"\xb2\x01\n" +
+	"EmptyReply\"\xc8\x01\n" +
 	"\fProfileReply\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x1a\n" +
 	"\bnickname\x18\x02 \x01(\tR\bnickname\x12\x16\n" +
 	"\x06avatar\x18\x03 \x01(\tR\x06avatar\x12\x12\n" +
 	"\x04role\x18\x04 \x01(\x05R\x04role\x12&\n" +
 	"\x0flast_login_time\x18\x05 \x01(\x03R\rlastLoginTime\x12\"\n" +
-	"\rlast_login_ip\x18\x06 \x01(\tR\vlastLoginIp\"X\n" +
+	"\rlast_login_ip\x18\x06 \x01(\tR\vlastLoginIp\x12\x14\n" +
+	"\x05phone\x18\a \x01(\tR\x05phone\"X\n" +
 	"\x12PublicProfileReply\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x1a\n" +
 	"\bnickname\x18\x02 \x01(\tR\bnickname\x12\x16\n" +

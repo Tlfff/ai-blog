@@ -27,6 +27,15 @@ func TestNotificationIndexesAndFiltersPreserveIdempotencyAndUserIsolation(t *tes
 	if configured.Unique == nil || !*configured.Unique || configured.Sparse == nil || !*configured.Sparse {
 		t.Fatalf("index options=%#v", configured)
 	}
+	legacyIndex := new(options.IndexOptions)
+	for _, apply := range indexes[2].Options.List() {
+		if err := apply(legacyIndex); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if legacyIndex.Name == nil || *legacyIndex.Name != "idx_receiverid_isread" {
+		t.Fatalf("legacy index name=%v", legacyIndex.Name)
+	}
 	filter := unreadFilter(7)
 	if filter["receiver_id"] != uint64(7) || filter["is_read"] != false {
 		t.Fatalf("filter=%#v", filter)

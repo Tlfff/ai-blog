@@ -26,15 +26,15 @@ type Config struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Server            *Server     `protobuf:"bytes,1,opt,name=server,proto3" json:"server,omitempty"`
-	Management        *Management `protobuf:"bytes,2,opt,name=management,proto3" json:"management,omitempty"`
-	Metrics           *Metrics    `protobuf:"bytes,3,opt,name=metrics,proto3" json:"metrics,omitempty"`
-	Logger            *Logger     `protobuf:"bytes,4,opt,name=logger,proto3" json:"logger,omitempty"`
-	Trace             *Trace      `protobuf:"bytes,5,opt,name=trace,proto3" json:"trace,omitempty"`
-	Data              *Data       `protobuf:"bytes,6,opt,name=data,proto3" json:"data,omitempty"`
-	TrustedProxyCidrs []string    `protobuf:"bytes,7,rep,name=trusted_proxy_cidrs,json=trustedProxyCidrs,proto3" json:"trusted_proxy_cidrs,omitempty"`
-	Ipv4XdbPath       string      `protobuf:"bytes,8,opt,name=ipv4_xdb_path,json=ipv4XdbPath,proto3" json:"ipv4_xdb_path,omitempty"`
-	Ipv6XdbPath       string      `protobuf:"bytes,9,opt,name=ipv6_xdb_path,json=ipv6XdbPath,proto3" json:"ipv6_xdb_path,omitempty"`
+	Server            *Server     `protobuf:"bytes,1,opt,name=server,proto3" json:"server"`
+	Management        *Management `protobuf:"bytes,2,opt,name=management,proto3" json:"management"`
+	Metrics           *Metrics    `protobuf:"bytes,3,opt,name=metrics,proto3" json:"metrics"`
+	Logger            *Logger     `protobuf:"bytes,4,opt,name=logger,proto3" json:"logger"`
+	Trace             *Trace      `protobuf:"bytes,5,opt,name=trace,proto3" json:"trace"`
+	Data              *Data       `protobuf:"bytes,6,opt,name=data,proto3" json:"data"`
+	TrustedProxyCidrs []string    `protobuf:"bytes,7,rep,name=trusted_proxy_cidrs,json=trustedProxyCidrs,proto3" json:"trusted_proxy_cidrs"`
+	Ipv4XdbPath       string      `protobuf:"bytes,8,opt,name=ipv4_xdb_path,json=ipv4XdbPath,proto3" json:"ipv4_xdb_path"`
+	Ipv6XdbPath       string      `protobuf:"bytes,9,opt,name=ipv6_xdb_path,json=ipv6XdbPath,proto3" json:"ipv6_xdb_path"`
 }
 
 func (x *Config) Reset() {
@@ -138,10 +138,10 @@ type Server struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Sentry *Sentry `protobuf:"bytes,1,opt,name=sentry,proto3" json:"sentry,omitempty"`
-	Jaeger *Jaeger `protobuf:"bytes,2,opt,name=jaeger,proto3" json:"jaeger,omitempty"`
-	Http   *HTTP   `protobuf:"bytes,3,opt,name=http,proto3" json:"http,omitempty"`
-	Grpc   *GRPC   `protobuf:"bytes,4,opt,name=grpc,proto3" json:"grpc,omitempty"`
+	Sentry *Sentry `protobuf:"bytes,1,opt,name=sentry,proto3" json:"sentry"`
+	Jaeger *Jaeger `protobuf:"bytes,2,opt,name=jaeger,proto3" json:"jaeger"`
+	Http   *HTTP   `protobuf:"bytes,3,opt,name=http,proto3" json:"http"`
+	Grpc   *GRPC   `protobuf:"bytes,4,opt,name=grpc,proto3" json:"grpc"`
 }
 
 func (x *Server) Reset() {
@@ -209,9 +209,9 @@ type Sentry struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Dsn         string  `protobuf:"bytes,1,opt,name=dsn,proto3" json:"dsn,omitempty"`
-	SampleRate  float64 `protobuf:"fixed64,2,opt,name=sample_rate,json=sampleRate,proto3" json:"sample_rate,omitempty"`
-	Environment string  `protobuf:"bytes,3,opt,name=environment,proto3" json:"environment,omitempty"`
+	Dsn         string  `protobuf:"bytes,1,opt,name=dsn,proto3" json:"dsn"`
+	SampleRate  float64 `protobuf:"fixed64,2,opt,name=sample_rate,json=sampleRate,proto3" json:"sample_rate"`
+	Environment string  `protobuf:"bytes,3,opt,name=environment,proto3" json:"environment"`
 }
 
 func (x *Sentry) Reset() {
@@ -272,7 +272,7 @@ type Jaeger struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	SampleRate float64 `protobuf:"fixed64,1,opt,name=sample_rate,json=sampleRate,proto3" json:"sample_rate,omitempty"`
+	SampleRate float64 `protobuf:"fixed64,1,opt,name=sample_rate,json=sampleRate,proto3" json:"sample_rate"`
 }
 
 func (x *Jaeger) Reset() {
@@ -319,10 +319,10 @@ type HTTP struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Network string `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
-	Port    int32  `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
-	Timeout string `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	Id      string `protobuf:"bytes,4,opt,name=id,proto3" json:"id,omitempty"`
+	Network string `protobuf:"bytes,1,opt,name=network,proto3" json:"network"`
+	Port    int32  `protobuf:"varint,2,opt,name=port,proto3" json:"port"`
+	Timeout string `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout"`
+	Id      string `protobuf:"bytes,4,opt,name=id,proto3" json:"id"`
 }
 
 func (x *HTTP) Reset() {
@@ -390,11 +390,11 @@ type GRPC struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Network string    `protobuf:"bytes,1,opt,name=network,proto3" json:"network,omitempty"`
-	Port    int32     `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
-	Timeout string    `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout,omitempty"`
-	Id      string    `protobuf:"bytes,4,opt,name=id,proto3" json:"id,omitempty"`
-	Auth    *GRPCAuth `protobuf:"bytes,5,opt,name=auth,proto3" json:"auth,omitempty"`
+	Network string    `protobuf:"bytes,1,opt,name=network,proto3" json:"network"`
+	Port    int32     `protobuf:"varint,2,opt,name=port,proto3" json:"port"`
+	Timeout string    `protobuf:"bytes,3,opt,name=timeout,proto3" json:"timeout"`
+	Id      string    `protobuf:"bytes,4,opt,name=id,proto3" json:"id"`
+	Auth    *GRPCAuth `protobuf:"bytes,5,opt,name=auth,proto3" json:"auth"`
 }
 
 func (x *GRPC) Reset() {
@@ -470,12 +470,12 @@ type GRPCAuth struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	JwtIssuer             string            `protobuf:"bytes,1,opt,name=jwt_issuer,json=jwtIssuer,proto3" json:"jwt_issuer,omitempty"`
-	JwtSecret             string            `protobuf:"bytes,2,opt,name=jwt_secret,json=jwtSecret,proto3" json:"jwt_secret,omitempty"`
-	JwtClockSkewSeconds   uint32            `protobuf:"varint,3,opt,name=jwt_clock_skew_seconds,json=jwtClockSkewSeconds,proto3" json:"jwt_clock_skew_seconds,omitempty"`
-	HmacTimeWindowSeconds uint32            `protobuf:"varint,4,opt,name=hmac_time_window_seconds,json=hmacTimeWindowSeconds,proto3" json:"hmac_time_window_seconds,omitempty"`
-	NonceTtlSeconds       uint32            `protobuf:"varint,5,opt,name=nonce_ttl_seconds,json=nonceTtlSeconds,proto3" json:"nonce_ttl_seconds,omitempty"`
-	HmacAccessKeys        map[string]string `protobuf:"bytes,6,rep,name=hmac_access_keys,json=hmacAccessKeys,proto3" json:"hmac_access_keys,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	JwtIssuer             string            `protobuf:"bytes,1,opt,name=jwt_issuer,json=jwtIssuer,proto3" json:"jwt_issuer"`
+	JwtSecret             string            `protobuf:"bytes,2,opt,name=jwt_secret,json=jwtSecret,proto3" json:"jwt_secret"`
+	JwtClockSkewSeconds   uint32            `protobuf:"varint,3,opt,name=jwt_clock_skew_seconds,json=jwtClockSkewSeconds,proto3" json:"jwt_clock_skew_seconds"`
+	HmacTimeWindowSeconds uint32            `protobuf:"varint,4,opt,name=hmac_time_window_seconds,json=hmacTimeWindowSeconds,proto3" json:"hmac_time_window_seconds"`
+	NonceTtlSeconds       uint32            `protobuf:"varint,5,opt,name=nonce_ttl_seconds,json=nonceTtlSeconds,proto3" json:"nonce_ttl_seconds"`
+	HmacAccessKeys        map[string]string `protobuf:"bytes,6,rep,name=hmac_access_keys,json=hmacAccessKeys,proto3" json:"hmac_access_keys" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
 func (x *GRPCAuth) Reset() {
@@ -558,7 +558,7 @@ type Management struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Port int32 `protobuf:"varint,1,opt,name=port,proto3" json:"port,omitempty"`
+	Port int32 `protobuf:"varint,1,opt,name=port,proto3" json:"port"`
 }
 
 func (x *Management) Reset() {
@@ -606,8 +606,8 @@ type Metrics struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Enabled  bool             `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Exporter *MetricsExporter `protobuf:"bytes,2,opt,name=exporter,proto3" json:"exporter,omitempty"`
+	Enabled  bool             `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled"`
+	Exporter *MetricsExporter `protobuf:"bytes,2,opt,name=exporter,proto3" json:"exporter"`
 }
 
 func (x *Metrics) Reset() {
@@ -661,7 +661,7 @@ type MetricsExporter struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Prometheus *Prometheus `protobuf:"bytes,1,opt,name=prometheus,proto3" json:"prometheus,omitempty"`
+	Prometheus *Prometheus `protobuf:"bytes,1,opt,name=prometheus,proto3" json:"prometheus"`
 }
 
 func (x *MetricsExporter) Reset() {
@@ -708,7 +708,7 @@ type Prometheus struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Enabled bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
+	Enabled bool `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled"`
 }
 
 func (x *Prometheus) Reset() {
@@ -756,7 +756,7 @@ type Logger struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Level string `protobuf:"bytes,1,opt,name=level,proto3" json:"level,omitempty"`
+	Level string `protobuf:"bytes,1,opt,name=level,proto3" json:"level"`
 }
 
 func (x *Logger) Reset() {
@@ -804,11 +804,11 @@ type Trace struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Enabled     bool         `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Jaeger      *JaegerTrace `protobuf:"bytes,2,opt,name=jaeger,proto3" json:"jaeger,omitempty"`
-	Sampler     *Sampler     `protobuf:"bytes,3,opt,name=sampler,proto3" json:"sampler,omitempty"`
-	ServiceName string       `protobuf:"bytes,4,opt,name=service_name,json=serviceName,proto3" json:"service_name,omitempty"`
-	WhiteList   []string     `protobuf:"bytes,5,rep,name=white_list,json=whiteList,proto3" json:"white_list,omitempty"`
+	Enabled     bool         `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled"`
+	Jaeger      *JaegerTrace `protobuf:"bytes,2,opt,name=jaeger,proto3" json:"jaeger"`
+	Sampler     *Sampler     `protobuf:"bytes,3,opt,name=sampler,proto3" json:"sampler"`
+	ServiceName string       `protobuf:"bytes,4,opt,name=service_name,json=serviceName,proto3" json:"service_name"`
+	WhiteList   []string     `protobuf:"bytes,5,rep,name=white_list,json=whiteList,proto3" json:"white_list"`
 }
 
 func (x *Trace) Reset() {
@@ -883,8 +883,8 @@ type JaegerTrace struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Enabled bool   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`
-	Url     string `protobuf:"bytes,2,opt,name=url,proto3" json:"url,omitempty"`
+	Enabled bool   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled"`
+	Url     string `protobuf:"bytes,2,opt,name=url,proto3" json:"url"`
 }
 
 func (x *JaegerTrace) Reset() {
@@ -938,7 +938,7 @@ type Sampler struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Rate float64 `protobuf:"fixed64,1,opt,name=rate,proto3" json:"rate,omitempty"`
+	Rate float64 `protobuf:"fixed64,1,opt,name=rate,proto3" json:"rate"`
 }
 
 func (x *Sampler) Reset() {
@@ -986,14 +986,14 @@ type Data struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Mysql         map[string]*MySQL `protobuf:"bytes,1,rep,name=mysql,proto3" json:"mysql,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	Redis         map[string]*Redis `protobuf:"bytes,2,rep,name=redis,proto3" json:"redis,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
-	SlsProducer   *SLSProducer      `protobuf:"bytes,3,opt,name=sls_producer,json=slsProducer,proto3" json:"sls_producer,omitempty"`
-	KylinStorage  *KylinStorage     `protobuf:"bytes,4,opt,name=kylin_storage,json=kylinStorage,proto3" json:"kylin_storage,omitempty"`
-	Kafka         *Kafka            `protobuf:"bytes,5,opt,name=kafka,proto3" json:"kafka,omitempty"`
-	ObjectStorage *ObjectStorage    `protobuf:"bytes,6,opt,name=object_storage,json=objectStorage,proto3" json:"object_storage,omitempty"`
-	Mongo         *Mongo            `protobuf:"bytes,7,opt,name=mongo,proto3" json:"mongo,omitempty"`
-	Meilisearch   *Meilisearch      `protobuf:"bytes,8,opt,name=meilisearch,proto3" json:"meilisearch,omitempty"`
+	Mysql         map[string]*MySQL `protobuf:"bytes,1,rep,name=mysql,proto3" json:"mysql" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	Redis         map[string]*Redis `protobuf:"bytes,2,rep,name=redis,proto3" json:"redis" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	SlsProducer   *SLSProducer      `protobuf:"bytes,3,opt,name=sls_producer,json=slsProducer,proto3" json:"sls_producer"`
+	KylinStorage  *KylinStorage     `protobuf:"bytes,4,opt,name=kylin_storage,json=kylinStorage,proto3" json:"kylin_storage"`
+	Kafka         *Kafka            `protobuf:"bytes,5,opt,name=kafka,proto3" json:"kafka"`
+	ObjectStorage *ObjectStorage    `protobuf:"bytes,6,opt,name=object_storage,json=objectStorage,proto3" json:"object_storage"`
+	Mongo         *Mongo            `protobuf:"bytes,7,opt,name=mongo,proto3" json:"mongo"`
+	Meilisearch   *Meilisearch      `protobuf:"bytes,8,opt,name=meilisearch,proto3" json:"meilisearch"`
 }
 
 func (x *Data) Reset() {
@@ -1090,8 +1090,8 @@ type Meilisearch struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Endpoint string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	ApiKey   string `protobuf:"bytes,2,opt,name=api_key,json=apiKey,proto3" json:"api_key,omitempty"`
+	Endpoint string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint"`
+	ApiKey   string `protobuf:"bytes,2,opt,name=api_key,json=apiKey,proto3" json:"api_key"`
 }
 
 func (x *Meilisearch) Reset() {
@@ -1146,13 +1146,13 @@ type ObjectStorage struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Endpoint        string   `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	AccessKey       string   `protobuf:"bytes,2,opt,name=access_key,json=accessKey,proto3" json:"access_key,omitempty"`
-	SecretKey       string   `protobuf:"bytes,3,opt,name=secret_key,json=secretKey,proto3" json:"secret_key,omitempty"`
-	Bucket          string   `protobuf:"bytes,4,opt,name=bucket,proto3" json:"bucket,omitempty"`
-	UseSsl          bool     `protobuf:"varint,5,opt,name=use_ssl,json=useSsl,proto3" json:"use_ssl,omitempty"`
-	PublicUrl       string   `protobuf:"bytes,6,opt,name=public_url,json=publicUrl,proto3" json:"public_url,omitempty"`
-	ImageExtensions []string `protobuf:"bytes,7,rep,name=image_extensions,json=imageExtensions,proto3" json:"image_extensions,omitempty"`
+	Endpoint        string   `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint"`
+	AccessKey       string   `protobuf:"bytes,2,opt,name=access_key,json=accessKey,proto3" json:"access_key"`
+	SecretKey       string   `protobuf:"bytes,3,opt,name=secret_key,json=secretKey,proto3" json:"secret_key"`
+	Bucket          string   `protobuf:"bytes,4,opt,name=bucket,proto3" json:"bucket"`
+	UseSsl          bool     `protobuf:"varint,5,opt,name=use_ssl,json=useSsl,proto3" json:"use_ssl"`
+	PublicUrl       string   `protobuf:"bytes,6,opt,name=public_url,json=publicUrl,proto3" json:"public_url"`
+	ImageExtensions []string `protobuf:"bytes,7,rep,name=image_extensions,json=imageExtensions,proto3" json:"image_extensions"`
 }
 
 func (x *ObjectStorage) Reset() {
@@ -1241,12 +1241,12 @@ type MySQL struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Driver      string `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver,omitempty"`
-	Dsn         string `protobuf:"bytes,2,opt,name=dsn,proto3" json:"dsn,omitempty"`
-	MaxIdle     int32  `protobuf:"varint,3,opt,name=max_idle,json=maxIdle,proto3" json:"max_idle,omitempty"`
-	MaxOpen     int32  `protobuf:"varint,4,opt,name=max_open,json=maxOpen,proto3" json:"max_open,omitempty"`
-	MaxLifetime int32  `protobuf:"varint,5,opt,name=max_lifetime,json=maxLifetime,proto3" json:"max_lifetime,omitempty"`
-	IsDebug     bool   `protobuf:"varint,6,opt,name=is_debug,json=isDebug,proto3" json:"is_debug,omitempty"`
+	Driver      string `protobuf:"bytes,1,opt,name=driver,proto3" json:"driver"`
+	Dsn         string `protobuf:"bytes,2,opt,name=dsn,proto3" json:"dsn"`
+	MaxIdle     int32  `protobuf:"varint,3,opt,name=max_idle,json=maxIdle,proto3" json:"max_idle"`
+	MaxOpen     int32  `protobuf:"varint,4,opt,name=max_open,json=maxOpen,proto3" json:"max_open"`
+	MaxLifetime int32  `protobuf:"varint,5,opt,name=max_lifetime,json=maxLifetime,proto3" json:"max_lifetime"`
+	IsDebug     bool   `protobuf:"varint,6,opt,name=is_debug,json=isDebug,proto3" json:"is_debug"`
 }
 
 func (x *MySQL) Reset() {
@@ -1329,9 +1329,9 @@ type Mongo struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Uri            string `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri,omitempty"`
-	Database       string `protobuf:"bytes,2,opt,name=database,proto3" json:"database,omitempty"`
-	ConnectTimeout string `protobuf:"bytes,3,opt,name=connect_timeout,json=connectTimeout,proto3" json:"connect_timeout,omitempty"`
+	Uri            string `protobuf:"bytes,1,opt,name=uri,proto3" json:"uri"`
+	Database       string `protobuf:"bytes,2,opt,name=database,proto3" json:"database"`
+	ConnectTimeout string `protobuf:"bytes,3,opt,name=connect_timeout,json=connectTimeout,proto3" json:"connect_timeout"`
 }
 
 func (x *Mongo) Reset() {
@@ -1392,12 +1392,12 @@ type Redis struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	DialTimeout  string `protobuf:"bytes,1,opt,name=dial_timeout,json=dialTimeout,proto3" json:"dial_timeout,omitempty"`
-	Addr         string `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr,omitempty"`
-	Password     string `protobuf:"bytes,3,opt,name=password,proto3" json:"password,omitempty"`
-	Db           int32  `protobuf:"varint,4,opt,name=db,proto3" json:"db,omitempty"`
-	ReadTimeout  string `protobuf:"bytes,5,opt,name=read_timeout,json=readTimeout,proto3" json:"read_timeout,omitempty"`
-	WriteTimeout string `protobuf:"bytes,6,opt,name=write_timeout,json=writeTimeout,proto3" json:"write_timeout,omitempty"`
+	DialTimeout  string `protobuf:"bytes,1,opt,name=dial_timeout,json=dialTimeout,proto3" json:"dial_timeout"`
+	Addr         string `protobuf:"bytes,2,opt,name=addr,proto3" json:"addr"`
+	Password     string `protobuf:"bytes,3,opt,name=password,proto3" json:"password"`
+	Db           int32  `protobuf:"varint,4,opt,name=db,proto3" json:"db"`
+	ReadTimeout  string `protobuf:"bytes,5,opt,name=read_timeout,json=readTimeout,proto3" json:"read_timeout"`
+	WriteTimeout string `protobuf:"bytes,6,opt,name=write_timeout,json=writeTimeout,proto3" json:"write_timeout"`
 }
 
 func (x *Redis) Reset() {
@@ -1479,9 +1479,9 @@ type SLSProducer struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Endpoint        string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	AccessKeyId     string `protobuf:"bytes,2,opt,name=access_key_id,json=accessKeyId,proto3" json:"access_key_id,omitempty"`
-	AccessKeySecret string `protobuf:"bytes,3,opt,name=access_key_secret,json=accessKeySecret,proto3" json:"access_key_secret,omitempty"`
+	Endpoint        string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint"`
+	AccessKeyId     string `protobuf:"bytes,2,opt,name=access_key_id,json=accessKeyId,proto3" json:"access_key_id"`
+	AccessKeySecret string `protobuf:"bytes,3,opt,name=access_key_secret,json=accessKeySecret,proto3" json:"access_key_secret"`
 }
 
 func (x *SLSProducer) Reset() {
@@ -1542,8 +1542,8 @@ type KylinStorage struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Endpoint  string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	AccessKey string `protobuf:"bytes,2,opt,name=access_key,json=accessKey,proto3" json:"access_key,omitempty"`
+	Endpoint  string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint"`
+	AccessKey string `protobuf:"bytes,2,opt,name=access_key,json=accessKey,proto3" json:"access_key"`
 }
 
 func (x *KylinStorage) Reset() {
@@ -1597,8 +1597,8 @@ type Kafka struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	Producer *KafkaProducer `protobuf:"bytes,1,opt,name=producer,proto3" json:"producer,omitempty"`
-	Consumer *KafkaConsumer `protobuf:"bytes,2,opt,name=consumer,proto3" json:"consumer,omitempty"`
+	Producer *KafkaProducer `protobuf:"bytes,1,opt,name=producer,proto3" json:"producer"`
+	Consumer *KafkaConsumer `protobuf:"bytes,2,opt,name=consumer,proto3" json:"consumer"`
 }
 
 func (x *Kafka) Reset() {
@@ -1652,11 +1652,11 @@ type KafkaConsumer struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BidResultReport         *KafkaConsumer_Config `protobuf:"bytes,1,opt,name=bid_result_report,json=bidResultReport,proto3" json:"bid_result_report,omitempty"`
-	ArticleView             *KafkaConsumer_Config `protobuf:"bytes,2,opt,name=article_view,json=articleView,proto3" json:"article_view,omitempty"`
-	CommentEvent            *KafkaConsumer_Config `protobuf:"bytes,3,opt,name=comment_event,json=commentEvent,proto3" json:"comment_event,omitempty"`
-	LikeEvent               *KafkaConsumer_Config `protobuf:"bytes,4,opt,name=like_event,json=likeEvent,proto3" json:"like_event,omitempty"`
-	ArticleLikeNotification *KafkaConsumer_Config `protobuf:"bytes,5,opt,name=article_like_notification,json=articleLikeNotification,proto3" json:"article_like_notification,omitempty"`
+	BidResultReport         *KafkaConsumer_Config `protobuf:"bytes,1,opt,name=bid_result_report,json=bidResultReport,proto3" json:"bid_result_report"`
+	ArticleView             *KafkaConsumer_Config `protobuf:"bytes,2,opt,name=article_view,json=articleView,proto3" json:"article_view"`
+	CommentEvent            *KafkaConsumer_Config `protobuf:"bytes,3,opt,name=comment_event,json=commentEvent,proto3" json:"comment_event"`
+	LikeEvent               *KafkaConsumer_Config `protobuf:"bytes,4,opt,name=like_event,json=likeEvent,proto3" json:"like_event"`
+	ArticleLikeNotification *KafkaConsumer_Config `protobuf:"bytes,5,opt,name=article_like_notification,json=articleLikeNotification,proto3" json:"article_like_notification"`
 }
 
 func (x *KafkaConsumer) Reset() {
@@ -1731,15 +1731,15 @@ type KafkaProducer struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BidResultReport        *KafkaProducer_Config `protobuf:"bytes,1,opt,name=bid_result_report,json=bidResultReport,proto3" json:"bid_result_report,omitempty"`
-	AdxReport              *KafkaProducer_Config `protobuf:"bytes,2,opt,name=adx_report,json=adxReport,proto3" json:"adx_report,omitempty"`
-	BlockReport            *KafkaProducer_Config `protobuf:"bytes,3,opt,name=block_report,json=blockReport,proto3" json:"block_report,omitempty"`
-	ArticleView            *KafkaProducer_Config `protobuf:"bytes,4,opt,name=article_view,json=articleView,proto3" json:"article_view,omitempty"`
-	ArticleViewDeadLetter  *KafkaProducer_Config `protobuf:"bytes,5,opt,name=article_view_dead_letter,json=articleViewDeadLetter,proto3" json:"article_view_dead_letter,omitempty"`
-	CommentEvent           *KafkaProducer_Config `protobuf:"bytes,6,opt,name=comment_event,json=commentEvent,proto3" json:"comment_event,omitempty"`
-	CommentEventDeadLetter *KafkaProducer_Config `protobuf:"bytes,7,opt,name=comment_event_dead_letter,json=commentEventDeadLetter,proto3" json:"comment_event_dead_letter,omitempty"`
-	LikeEvent              *KafkaProducer_Config `protobuf:"bytes,8,opt,name=like_event,json=likeEvent,proto3" json:"like_event,omitempty"`
-	LikeEventDeadLetter    *KafkaProducer_Config `protobuf:"bytes,9,opt,name=like_event_dead_letter,json=likeEventDeadLetter,proto3" json:"like_event_dead_letter,omitempty"`
+	BidResultReport        *KafkaProducer_Config `protobuf:"bytes,1,opt,name=bid_result_report,json=bidResultReport,proto3" json:"bid_result_report"`
+	AdxReport              *KafkaProducer_Config `protobuf:"bytes,2,opt,name=adx_report,json=adxReport,proto3" json:"adx_report"`
+	BlockReport            *KafkaProducer_Config `protobuf:"bytes,3,opt,name=block_report,json=blockReport,proto3" json:"block_report"`
+	ArticleView            *KafkaProducer_Config `protobuf:"bytes,4,opt,name=article_view,json=articleView,proto3" json:"article_view"`
+	ArticleViewDeadLetter  *KafkaProducer_Config `protobuf:"bytes,5,opt,name=article_view_dead_letter,json=articleViewDeadLetter,proto3" json:"article_view_dead_letter"`
+	CommentEvent           *KafkaProducer_Config `protobuf:"bytes,6,opt,name=comment_event,json=commentEvent,proto3" json:"comment_event"`
+	CommentEventDeadLetter *KafkaProducer_Config `protobuf:"bytes,7,opt,name=comment_event_dead_letter,json=commentEventDeadLetter,proto3" json:"comment_event_dead_letter"`
+	LikeEvent              *KafkaProducer_Config `protobuf:"bytes,8,opt,name=like_event,json=likeEvent,proto3" json:"like_event"`
+	LikeEventDeadLetter    *KafkaProducer_Config `protobuf:"bytes,9,opt,name=like_event_dead_letter,json=likeEventDeadLetter,proto3" json:"like_event_dead_letter"`
 }
 
 func (x *KafkaProducer) Reset() {
@@ -1842,12 +1842,12 @@ type KafkaConsumer_Config struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BootstrapServers  string            `protobuf:"bytes,1,opt,name=bootstrap_servers,json=bootstrapServers,proto3" json:"bootstrap_servers,omitempty"`
-	Topic             string            `protobuf:"bytes,2,opt,name=topic,proto3" json:"topic,omitempty"`
-	GroupId           string            `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id,omitempty"`
-	PoolSize          int64             `protobuf:"varint,4,opt,name=pool_size,json=poolSize,proto3" json:"pool_size,omitempty"`                              // 处理消息的goroutine数量，默认为不限
-	MessageBufferSize int64             `protobuf:"varint,5,opt,name=message_buffer_size,json=messageBufferSize,proto3" json:"message_buffer_size,omitempty"` // 消息缓存数，默认为1
-	ConfigMap         map[string]string `protobuf:"bytes,6,rep,name=config_map,json=configMap,proto3" json:"config_map,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	BootstrapServers  string            `protobuf:"bytes,1,opt,name=bootstrap_servers,json=bootstrapServers,proto3" json:"bootstrap_servers"`
+	Topic             string            `protobuf:"bytes,2,opt,name=topic,proto3" json:"topic"`
+	GroupId           string            `protobuf:"bytes,3,opt,name=group_id,json=groupId,proto3" json:"group_id"`
+	PoolSize          int64             `protobuf:"varint,4,opt,name=pool_size,json=poolSize,proto3" json:"pool_size"`                              // 处理消息的goroutine数量，默认为不限
+	MessageBufferSize int64             `protobuf:"varint,5,opt,name=message_buffer_size,json=messageBufferSize,proto3" json:"message_buffer_size"` // 消息缓存数，默认为1
+	ConfigMap         map[string]string `protobuf:"bytes,6,rep,name=config_map,json=configMap,proto3" json:"config_map" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
 func (x *KafkaConsumer_Config) Reset() {
@@ -1929,9 +1929,9 @@ type KafkaProducer_Config struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	BootstrapServers string            `protobuf:"bytes,1,opt,name=bootstrap_servers,json=bootstrapServers,proto3" json:"bootstrap_servers,omitempty"`
-	Topic            string            `protobuf:"bytes,2,opt,name=topic,proto3" json:"topic,omitempty"`
-	ConfigMap        map[string]string `protobuf:"bytes,3,rep,name=config_map,json=configMap,proto3" json:"config_map,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
+	BootstrapServers string            `protobuf:"bytes,1,opt,name=bootstrap_servers,json=bootstrapServers,proto3" json:"bootstrap_servers"`
+	Topic            string            `protobuf:"bytes,2,opt,name=topic,proto3" json:"topic"`
+	ConfigMap        map[string]string `protobuf:"bytes,3,rep,name=config_map,json=configMap,proto3" json:"config_map" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value,proto3"`
 }
 
 func (x *KafkaProducer_Config) Reset() {

@@ -5,16 +5,25 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react"
 import useSWR from "swr"
 import { getArticles, searchArticles, type ArticleQuery } from "@/api/articles"
 import type { Article, Role } from "@/types"
+import { SITE_IMAGES } from "@/lib/site-images"
 import { ArticleCard } from "./article-card"
 
 const PAGE_SIZE = 10
 
-export function ArticleList({ tag, keyword }: { tag?: string; keyword?: string }) {
-  if (tag) return <TagSearchList tag={tag} />
-  return <PublishedArticleList keyword={keyword} />
+export function ArticleList({
+  tag,
+  keyword,
+  fallbackCovers,
+}: {
+  tag?: string
+  keyword?: string
+  fallbackCovers: readonly string[]
+}) {
+  if (tag) return <TagSearchList tag={tag} fallbackCovers={fallbackCovers} />
+  return <PublishedArticleList keyword={keyword} fallbackCovers={fallbackCovers} />
 }
 
-function PublishedArticleList({ keyword }: { keyword?: string }) {
+function PublishedArticleList({ keyword, fallbackCovers }: { keyword?: string; fallbackCovers: readonly string[] }) {
   const [page, setPage] = useState(1)
   const query: ArticleQuery = { page, pageSize: PAGE_SIZE, keyword }
   const { data, isLoading } = useSWR(["articles", query], () => getArticles(query))
@@ -27,7 +36,7 @@ function PublishedArticleList({ keyword }: { keyword?: string }) {
   return (
     <div>
       {data.items.map((article, index) => (
-        <ArticleCard key={article.id} article={article} index={startIndex + index} />
+        <ArticleCard key={article.id} article={article} index={startIndex + index} fallbackCovers={fallbackCovers} />
       ))}
       <DarkPagination
         page={data.page}
@@ -39,7 +48,7 @@ function PublishedArticleList({ keyword }: { keyword?: string }) {
   )
 }
 
-function TagSearchList({ tag }: { tag: string }) {
+function TagSearchList({ tag, fallbackCovers }: { tag: string; fallbackCovers: readonly string[] }) {
   const [page, setPage] = useState(1)
   const { data, isLoading } = useSWR(
     ["article-tag-search", tag, page],
@@ -58,7 +67,7 @@ function TagSearchList({ tag }: { tag: string }) {
     author: {
       id: "",
       username: "睦子米",
-      avatar: "/avatars/admin.png",
+      avatar: SITE_IMAGES.avatars.admin,
       role: "user" as Role,
       location: "",
       joinedAt: "",
@@ -75,7 +84,7 @@ function TagSearchList({ tag }: { tag: string }) {
   return (
     <div>
       {articles.map((article, index) => (
-        <ArticleCard key={article.id} article={article} index={startIndex + index} />
+        <ArticleCard key={article.id} article={article} index={startIndex + index} fallbackCovers={fallbackCovers} />
       ))}
       <DarkPagination
         page={data.page}
@@ -99,10 +108,9 @@ function DarkPagination({
   onChange: (page: number) => void
 }) {
   const totalPages = Math.max(1, Math.ceil(total / pageSize))
-  if (totalPages <= 1) return null
 
   return (
-    <nav className="mt-10 flex items-center justify-center gap-4" aria-label="文章分页">
+    <nav data-article-pagination className="mt-10 flex items-center justify-center gap-4" aria-label="文章分页">
       <button
         type="button"
         onClick={() => onChange(page - 1)}

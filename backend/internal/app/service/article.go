@@ -27,6 +27,7 @@ const (
 	codeArticleNotDeleted     = 44050109 // codeArticleNotDeleted 表示文章不在垃圾箱中。
 	codeArticleInvalidList    = 44050110 // codeArticleInvalidList 表示后台列表筛选或分页参数不合法。
 	codeArticleChanged        = 44050111 // codeArticleChanged 表示彻底删除前文章或图片关系发生变化。
+	codeArticleImageTooLarge  = 44050112 // codeArticleImageTooLarge 表示正文图片超过上传上限。
 )
 
 // ArticleService 将文章 HTTP 协议转换为文章领域调用。
@@ -55,7 +56,7 @@ func (s *ArticleService) GetImageUploadURL(ctx *gin.Context, request *articleapi
 	}
 
 	// 2. 调用文章领域创建未绑定图片和十分钟预签名地址
-	result, err := s.useCase.UploadImage(ctx.Request.Context(), currentUser.ID, request.GetFileExt())
+	result, err := s.useCase.UploadImage(ctx.Request.Context(), currentUser.ID, request.GetFileExt(), request.GetFileSize())
 	if err != nil {
 		return nil, articleHTTPError(err)
 	}
@@ -180,7 +181,7 @@ func (s *ArticleService) ListPublishedArticles(ctx *gin.Context, request *articl
 		reply.List = append(reply.List, &articleapi.PublicArticleListItem{
 			Id: item.Article.ID, Title: item.Article.Title, Summary: item.Summary, AuthorId: item.Article.AuthorID,
 			UpdatedTime: item.Article.UpdatedTime.Unix(), ViewCount: item.Article.ViewCount,
-			LikeCount: item.Article.LikeCount, CommentCount: item.Article.CommentCount,
+			LikeCount: item.Article.LikeCount, CommentCount: item.Article.CommentCount, Tags: item.Article.Tags,
 		})
 	}
 	return reply, nil
@@ -305,6 +306,8 @@ func (s *ArticleService) detailReply(detail *entity.Detail) *articleapi.ArticleD
 		Tags: detail.Article.Tags, Status: int32(detail.Article.Status), AuthorNick: detail.AuthorNickname,
 		AuthorAvatar: detail.AuthorAvatar, Ip: s.regionResolver.Resolve(detail.AuthorIP), CreatedTime: detail.Article.CreatedTime.Unix(),
 		UpdatedTime: detail.Article.UpdatedTime.Unix(), IsLiked: detail.IsLiked, LikeCount: detail.Article.LikeCount,
+		AuthorId: detail.Article.AuthorID, ViewCount: detail.Article.ViewCount, CommentCount: detail.Article.CommentCount,
+		Summary: article.BuildSummary(detail.Article.Content),
 	}
 
 	// 2. 将稳定对象键转换为当前公开图片地址
@@ -348,6 +351,8 @@ func articleHTTPError(err error) error {
 		return errassets.NewError(codeArticleDuplicate, err.Error())
 	case errors.Is(err, article.ErrInvalidImageExtension):
 		return errassets.NewError(codeInvalidImageExtension, err.Error())
+	case errors.Is(err, article.ErrImageTooLarge):
+		return errassets.NewError(codeArticleImageTooLarge, err.Error())
 	case errors.Is(err, article.ErrInvalidStatus):
 		return errassets.NewError(codeArticleInvalidStatus, err.Error())
 	case errors.Is(err, article.ErrArticleDeleted):

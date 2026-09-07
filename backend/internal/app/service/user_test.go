@@ -128,7 +128,9 @@ func TestUserHTTPProfilesAndUpdate(t *testing.T) {
 	})
 	myResponse := performUserRequest(useCase, http.MethodGet, "/auth/my/profile", "", withIdentity)
 	myEnvelope := decodeEnvelope(t, myResponse)
-	if !myEnvelope.Success || !bytes.Contains(myEnvelope.Data, []byte(`"last_login_time":1700000000`)) {
+	if !myEnvelope.Success ||
+		!bytes.Contains(myEnvelope.Data, []byte(`"last_login_time":1700000000`)) ||
+		!bytes.Contains(myEnvelope.Data, []byte(`"phone":"13800138000"`)) {
 		t.Fatalf("my profile response = %s", myResponse.Body.String())
 	}
 
@@ -255,7 +257,7 @@ func (f *fakeUserUseCase) UpdatePhone(context.Context, userdomain.UpdatePhoneCom
 }
 
 // GetAvatarUploadURL 返回固定头像直传凭证。
-func (f *fakeUserUseCase) GetAvatarUploadURL(context.Context, uint64, string) (*userdomain.AvatarUploadResult, error) {
+func (f *fakeUserUseCase) GetAvatarUploadURL(context.Context, uint64, string, uint64) (*userdomain.AvatarUploadResult, error) {
 	// 1. 返回固定上传地址和当前用户对象 Key
 	return &userdomain.AvatarUploadResult{UploadURL: "signed", ObjectKey: "avatar/7/a.png"}, nil
 }

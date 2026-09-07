@@ -46,7 +46,7 @@ export function SearchResultCard({ article, index, keyword }: SearchResultCardPr
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
               {article.tags.map((tag) => <Link key={tag} href={`/search?q=${encodeURIComponent(tag)}&page=1`}><Badge className="rounded-full border-0 bg-[var(--search-tag)] px-2.5 py-1 text-xs font-medium text-[var(--search-muted)] transition-colors hover:bg-[var(--search-sky-soft)] hover:text-[var(--search-sky-deep)]">{tag}</Badge></Link>)}
-              <span className="ml-auto hidden text-xs text-[var(--search-faint)] sm:inline">命中「{keyword}」</span>
+              {keyword ? <span className="ml-auto hidden text-xs text-[var(--search-faint)] sm:inline">命中「{keyword}」</span> : null}
             </div>
           </div>
         </div>

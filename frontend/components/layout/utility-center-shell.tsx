@@ -1,3 +1,4 @@
+import { SITE_IMAGES } from "@/lib/site-images"
 import Image from "next/image"
 import { Container } from "@/components/layout/container"
 import { SiteShell } from "@/components/layout/site-shell"
@@ -7,12 +8,12 @@ type UtilityVariant = "history" | "notifications"
 
 const VARIANT_CONFIG = {
   history: {
-    image: "/kv/bq-1.png",
+    image: SITE_IMAGES.pages.primarySky,
     imagePosition: "object-[center_28%]",
     overlay: "bg-[linear-gradient(90deg,rgba(12,68,103,0.82),rgba(30,132,166,0.52),rgba(44,157,156,0.3))]",
   },
   notifications: {
-    image: "/kv/bq-2.png",
+    image: SITE_IMAGES.pages.secondarySky,
     imagePosition: "object-[center_42%]",
     overlay: "bg-[linear-gradient(90deg,rgba(31,63,105,0.88),rgba(65,103,158,0.64),rgba(104,91,157,0.52))]",
   },

@@ -1,7 +1,9 @@
 package service
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -27,12 +29,36 @@ func (f *searchUseCaseFake) Search(context.Context, searchdomain.Query) (*search
 // TestSearchArticlesMapsHighlightAndSummary 验证 Controller 转换高亮标题和摘要。
 func TestSearchArticlesMapsHighlightAndSummary(t *testing.T) {
 	// 1. 注入应用层 Fake，避免跨层搭建真实领域服务
-	server := &SearchService{useCase: &searchUseCaseFake{result: &searchdomain.Result{Total: 1, Page: 1, PageSize: 10, Items: []searchdomain.Item{{ID: 1, Title: "原题", TitleHighlight: "<em>原</em>题", Summary: "正文摘要", Tags: "go"}}}}}
+	server := &SearchService{useCase: &searchUseCaseFake{result: &searchdomain.Result{Total: 1, Page: 1, PageSize: 10, Items: []searchdomain.Item{{ID: 1, Title: "原题", TitleHighlight: "<em>原</em>题", Summary: "正文摘要", Tags: []string{"go"}}}}}}
 	ctx, _ := gin.CreateTestContext(nil)
 	ctx.Request = &http.Request{}
 	reply, err := server.SearchArticles(ctx, &searchapi.SearchArticlesRequest{Keyword: "原", Page: 1, PageSize: 10})
 	if err != nil || reply.List[0].TitleHighlight != "<em>原</em>题" || reply.List[0].Summary != "正文摘要" {
 		t.Fatalf("reply=%#v err=%v", reply, err)
+	}
+}
+
+// TestSearchArticlesSerializesTagsAsArray 验证公开搜索响应始终将标签序列化为字符串数组。
+func TestSearchArticlesSerializesTagsAsArray(t *testing.T) {
+	// 1. 构造带多个标签的领域搜索结果
+	server := &SearchService{useCase: &searchUseCaseFake{result: &searchdomain.Result{Total: 2, Page: 1, PageSize: 10, Items: []searchdomain.Item{
+		{ID: 1, Title: "原题", Tags: []string{"go", "后端"}},
+		{ID: 2, Title: "无标签"},
+	}}}}
+	ctx, _ := gin.CreateTestContext(nil)
+	ctx.Request = &http.Request{}
+	reply, err := server.SearchArticles(ctx, &searchapi.SearchArticlesRequest{Keyword: "原", Page: 1, PageSize: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// 2. 验证 HTTP JSON 契约不会退化为单个字符串
+	payload, err := json.Marshal(reply)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(payload, []byte(`"tags":["go","后端"]`)) || !bytes.Contains(payload, []byte(`"tags":[]`)) {
+		t.Fatalf("payload=%s", payload)
 	}
 }
 

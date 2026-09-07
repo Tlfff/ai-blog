@@ -4,6 +4,7 @@ import {
   mapBackendPublicProfileToFrontend,
 } from "@/types"
 import { request, getLocalHistory } from "./client"
+import { assertImageSize } from "@/lib/image-upload"
 
 export interface LoginRequest {
   phone?: string
@@ -60,6 +61,7 @@ export async function getMyProfile(): Promise<User> {
   const data = await request<{
     id: number
     nickname: string
+    phone: string
     avatar: string
     last_login_time: number
     last_login_ip: string
@@ -118,10 +120,10 @@ export async function getHistory(page = 1, pageSize = 10): Promise<Paginated<His
   return getLocalHistory(page, pageSize)
 }
 
-export async function getAvatarUploadURL(fileExt: string): Promise<{ upload_url: string; object_key: string }> {
+export async function getAvatarUploadURL(fileExt: string, fileSize: number): Promise<{ upload_url: string; object_key: string }> {
   return request<{ upload_url: string; object_key: string }>("/auth/my/avatar/upload-url", {
     method: "POST",
-    body: JSON.stringify({ file_ext: fileExt }),
+    body: JSON.stringify({ file_ext: fileExt, file_size: fileSize }),
   })
 }
 
@@ -133,8 +135,9 @@ export async function confirmAvatar(objectKey: string): Promise<{ avatar_url: st
 }
 
 export async function uploadAvatar(file: File): Promise<string> {
+  assertImageSize(file, "头像")
   const ext = file.name.split(".").pop() || "jpg"
-  const { upload_url, object_key } = await getAvatarUploadURL(ext)
+  const { upload_url, object_key } = await getAvatarUploadURL(ext, file.size)
   
   const uploadRes = await fetch(upload_url, {
     method: "PUT",

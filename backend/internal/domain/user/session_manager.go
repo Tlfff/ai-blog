@@ -11,6 +11,8 @@ type SessionManager interface {
 	Delete(ctx context.Context, token string, userID uint64) error
 	// DeleteOtherSessions 删除用户除当前 Token 外的其他登录会话。
 	DeleteOtherSessions(ctx context.Context, currentToken string, userID uint64) error
+	// DeleteAllSessions 原子删除用户的全部登录会话。
+	DeleteAllSessions(ctx context.Context, userID uint64) error
 }
 
 // SessionCleanupReconciler 定义密码更新后会话收敛补偿能力。

@@ -53,16 +53,16 @@ func TestClientAppendsPublishedFilterAndFormatsResults(t *testing.T) {
 		if payload.Query != "原" || payload.Filter != "status = 3" || payload.Offset != 10 || payload.Limit != 10 {
 			t.Fatalf("payload=%#v", payload)
 		}
-		if len(payload.AttributesToRetrieve) != 5 || payload.AttributesToRetrieve[4] != "status" || len(payload.AttributesToHighlight) != 1 || payload.AttributesToHighlight[0] != "title" || len(payload.AttributesToCrop) != 1 || payload.AttributesToCrop[0] != "content_plain:50" || payload.HighlightPreTag != "<em>" || payload.HighlightPostTag != "</em>" {
+		if len(payload.AttributesToRetrieve) != 5 || payload.AttributesToRetrieve[4] != "status" || len(payload.AttributesToHighlight) != 2 || payload.AttributesToHighlight[0] != "title" || payload.AttributesToHighlight[1] != "content_plain" || len(payload.AttributesToCrop) != 1 || payload.AttributesToCrop[0] != "content_plain:50" || payload.HighlightPreTag != "<em>" || payload.HighlightPostTag != "</em>" {
 			t.Fatalf("formatting payload=%#v", payload)
 		}
-		body := `{"estimatedTotalHits":1,"hits":[{"id":7,"title":"原题","tags":"go","status":3,"_formatted":{"title":"<em>原</em>题","content_plain":"摘要..."}}]}`
+		body := `{"estimatedTotalHits":1,"hits":[{"id":7,"title":"原题","tags":"后端 Go","status":3,"_formatted":{"title":"<em>原</em>题","content_plain":"包含<em>现象</em>的摘要..."}}]}`
 		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(body)), Header: make(http.Header)}, nil
 	})
 
 	// 2. 执行第二页搜索并验证高亮标题和摘要
 	got, err := client.Search(context.Background(), search.Query{Keyword: "原", Page: 2, PageSize: 10})
-	if err != nil || got.Total != 1 || len(got.Items) != 1 || got.Items[0].TitleHighlight != "<em>原</em>题" || got.Items[0].Summary != "摘要..." {
+	if err != nil || got.Total != 1 || len(got.Items) != 1 || got.Items[0].TitleHighlight != "<em>原</em>题" || got.Items[0].Summary != "包含<em>现象</em>的摘要..." || len(got.Items[0].Tags) != 2 || got.Items[0].Tags[0] != "后端" || got.Items[0].Tags[1] != "Go" {
 		t.Fatalf("got=%#v err=%v", got, err)
 	}
 }
@@ -126,10 +126,10 @@ func TestClientRejectsOffsetOverflow(t *testing.T) {
 func TestClientFallsBackToRawFields(t *testing.T) {
 	// 1. 返回没有 _formatted 字段的已发表命中文档
 	client := newTestClient("", func(*http.Request) (*http.Response, error) {
-		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"hits":[{"id":1,"title":"标题","content_plain":"正文","tags":"go","status":3}],"estimatedTotalHits":1}`)), Header: make(http.Header)}, nil
+		return &http.Response{StatusCode: http.StatusOK, Body: io.NopCloser(strings.NewReader(`{"hits":[{"id":1,"title":"标题","content_plain":"正文","tags":["go"],"status":3}],"estimatedTotalHits":1}`)), Header: make(http.Header)}, nil
 	})
 	result, err := client.Search(context.Background(), search.Query{Keyword: "x", Page: 1, PageSize: 10})
-	if err != nil || result.Items[0].TitleHighlight != "标题" || result.Items[0].Summary != "正文" {
+	if err != nil || result.Items[0].TitleHighlight != "标题" || result.Items[0].Summary != "正文" || result.Items[0].Tags == nil || len(result.Items[0].Tags) != 1 || result.Items[0].Tags[0] != "go" {
 		t.Fatalf("result=%#v err=%v", result, err)
 	}
 }

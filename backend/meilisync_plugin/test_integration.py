@@ -261,7 +261,7 @@ sync:
         self.assertEqual("sousuorumen", documents[1]["title_pinyin"])
         self.assertEqual("ssrm", documents[1]["title_initials"])
         self.assertEqual("正文关键词", documents[1]["content_plain"])
-        self.assertEqual("Go 中文", documents[1]["tags"])
+        self.assertEqual(["Go", "中文"], documents[1]["tags"])
         self.assertEqual(2, documents[2]["status"])
 
         pinyin_result = self._http(

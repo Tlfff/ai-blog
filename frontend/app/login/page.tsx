@@ -35,8 +35,8 @@ export default function LoginPage() {
     try {
       await login(account.trim(), password.trim())
       router.push(redirectTo)
-    } catch {
-      setError("登录失败，请检查账号或密码是否正确")
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "登录失败，请检查账号或密码是否正确")
     } finally {
       setLoading(false)
     }

@@ -132,6 +132,7 @@ message UpdateMyAccountRequest {
 
 message GetAvatarUploadURLRequest {
   string file_ext = 1 [(validate.rules).string = {min_len: 1, max_len: 16}];
+  uint64 file_size = 2 [(validate.rules).uint64 = {gt: 0}];
 }
 
 message ConfirmAvatarRequest {
@@ -155,6 +156,7 @@ message ProfileReply {
   int32 role = 4;
   int64 last_login_time = 5;
   string last_login_ip = 6;
+  string phone = 7;
 }
 
 // PublicProfileReply 是游客可见的公开资料。

@@ -15,5 +15,6 @@ var (
 	ErrArticleChanged        = errors.New("文章或图片关系已变更，请重试")
 	ErrInvalidStatus         = errors.New("文章状态不合法")
 	ErrInvalidImageExtension = errors.New("正文图片扩展名不合法")
+	ErrImageTooLarge         = errors.New("文章图片大小不能超过10MB")
 	ErrDuplicateSubmission   = errors.New("请勿重复提交")
 )

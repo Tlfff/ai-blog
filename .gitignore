@@ -1,0 +1,12 @@
+# Local package/build caches and generated artifacts
+.next/
+.pnpm-store/
+output/
+
+# Repository-local Git worktrees are managed separately
+.worktrees/
+
+# Local IP databases and Sonar runner may contain downloaded data or credentials
+backend/internal/platform/ip/resource/*.xdb
+backend/sonar-scanner.sh
+backend/sonar-report/

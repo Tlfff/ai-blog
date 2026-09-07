@@ -4,49 +4,37 @@ import { useEffect, useState } from "react"
 import Image from "next/image"
 import { AnimatePresence, motion, useReducedMotion } from "motion/react"
 import { ChevronLeft, ChevronRight } from "lucide-react"
+import type { HeroSlide } from "@/lib/site-images"
 import { cn } from "@/lib/utils"
 
 const AUTOPLAY_DELAY = 6500
 const SWIPE_THRESHOLD = 48
 
-const HERO_SLIDES = [
-  {
-    src: "/kv/bocchi-sky-wide.png",
-    alt: "蓝天下的乐队成员",
-    objectPosition: "center 48%",
-  },
-  {
-    src: "/kv/bocchi-peace.jpg",
-    alt: "戴着墨镜比出胜利手势的少女",
-    objectPosition: "center 32%",
-  },
-  {
-    src: "/kv/bocchi-earphone.jpg",
-    alt: "戴着耳机的粉发少女",
-    objectPosition: "center 30%",
-  },
-] as const
-
-export function HeroVisualCarousel() {
+export function HeroVisualCarousel({ slides }: { slides: HeroSlide[] }) {
   const [activeIndex, setActiveIndex] = useState(0)
   const [paused, setPaused] = useState(false)
   const [touchStart, setTouchStart] = useState<number | null>(null)
   const reduceMotion = useReducedMotion()
 
   function showSlide(index: number) {
-    setActiveIndex((index + HERO_SLIDES.length) % HERO_SLIDES.length)
+    if (slides.length === 0) return
+    setActiveIndex((index + slides.length) % slides.length)
   }
 
   useEffect(() => {
-    if (paused || reduceMotion) return
+    if (paused || reduceMotion || slides.length <= 1) return
 
     const timer = window.setTimeout(() => {
-      setActiveIndex((currentIndex) => (currentIndex + 1) % HERO_SLIDES.length)
+      setActiveIndex((currentIndex) => (currentIndex + 1) % slides.length)
     }, AUTOPLAY_DELAY)
     return () => window.clearTimeout(timer)
-  }, [activeIndex, paused, reduceMotion])
+  }, [activeIndex, paused, reduceMotion, slides.length])
 
-  const activeSlide = HERO_SLIDES[activeIndex]
+  const activeSlide = slides[activeIndex]
+
+  if (!activeSlide) {
+    return <div className="absolute inset-0 bg-[#17171d]" aria-hidden />
+  }
 
   return (
     <div
@@ -103,7 +91,7 @@ export function HeroVisualCarousel() {
 
       <div className="absolute bottom-24 right-5 z-30 flex items-center gap-3 sm:bottom-28 sm:right-8 lg:right-12">
         <div className="flex items-center gap-2" role="tablist" aria-label="选择主视觉">
-          {HERO_SLIDES.map((slide, index) => (
+          {slides.map((slide, index) => (
             <button
               key={slide.src}
               type="button"

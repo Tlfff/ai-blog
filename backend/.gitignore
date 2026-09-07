@@ -39,3 +39,6 @@ bin/
 
 .specstory
 .cursorignore
+
+# 本地运行配置包含数据库和第三方密钥，禁止提交
+configs/config.yaml

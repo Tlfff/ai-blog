@@ -68,6 +68,17 @@ func (m *GetImageUploadURLRequest) validate(all bool) error {
 		errors = append(errors, err)
 	}
 
+	if m.GetFileSize() <= 0 {
+		err := GetImageUploadURLRequestValidationError{
+			field:  "FileSize",
+			reason: "value must be greater than 0",
+		}
+		if !all {
+			return err
+		}
+		errors = append(errors, err)
+	}
+
 	if len(errors) > 0 {
 		return GetImageUploadURLRequestMultiError(errors)
 	}
@@ -2175,6 +2186,14 @@ func (m *ArticleDetailReply) validate(all bool) error {
 		}
 
 	}
+
+	// no validation rules for AuthorId
+
+	// no validation rules for ViewCount
+
+	// no validation rules for CommentCount
+
+	// no validation rules for Summary
 
 	if len(errors) > 0 {
 		return ArticleDetailReplyMultiError(errors)

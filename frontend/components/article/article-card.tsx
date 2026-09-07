@@ -1,27 +1,20 @@
 import Link from "next/link"
-import { CalendarDays, Eye, Heart, MessageSquare, PenLine } from "lucide-react"
+import { CalendarDays, Eye, Heart, MessageSquare, PenLine, UserRound } from "lucide-react"
 import type { Article } from "@/types"
 import { formatDate, formatNumber } from "@/lib/format"
+import { SITE_IMAGES } from "@/lib/site-images"
 import { cn } from "@/lib/utils"
 
 interface ArticleCardProps {
   article: Article
   index?: number
+  fallbackCovers: readonly string[]
 }
 
-const FALLBACK_COVERS = [
-  "/go-programming-blog-cover.png",
-  "/frontend-engineering-workflow.png",
-  "/database-optimization-concept.png",
-  "/distributed-systems-network.png",
-  "/react-server-components.png",
-  "/career-growth-path.png",
-] as const
-
-export function ArticleCard({ article, index = 0 }: ArticleCardProps) {
+export function ArticleCard({ article, index = 0, fallbackCovers }: ArticleCardProps) {
   const imageOnLeft = index % 2 === 0
-  const cover = article.cover || FALLBACK_COVERS[index % FALLBACK_COVERS.length]
-  const category = article.tags[0]?.name || (index % 2 === 0 ? "技术随笔" : "开发记录")
+  const cover = article.cover || fallbackCovers[index % fallbackCovers.length] || SITE_IMAGES.articles.detailFallbackCover
+  const primaryTag = article.tags[0]?.name
 
   return (
     <article
@@ -50,13 +43,15 @@ export function ArticleCard({ article, index = 0 }: ArticleCardProps) {
         )}
       >
         <div className="flex w-full items-start justify-between gap-3 text-xs text-[var(--home-faint)]">
-          <Link
-            href={`/search?q=${encodeURIComponent(category)}&page=1`}
-            className="inline-flex min-w-0 items-center gap-1 truncate transition-colors hover:text-[var(--home-accent)]"
-          >
-            <PenLine className="size-3 shrink-0" />
-            <span className="truncate">{category}</span>
-          </Link>
+          {primaryTag ? (
+            <Link
+              href={`/search?q=${encodeURIComponent(primaryTag)}&page=1`}
+              className="inline-flex min-w-0 items-center gap-1 truncate transition-colors hover:text-[var(--home-accent)]"
+            >
+              <PenLine className="size-3 shrink-0" />
+              <span className="truncate">{primaryTag}</span>
+            </Link>
+          ) : <span className="truncate">暂无标签</span>}
           <div className="flex shrink-0 items-center gap-3">
             {article.createdAt && (
               <time className="inline-flex items-center gap-1">
@@ -64,9 +59,9 @@ export function ArticleCard({ article, index = 0 }: ArticleCardProps) {
                 {formatDate(article.createdAt)}
               </time>
             )}
-            <span className="hidden items-center gap-1 lg:inline-flex">
-              <PenLine className="size-3" />
-              {article.content.length || "—"} 字
+            <span className="inline-flex items-center gap-1">
+              <UserRound className="size-3" />
+              {article.author.username || "未知作者"}
             </span>
           </div>
         </div>
@@ -87,7 +82,7 @@ export function ArticleCard({ article, index = 0 }: ArticleCardProps) {
               <Eye className="size-3.5" />
               {formatNumber(article.views)}
             </span>
-            <span className="hidden items-center gap-1 sm:inline-flex">
+            <span className="inline-flex items-center gap-1">
               <Heart className="size-3.5" />
               {formatNumber(article.likes)}
             </span>

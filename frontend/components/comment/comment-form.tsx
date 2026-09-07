@@ -15,14 +15,17 @@ interface CommentFormProps {
 }
 
 export function CommentForm({ articleId, parentId, replyToUser, onCancel, onSubmit }: CommentFormProps) {
-  const { user, isLoggedIn } = useAuth()
+  const { user, isLoggedIn, requireLogin } = useAuth()
   const [content, setContent] = useState("")
   const [submitting, setSubmitting] = useState(false)
 
   if (!isLoggedIn) {
     return (
-      <div className="rounded-lg border border-border p-4 text-center text-sm text-muted-foreground">
-        请先登录后再评论
+      <div className="flex flex-wrap items-center justify-center gap-3 rounded-lg border border-border p-4 text-center text-sm text-muted-foreground">
+        <span>请先登录后再评论</span>
+        <Button type="button" variant="outline" size="sm" onClick={() => requireLogin(articleId ? `/articles/${articleId}#comments` : undefined)} className="rounded-full">
+          去登录
+        </Button>
       </div>
     )
   }

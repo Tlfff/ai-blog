@@ -342,8 +342,6 @@ func (m *SearchArticleItem) validate(all bool) error {
 
 	// no validation rules for Summary
 
-	// no validation rules for Tags
-
 	if len(errors) > 0 {
 		return SearchArticleItemMultiError(errors)
 	}

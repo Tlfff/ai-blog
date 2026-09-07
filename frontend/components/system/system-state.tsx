@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, Code2, Home, Moon, RefreshCw, Search, Sun, TriangleAlert } from "lucide-react"
@@ -9,21 +10,21 @@ export type SystemStateVariant = "not-found" | "error" | "loading"
 
 const STATE_CONFIG = {
   "not-found": {
-    image: "/kv/bq-1.png",
+    image: SITE_IMAGES.pages.primarySky,
     eyebrow: "route not found",
     title: "这条路没有通向文章。",
     description: "地址可能已经改变，或者页面从未存在过。",
     tone: "sky",
   },
   error: {
-    image: "/kv/bq-2.png",
+    image: SITE_IMAGES.pages.secondarySky,
     eyebrow: "system error / 500",
     title: "页面暂时出了点问题。",
     description: "刚才的内容没有顺利加载，请稍后再试。",
     tone: "lavender",
   },
   loading: {
-    image: "/kv/bq-1.png",
+    image: SITE_IMAGES.pages.primarySky,
     eyebrow: "loading / 01",
     title: "正在把内容带回来。",
     description: "先喝口水，页面很快就会准备好。",

@@ -31,5 +31,5 @@ message SearchArticleItem {
   string title = 2;
   string title_highlight = 3;
   string summary = 4;
-  string tags = 5;
+  repeated string tags = 5;
 }

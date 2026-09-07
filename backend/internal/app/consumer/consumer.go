@@ -7,6 +7,7 @@ import (
 	"codeup.aliyun.com/qimao/leo/leo/stream/kafka"
 	"context"
 	kafka2 "github.com/confluentinc/confluent-kafka-go/v2/kafka"
+	"time"
 )
 
 // BlogConsumer 表示博客消息消费者。
@@ -37,11 +38,14 @@ func (b *BlogConsumer) Subscriber() (stream.Subscriber, error) {
 			"group.id":                  "TestSubscriber",
 		})
 	}
-	return kafka.NewSubscriber(topic, factory, kafka.NackHandler(
-		func(msg *stream.Message) {
+	return kafka.NewSubscriber(
+		topic,
+		factory,
+		kafka.PollTimeout(100*time.Millisecond),
+		kafka.NackHandler(func(msg *stream.Message) {
 			log.Error("nack msg: ", string(msg.Payload))
-		},
-	))
+		}),
+	)
 }
 
 // Handle 处理博客消息。

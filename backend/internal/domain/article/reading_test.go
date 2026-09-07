@@ -3,6 +3,7 @@ package article
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -127,12 +128,21 @@ func (*fakeHotRank) Replace(context.Context, []*HotMetric) error {
 // TestListPublishedTruncatesUnicodeSummary 验证公开列表按 Unicode 字符生成摘要。
 func TestListPublishedTruncatesUnicodeSummary(t *testing.T) {
 	// 1. 构造超过五十个 Unicode 字符的正文
-	content := "这是中文摘要" + string(make([]rune, 46))
+	content := "这是中文摘要" + strings.Repeat("好", 46)
 	repository := &fakeReadingRepository{articles: []*entity.Article{{ID: 1, Content: content}}}
 	service := NewViewService(repository, fakeViewPublisher{}, &fakeDedupe{}, &fakeHotRank{})
 	result, err := service.ListPublished(context.Background(), PublicListCommand{})
 	if err != nil || result.Page != 1 || result.PageSize != 10 || len([]rune(result.Items[0].Summary)) != 53 {
 		t.Fatalf("result = %#v, error = %v", result, err)
+	}
+}
+
+// TestBuildSummaryRemovesMarkdownFormatting 验证公开摘要只保留正文可读文本。
+func TestBuildSummaryRemovesMarkdownFormatting(t *testing.T) {
+	content := "# 项目\n\n> Matt 是人； **skills** 是技能库。\n\n![架构图](image.png) [OpenSpec](https://example.com)"
+	want := "项目 Matt 是人； skills 是技能库。 OpenSpec"
+	if got := BuildSummary(content); got != want {
+		t.Fatalf("BuildSummary() = %q, want %q", got, want)
 	}
 }
 

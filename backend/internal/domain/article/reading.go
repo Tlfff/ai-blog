@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article/entity"
@@ -23,6 +25,15 @@ const (
 var (
 	ErrInvalidViewEvent    = errors.New("浏览事件不合法")
 	ErrViewEventProcessing = errors.New("浏览事件正在处理")
+
+	summaryFencedCodePattern      = regexp.MustCompile("(?s)(?:```|~~~).*?(?:```|~~~)")
+	summaryImagePattern           = regexp.MustCompile(`!\[[^\]]*\]\([^)]*\)`)
+	summaryLinkPattern            = regexp.MustCompile(`\[([^\]]+)\]\([^)]*\)`)
+	summaryMarkdownHeadingPattern = regexp.MustCompile(`(?m)^\s{0,3}#{1,6}\s+`)
+	summaryBlockPrefixPattern     = regexp.MustCompile(`(?m)^\s{0,3}(?:(?:[-+*]|\d+[.)])\s+|>\s*)`)
+	summaryHTMLPattern            = regexp.MustCompile(`<[^>]+>`)
+	summaryFormatPattern          = regexp.MustCompile("[*_~`]+")
+	summaryWhitespacePattern      = regexp.MustCompile(`\s+`)
 )
 
 // PublicListCommand 表示公开文章列表分页输入。
@@ -203,7 +214,7 @@ func (s *ViewService) ListPublished(ctx context.Context, command PublicListComma
 	}
 	items := make([]*PublicListItem, 0, len(articles))
 	for _, article := range articles {
-		items = append(items, &PublicListItem{Article: article, Summary: articleSummary(article.Content)})
+		items = append(items, &PublicListItem{Article: article, Summary: BuildSummary(article.Content)})
 	}
 	lastID := uint64(0)
 	if len(articles) > 0 {
@@ -331,14 +342,24 @@ func normalizePublicListQuery(command PublicListCommand) (PublicListQuery, error
 	return PublicListQuery(command), nil
 }
 
-// articleSummary 按 Unicode 字符截取文章正文摘要。
-func articleSummary(content string) string {
-	// 1. 正文不超过限制时保持原文
-	runes := []rune(content)
-	if len(runes) <= publicSummaryRuneLimit {
-		return content
-	}
+// BuildSummary 清理 Markdown 展示语法并按 Unicode 字符生成纯文本摘要。
+func BuildSummary(content string) string {
+	// 1. 删除不适合作为摘要的代码块和图片，链接只保留可读文字
+	plain := summaryFencedCodePattern.ReplaceAllString(content, " ")
+	plain = summaryImagePattern.ReplaceAllString(plain, " ")
+	plain = summaryLinkPattern.ReplaceAllString(plain, "$1")
 
-	// 2. 超出限制时截取前五十个字符并追加省略号
+	// 2. 清理标题、列表、引用、HTML 与行内格式标记，再归一化空白
+	plain = summaryMarkdownHeadingPattern.ReplaceAllString(plain, "")
+	plain = summaryBlockPrefixPattern.ReplaceAllString(plain, "")
+	plain = summaryHTMLPattern.ReplaceAllString(plain, " ")
+	plain = summaryFormatPattern.ReplaceAllString(plain, "")
+	plain = strings.TrimSpace(summaryWhitespacePattern.ReplaceAllString(plain, " "))
+
+	// 3. 按 Unicode 字符安全截断，避免切断中文或表情
+	runes := []rune(plain)
+	if len(runes) <= publicSummaryRuneLimit {
+		return plain
+	}
 	return string(runes[:publicSummaryRuneLimit]) + "..."
 }

@@ -1,9 +1,9 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import useSWR from "swr"
 import { MessageSquare, Clock, Filter, ChevronLeft, ChevronRight } from "lucide-react"
-import { getComments } from "@/api/comments"
+import { getCommentCount, getComments } from "@/api/comments"
 import { CommentForm } from "./comment-form"
 import { CommentItem } from "./comment-item"
 import { LoadingState, EmptyState } from "@/components/ui/spinner"
@@ -14,9 +14,11 @@ import type { CommentSort } from "@/types"
 interface CommentListProps {
   articleId: string
   authorId?: string
+  totalCount: number
+  onTotalCountChange?: (count: number) => void
 }
 
-export function CommentList({ articleId, authorId }: CommentListProps) {
+export function CommentList({ articleId, authorId, totalCount, onTotalCountChange }: CommentListProps) {
   const [sort, setSort] = useState<CommentSort>("newest")
   const [authorOnly, setAuthorOnly] = useState(false)
   const [page, setPage] = useState(1)
@@ -31,8 +33,22 @@ export function CommentList({ articleId, authorId }: CommentListProps) {
         authorOnlyId: authorOnly ? authorId : undefined,
         page,
         pageSize,
-      }),
+    }),
   )
+  const { data: countedTotal, mutate: mutateCount } = useSWR(
+    ["comment-count", articleId],
+    () => getCommentCount(articleId),
+  )
+  const displayedTotalCount = countedTotal ?? totalCount
+
+  useEffect(() => {
+    if (countedTotal === undefined) return
+    onTotalCountChange?.(countedTotal)
+  }, [countedTotal, onTotalCountChange])
+
+  async function refreshComments() {
+    await Promise.all([mutate(), mutateCount()])
+  }
 
   if (isLoading && !data) return <LoadingState />
 
@@ -43,7 +59,7 @@ export function CommentList({ articleId, authorId }: CommentListProps) {
       <div className="mb-5 flex min-w-0 flex-wrap items-center justify-between gap-3 border-y border-border py-3">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <MessageSquare className="size-4 text-sakura-deep" />
-          <span>{data?.total || 0} 条评论</span>
+          <span>{displayedTotalCount} 条评论</span>
         </div>
 
         <div className="flex w-full min-w-0 flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
@@ -93,7 +109,7 @@ export function CommentList({ articleId, authorId }: CommentListProps) {
       </div>
 
       <div className="mb-6">
-        <CommentForm articleId={articleId} onSubmit={() => { mutate(); setPage(1); }} />
+        <CommentForm articleId={articleId} onSubmit={() => { void refreshComments(); setPage(1); }} />
       </div>
 
       {data && data.items.length > 0 ? (
@@ -104,7 +120,7 @@ export function CommentList({ articleId, authorId }: CommentListProps) {
               comment={comment}
               articleId={articleId}
               articleAuthorId={authorId}
-              onChanged={() => void mutate()}
+              onChanged={() => void refreshComments()}
             />
           ))}
         </div>

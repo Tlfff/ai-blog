@@ -43,8 +43,8 @@ export default function RegisterPage() {
     try {
       await register({ nickname: normalizedNickname, phone: normalizedPhone, password })
       router.push("/login")
-    } catch {
-      setError("注册失败，请稍后重试")
+    } catch (error) {
+      setError(error instanceof Error ? error.message : "注册失败，请稍后重试")
     } finally {
       setLoading(false)
     }
@@ -53,8 +53,8 @@ export default function RegisterPage() {
   return (
     <AuthShell variant="register">
       <p className="font-mono text-[0.62rem] font-semibold uppercase tracking-[0.22em] text-[var(--auth-teal-deep)]">create account / 01</p>
-      <h2 className="auth-heading mt-3 font-playful text-4xl font-bold tracking-[-0.04em]">开始新的记录</h2>
-      <p className="mt-2 text-sm text-[var(--auth-muted)]">填写基本信息即可创建账号。</p>
+      <h2 className="auth-heading mt-3 font-playful text-4xl font-bold tracking-[-0.04em]">立即解锁你的专属权益</h2>
+      <p className="mt-2 text-sm text-[var(--auth-muted)]">注册即可获得365天免费试用，开始探索</p>
 
       <form onSubmit={handleSubmit} className="mt-7 space-y-4">
         <AuthField label="昵称" icon={<UserRound className="size-5" />}>

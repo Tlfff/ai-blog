@@ -13,6 +13,7 @@ import (
 
 const (
 	securityUploadURLTTL      = 10 * time.Minute       // securityUploadURLTTL 是改密凭证和头像上传地址有效期。
+	maxAvatarUploadSize       = 10 * 1024 * 1024       // maxAvatarUploadSize 是头像允许的最大字节数。
 	passwordTokenRestoreTries = 3                      // passwordTokenRestoreTries 是恢复改密凭证的最大尝试次数。
 	passwordTokenRestoreDelay = 100 * time.Millisecond // passwordTokenRestoreDelay 是凭证恢复重试初始间隔。
 )
@@ -101,7 +102,7 @@ func (s *Service) VerifyOldPassword(ctx context.Context, userID uint64, oldPassw
 	return token, nil
 }
 
-// ChangePassword 原子消费凭证、更新密码并收敛其他设备会话。
+// ChangePassword 原子消费凭证、更新密码并使用户全部登录会话失效。
 func (s *Service) ChangePassword(ctx context.Context, command ChangePasswordCommand) error {
 	// 1. 先校验新密码，避免明显失败请求消耗一次性凭证
 	if s.passwordTokens == nil || s.sessions == nil {
@@ -126,8 +127,8 @@ func (s *Service) ChangePassword(ctx context.Context, command ChangePasswordComm
 		return errors.Join(err, s.restorePasswordChangeToken(ctx, command.ChangeToken, command.UserID, remainingTTL))
 	}
 
-	// 4. 立即收敛其他设备会话；失败时事务已留下可重试的持久化补偿任务
-	if err := s.sessions.DeleteOtherSessions(ctx, command.CurrentToken, command.UserID); err != nil {
+	// 4. 原子删除全部设备会话；失败时事务已留下补偿任务继续重试
+	if err := s.sessions.DeleteAllSessions(ctx, command.UserID); err != nil {
 		return err
 	}
 	return s.repository.CompleteSessionCleanupTaskForSession(ctx, command.UserID, command.CurrentToken)
@@ -188,8 +189,13 @@ func (s *Service) UpdatePhone(ctx context.Context, command UpdatePhoneCommand) e
 }
 
 // GetAvatarUploadURL 为当前用户生成头像直传凭证。
-func (s *Service) GetAvatarUploadURL(ctx context.Context, userID uint64, extension string) (*AvatarUploadResult, error) {
-	// 1. 校验头像扩展名白名单和当前用户状态
+func (s *Service) GetAvatarUploadURL(ctx context.Context, userID uint64, extension string, fileSize uint64) (*AvatarUploadResult, error) {
+	// 1. 在签发存储凭证前拒绝超过 10MB 的头像
+	if fileSize > maxAvatarUploadSize {
+		return nil, ErrAvatarTooLarge
+	}
+
+	// 2. 校验头像扩展名白名单和当前用户状态
 	if s.avatarStorage == nil {
 		return nil, fmt.Errorf("头像存储未配置")
 	}
@@ -200,7 +206,7 @@ func (s *Service) GetAvatarUploadURL(ctx context.Context, userID uint64, extensi
 	if _, err := s.GetProfile(ctx, userID); err != nil {
 		return nil, err
 	}
-	// 2. 生成当前用户专属对象 Key 并签发十分钟 PUT 地址
+	// 3. 生成当前用户专属对象 Key 并签发十分钟 PUT 地址
 	raw := make([]byte, 16)
 	if _, err := rand.Read(raw); err != nil {
 		return nil, err
@@ -242,9 +248,9 @@ func (s *Service) ReconcileSessionCleanup(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	// 2. 逐项执行原子会话收敛，成功后标记任务完成
+	// 2. 逐项原子删除全部设备会话，成功后标记任务完成
 	for _, task := range tasks {
-		if err := s.sessions.DeleteOtherSessions(ctx, task.CurrentToken, task.UserID); err != nil {
+		if err := s.sessions.DeleteAllSessions(ctx, task.UserID); err != nil {
 			return err
 		}
 		if err := s.repository.CompleteSessionCleanupTask(ctx, task.ID); err != nil {

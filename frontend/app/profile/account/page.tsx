@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
@@ -16,7 +17,7 @@ type PasswordStep = "verify" | "change"
 
 export default function AccountPage() {
   const router = useRouter()
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, user, logout, refreshProfile } = useAuth()
   const [oldPassword, setOldPassword] = useState("")
   const [newPassword, setNewPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -31,6 +32,10 @@ export default function AccountPage() {
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login")
   }, [isLoggedIn, router])
+
+  useEffect(() => {
+    if (user?.phone) setPhone(user.phone)
+  }, [user?.phone])
 
   useEffect(() => {
     const syncHash = () => setActiveTab(window.location.hash === "#phone" ? "phone" : "password")
@@ -102,7 +107,8 @@ export default function AccountPage() {
       setChangeToken("")
       setNewPassword("")
       setConfirmPassword("")
-      setMessage("密码修改成功，请在下次登录时使用新密码")
+      await logout()
+      router.replace("/login?reason=password-changed")
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "密码修改失败，凭证可能已过期")
     } finally {
@@ -121,7 +127,7 @@ export default function AccountPage() {
     setMessage("")
     try {
       await updateAccount(phone)
-      setPhone("")
+      await refreshProfile()
       setMessage("手机号修改成功")
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "手机号修改失败，请重试")
@@ -140,7 +146,7 @@ export default function AccountPage() {
     <SiteShell immersiveHeader>
       <div className="personal-center-page min-h-screen bg-[var(--personal-background)] text-[var(--personal-ink)]">
         <section className="relative isolate min-h-[260px] overflow-hidden text-white sm:min-h-[300px]">
-          <Image src="/kv/bq-1.png" alt="蓝天与云朵下的校园屋顶" fill priority sizes="100vw" className="object-cover object-[center_28%]" />
+          <Image src={SITE_IMAGES.pages.primarySky} alt="蓝天与云朵下的校园屋顶" fill priority sizes="100vw" className="object-cover object-[center_28%]" />
           <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(9,51,82,0.88),rgba(19,99,137,0.48),rgba(24,112,136,0.3))]" aria-hidden />
           <Container className="relative flex min-h-[260px] items-center pb-10 pt-24 sm:min-h-[300px]">
             <div>

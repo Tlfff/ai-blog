@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import Image from "next/image"
 import Link from "next/link"
 import { ArrowLeft, Check, Code2, Moon, Sun } from "lucide-react"
@@ -9,7 +10,7 @@ type AuthVariant = "login" | "register"
 
 const AUTH_CONFIG = {
   login: {
-    image: "/kv/bq-1.png",
+    image: SITE_IMAGES.pages.primarySky,
     imagePosition: "object-[center_42%]",
     eyebrow: "welcome back / 登录",
     heroTitle: "欢迎回来，\n继续你的阅读轨迹。",
@@ -19,7 +20,7 @@ const AUTH_CONFIG = {
     noteItems: ["账号会自动保留登录状态", "支持日间与深夜模式"],
   },
   register: {
-    image: "/kv/bq-5.png",
+    image: SITE_IMAGES.pages.registerHero,
     imagePosition: "object-[center_38%]",
     eyebrow: "new chapter / 注册",
     heroTitle: "创建一个账号，\n拥有自己的小小空间。",

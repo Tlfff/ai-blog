@@ -39,7 +39,7 @@ func (s *SearchService) SearchArticles(ctx *gin.Context, request *searchapi.Sear
 	// 2. 转换公开响应字段并保留 Meilisearch 高亮结果
 	reply := &searchapi.SearchArticlesReply{Total: result.Total, Page: result.Page, PageSize: result.PageSize, List: make([]*searchapi.SearchArticleItem, 0, len(result.Items))}
 	for _, item := range result.Items {
-		reply.List = append(reply.List, &searchapi.SearchArticleItem{Id: item.ID, Title: item.Title, TitleHighlight: item.TitleHighlight, Summary: item.Summary, Tags: item.Tags})
+		reply.List = append(reply.List, &searchapi.SearchArticleItem{Id: item.ID, Title: item.Title, TitleHighlight: item.TitleHighlight, Summary: item.Summary, Tags: append([]string{}, item.Tags...)})
 	}
 	return reply, nil
 }

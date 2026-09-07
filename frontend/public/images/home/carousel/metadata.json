@@ -1,0 +1,14 @@
+{
+  "01-bocchi-sky-wide.png": {
+    "alt": "蓝天下的乐队成员",
+    "objectPosition": "center 48%"
+  },
+  "02-bocchi-peace.jpg": {
+    "alt": "戴着墨镜比出胜利手势的少女",
+    "objectPosition": "center 32%"
+  },
+  "03-bocchi-earphone.jpg": {
+    "alt": "戴着耳机的粉发少女",
+    "objectPosition": "center 30%"
+  }
+}

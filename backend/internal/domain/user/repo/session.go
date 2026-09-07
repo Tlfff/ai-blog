@@ -155,6 +155,23 @@ return #tokens
 	return r.writer.Eval(ctx, script, []string{authUserTokensKeyPrefix + fmt.Sprint(userID)}, currentToken, authTokenKeyPrefix).Err()
 }
 
+// DeleteAllSessions 原子删除用户 Token 集合中的全部会话和集合本身。
+func (r *SessionRepository) DeleteAllSessions(ctx context.Context, userID uint64) error {
+	if r.writer == nil {
+		return errors.New("会话仓储不支持写入")
+	}
+	// 1. Lua 在同一个 Redis 原子边界内删除全部 Token，最后删除用户 Token 集合
+	const script = `
+local tokens = redis.call('SMEMBERS', KEYS[1])
+for _, token in ipairs(tokens) do
+  redis.call('DEL', ARGV[1] .. token)
+end
+redis.call('DEL', KEYS[1])
+return #tokens
+`
+	return r.writer.Eval(ctx, script, []string{authUserTokensKeyPrefix + fmt.Sprint(userID)}, authTokenKeyPrefix).Err()
+}
+
 // CreatePasswordChangeToken 保存十分钟有效的一次性改密凭证。
 func (r *SessionRepository) CreatePasswordChangeToken(ctx context.Context, token string, userID uint64, ttl time.Duration) error {
 	// 1. 以用户标识为值保存十分钟有效的一次性凭证

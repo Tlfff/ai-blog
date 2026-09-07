@@ -149,7 +149,7 @@ func notificationIndexes() []mongo.IndexModel {
 	return []mongo.IndexModel{
 		{Keys: bson.D{{Key: "source_event_id", Value: 1}}, Options: options.Index().SetUnique(true).SetSparse(true)},
 		{Keys: bson.D{{Key: "receiver_id", Value: 1}, {Key: "created_time", Value: -1}, {Key: "_id", Value: -1}}},
-		{Keys: bson.D{{Key: "receiver_id", Value: 1}, {Key: "is_read", Value: 1}}},
+		{Keys: bson.D{{Key: "receiver_id", Value: 1}, {Key: "is_read", Value: 1}}, Options: options.Index().SetName("idx_receiverid_isread")},
 	}
 }
 

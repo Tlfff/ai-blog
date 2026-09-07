@@ -285,12 +285,15 @@ func TestUploadImageValidatesExtensionAndExpiration(t *testing.T) {
 	// 1. 非白名单扩展名必须失败
 	storage := &fakeStorage{}
 	service := newTestService(&fakeRepository{}, storage, &fakeLikeReader{}, &fakeGuard{acquired: true})
-	if _, err := service.UploadImage(context.Background(), 7, "exe"); !errors.Is(err, ErrInvalidImageExtension) {
+	if _, err := service.UploadImage(context.Background(), 7, "exe", 1024); !errors.Is(err, ErrInvalidImageExtension) {
 		t.Fatalf("UploadImage() error = %v", err)
+	}
+	if _, err := service.UploadImage(context.Background(), 7, "png", maxImageUploadSize+1); !errors.Is(err, ErrImageTooLarge) {
+		t.Fatalf("oversized UploadImage() error = %v", err)
 	}
 
 	// 2. 白名单扩展名生成十分钟有效凭证
-	result, err := service.UploadImage(context.Background(), 7, ".PNG")
+	result, err := service.UploadImage(context.Background(), 7, ".PNG", maxImageUploadSize)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -374,7 +377,7 @@ func TestUploadImageCleansRecordOnPresignFailure(t *testing.T) {
 	// 1. MinIO 预签名失败，领域服务必须删除刚创建的图片记录
 	repository := &fakeRepository{}
 	service := newTestService(repository, &fakeStorage{err: errors.New("minio unavailable")}, &fakeLikeReader{}, &fakeGuard{acquired: true})
-	if _, err := service.UploadImage(context.Background(), 7, "png"); err == nil || repository.deleted != 8 {
+	if _, err := service.UploadImage(context.Background(), 7, "png", 1024); err == nil || repository.deleted != 8 {
 		t.Fatalf("error = %v, deleted = %d", err, repository.deleted)
 	}
 }

@@ -49,7 +49,7 @@ class ArticleTransformTest(unittest.TestCase):
         document = articles.transform(row)
         self.assertEqual("sousuorumen", document["title_pinyin"])
         self.assertEqual("ssrm", document["title_initials"])
-        self.assertEqual("Go 搜索 Meilisearch", document["tags"])
+        self.assertEqual(["Go", "搜索", "Meilisearch"], document["tags"])
         self.assertEqual("标题 正文 链接 结尾", document["content_plain"])
         self.assertNotIn("content", document)
         self.assertEqual("2026-09-07T10:00:00.123456", document["updated_time"])

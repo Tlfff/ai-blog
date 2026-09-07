@@ -48,7 +48,10 @@ service ArticleService {
     option (google.api.http) = { get: "/article/hot-rank" };
   }
 }
-message GetImageUploadURLRequest { string file_ext = 1 [(validate.rules).string = {min_len: 1, max_len: 10}]; }
+message GetImageUploadURLRequest {
+  string file_ext = 1 [(validate.rules).string = {min_len: 1, max_len: 10}];
+  uint64 file_size = 2 [(validate.rules).uint64 = {gt: 0}];
+}
 message ImageUploadURLReply { uint64 image_id = 1; string upload_url = 2; string url = 3; }
 message CreateArticleRequest {
   string title = 1 [(validate.rules).string = {min_len: 1, max_len: 255}];
@@ -112,6 +115,7 @@ message PublicArticleListItem {
   int64 view_count = 6;
   int64 like_count = 7;
   int64 comment_count = 8;
+  repeated string tags = 9;
 }
 message HotRankReply { repeated HotRankItem list = 1; }
 message HotRankItem {
@@ -126,5 +130,7 @@ message ArticleDetailReply {
   uint64 id = 1; string title = 2; string content = 3; repeated string tags = 4; int32 status = 5;
   string author_nick = 6; string author_avatar = 7; string ip = 8; int64 created_time = 9; int64 updated_time = 10;
   bool is_liked = 11; int64 like_count = 12; repeated ArticleImage images = 13;
+  uint64 author_id = 14; int64 view_count = 15; int64 comment_count = 16;
+  string summary = 17;
 }
 message ArticleImage { uint64 id = 1; string url = 2; }

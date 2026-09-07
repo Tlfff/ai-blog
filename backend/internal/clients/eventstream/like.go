@@ -60,7 +60,12 @@ func NewLikeEventSubscriber(config *conf.Config) (*LikeEventSubscriber, error) {
 		}
 		return confluent.NewConsumer(&values)
 	}
-	subscriber, err := leokafka.NewSubscriber(cfg.GetTopic(), factory, leokafka.AutoCommit(false))
+	subscriber, err := leokafka.NewSubscriber(
+		cfg.GetTopic(),
+		factory,
+		leokafka.AutoCommit(false),
+		leokafka.PollTimeout(100*time.Millisecond),
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -145,7 +150,12 @@ func NewArticleLikeNotificationSubscriber(config *conf.Config) (*ArticleLikeNoti
 		}
 		return confluent.NewConsumer(&values)
 	}
-	subscriber, err := leokafka.NewSubscriber(cfg.GetTopic(), factory, leokafka.AutoCommit(false))
+	subscriber, err := leokafka.NewSubscriber(
+		cfg.GetTopic(),
+		factory,
+		leokafka.AutoCommit(false),
+		leokafka.PollTimeout(100*time.Millisecond),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("创建文章点赞通知 Kafka 订阅器: %w", err)
 	}

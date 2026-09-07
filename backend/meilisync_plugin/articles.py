@@ -38,8 +38,8 @@ def plain_markdown(value: Any) -> str:
     return _SPACE.sub(" ", html.unescape(text)).strip()
 
 
-def normalize_tags(value: Any) -> str:
-    """规范化、去重并以空格连接文章标签。"""
+def normalize_tags(value: Any) -> list[str]:
+    """规范化、去重并保留文章标签边界。"""
     normalized = unicodedata.normalize("NFKC", str(value or ""))
     result: list[str] = []
     seen: set[str] = set()
@@ -50,7 +50,7 @@ def normalize_tags(value: Any) -> str:
             continue
         seen.add(key)
         result.append(tag)
-    return " ".join(result)
+    return result
 
 
 def compact_pinyin(value: str, style: Style = Style.NORMAL) -> str:

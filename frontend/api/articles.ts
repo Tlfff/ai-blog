@@ -1,7 +1,8 @@
-import type { Article, Paginated, Tag } from "@/types"
+import type { Article, BackendArticleDetail, Paginated, Tag } from "@/types"
 import { mapBackendArticleDetailToFrontend } from "@/types"
 import { request, saveToLocalHistory } from "./client"
 import { getPublicProfile } from "./users"
+import { assertImageSize } from "@/lib/image-upload"
 
 export interface ArticleSearchQuery {
   keyword: string
@@ -66,14 +67,23 @@ export interface DeleteArticleRequest {
 
 const authorCache = new Map<string, { username: string; avatar: string }>()
 
-export async function getArticleImageUploadURL(fileExt: string): Promise<ArticleImageUploadCredential> {
+function normalizeSearchTags(value: unknown): string[] {
+  const tags = Array.isArray(value) ? value : typeof value === "string" ? value.split(/[,，、;；\s]+/) : []
+  return tags
+    .filter((tag): tag is string => typeof tag === "string")
+    .map((tag) => tag.trim())
+    .filter(Boolean)
+}
+
+export async function getArticleImageUploadURL(fileExt: string, fileSize: number): Promise<ArticleImageUploadCredential> {
   return request<ArticleImageUploadCredential>("/admin/article/image/upload-url", {
     method: "POST",
-    body: JSON.stringify({ file_ext: fileExt }),
+    body: JSON.stringify({ file_ext: fileExt, file_size: fileSize }),
   })
 }
 
 export async function uploadArticleImage(file: File, uploadURL: string): Promise<void> {
+  assertImageSize(file, "文章图片")
   const uploadResponse = await fetch(uploadURL, {
     method: "PUT",
     body: file,
@@ -129,6 +139,22 @@ export async function searchArticles(query: ArticleSearchQuery): Promise<Article
   const page = Math.max(1, query.page ?? 1)
   const pageSize = Math.max(10, Math.min(20, query.pageSize ?? 10))
 
+  if (!keyword) {
+    const result = await getArticles({ page, pageSize })
+    return {
+      items: result.items.map((article) => ({
+        id: Number(article.id),
+        title: article.title,
+        titleHighlight: "",
+        summary: article.summary,
+        tags: article.tags.map((tag) => tag.name),
+      })),
+      total: result.total,
+      page: result.page,
+      pageSize: result.pageSize,
+    }
+  }
+
   const params = new URLSearchParams({
     keyword,
     page: String(page),
@@ -141,7 +167,7 @@ export async function searchArticles(query: ArticleSearchQuery): Promise<Article
       title: string
       title_highlight: string
       summary: string
-      tags: string[]
+      tags: string[] | string | null
     }[]
     total: number
     page: number
@@ -154,7 +180,7 @@ export async function searchArticles(query: ArticleSearchQuery): Promise<Article
       title: item.title,
       titleHighlight: item.title_highlight,
       summary: item.summary,
-      tags: item.tags ?? [],
+      tags: normalizeSearchTags(item.tags),
     })),
     total: data.total,
     page: data.page,
@@ -174,7 +200,7 @@ export async function getArticles(query: ArticleQuery = {}): Promise<Paginated<A
   params.set("is_desc", String(isDesc))
 
   const data = await request<{
-    list: { id: number; title: string; summary: string; author_id: number; updated_time: number; view_count: number; like_count: number; comment_count: number }[]
+    list: { id: number; title: string; summary: string; author_id: number; updated_time: number; view_count: number; like_count: number; comment_count: number; tags: string[] }[]
     total: number
     page: number
     page_size: number
@@ -206,7 +232,7 @@ export async function getArticles(query: ArticleQuery = {}): Promise<Paginated<A
           location: "",
           joinedAt: new Date(item.updated_time * 1000).toISOString(),
         },
-        tags: [],
+        tags: (item.tags ?? []).map((name) => ({ id: name, name, count: 0 })),
         status: "published" as const,
         views: item.view_count,
         likes: item.like_count,
@@ -229,92 +255,17 @@ export async function getArticles(query: ArticleQuery = {}): Promise<Paginated<A
   }
 }
 
-interface PublishedArticleMetadata {
-  authorId: string
-  viewCount: number
-  likeCount: number
-  commentCount: number
-}
-
-async function getPublishedArticleMetadata(id: string): Promise<PublishedArticleMetadata | undefined> {
-  const pageSize = 20
-  let page = 1
-
-  while (true) {
-    const data = await request<{
-      list: {
-        id: number
-        author_id: number
-        view_count: number
-        like_count: number
-        comment_count: number
-      }[]
-      total: number
-      page_size: number
-    }>(`/article/list?page=${page}&page_size=${pageSize}&is_desc=true`)
-    const item = data.list.find((article) => String(article.id) === id)
-
-    if (item) {
-      return {
-        authorId: String(item.author_id),
-        viewCount: item.view_count,
-        likeCount: item.like_count,
-        commentCount: item.comment_count,
-      }
-    }
-
-    if (page * data.page_size >= data.total) return undefined
-    page += 1
-  }
-}
-
 export async function getArticleById(id: string): Promise<Article | undefined> {
   try {
-    const data = await request<{
-      id: number
-      title: string
-      content: string
-      tags: string[]
-      status: number
-      author_nick: string
-      author_avatar: string
-      ip: string
-      created_time: number
-      updated_time: number
-      is_liked: boolean
-      like_count: number
-      images: { id: number; url: string }[]
-    }>(`/optional/article/detail?id=${id}`)
-    
-    const metadata = await getPublishedArticleMetadata(id).catch(() => undefined)
+    const data = await request<BackendArticleDetail>(`/optional/article/detail?id=${id}`)
     const article = mapBackendArticleDetailToFrontend(data)
-    if (metadata) {
-      article.author.id = metadata.authorId
-      article.views = metadata.viewCount
-      article.likes = metadata.likeCount
-      article.commentsCount = metadata.commentCount
-    }
 
     saveToLocalHistory(String(data.id), data.title)
     return article
   } catch {
   }
   try {
-    const data = await request<{
-      id: number
-      title: string
-      content: string
-      tags: string[]
-      status: number
-      author_nick: string
-      author_avatar: string
-      ip: string
-      created_time: number
-      updated_time: number
-      is_liked: boolean
-      like_count: number
-      images: { id: number; url: string }[]
-    }>(`/admin/article/me/detail?id=${id}`)
+    const data = await request<BackendArticleDetail>(`/admin/article/me/detail?id=${id}`)
     
     saveToLocalHistory(String(data.id), data.title)
     return mapBackendArticleDetailToFrontend(data)
@@ -338,11 +289,17 @@ export async function getHotArticles(limit = 10): Promise<HotArticle[]> {
   }))
 }
 
-export async function getStats(): Promise<{ articles: number; views: number; likes: number }> {
+export async function getStats(): Promise<{
+  articles: number
+  views: number
+  likes: number
+  comments: number
+  author?: { username: string; avatar: string }
+}> {
   try {
     const pageSize = 20
     const firstPage = await request<{
-      list: { view_count: number; like_count: number }[]
+      list: { author_id: number; view_count: number; like_count: number; comment_count: number }[]
       total: number
       page: number
       page_size: number
@@ -350,19 +307,23 @@ export async function getStats(): Promise<{ articles: number; views: number; lik
 
     let totalViews = firstPage.list.reduce((sum, item) => sum + item.view_count, 0)
     let totalLikes = firstPage.list.reduce((sum, item) => sum + item.like_count, 0)
+    let totalComments = firstPage.list.reduce((sum, item) => sum + item.comment_count, 0)
+    const firstAuthorId = firstPage.list[0]?.author_id
+    const author = firstAuthorId ? await getAuthorInfo(String(firstAuthorId)) : undefined
 
     const totalPages = Math.ceil(firstPage.total / firstPage.page_size)
     if (totalPages > 1) {
       const remainingPages = await Promise.all(
         Array.from({ length: totalPages - 1 }, (_, index) =>
           request<{
-            list: { view_count: number; like_count: number }[]
+            list: { view_count: number; like_count: number; comment_count: number }[]
           }>(`/article/list?page=${index + 2}&page_size=${pageSize}&is_desc=true`),
         ),
       )
       remainingPages.forEach((data) => {
         totalViews += data.list.reduce((sum, item) => sum + item.view_count, 0)
         totalLikes += data.list.reduce((sum, item) => sum + item.like_count, 0)
+        totalComments += data.list.reduce((sum, item) => sum + item.comment_count, 0)
       })
     }
 
@@ -370,6 +331,8 @@ export async function getStats(): Promise<{ articles: number; views: number; lik
       articles: firstPage.total,
       views: totalViews,
       likes: totalLikes,
+      comments: totalComments,
+      author,
     }
   } catch (error) {
     console.error("getStats error:", error)
@@ -377,6 +340,7 @@ export async function getStats(): Promise<{ articles: number; views: number; lik
       articles: 0,
       views: 0,
       likes: 0,
+      comments: 0,
     }
   }
 }

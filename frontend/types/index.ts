@@ -3,6 +3,7 @@ export type Role = "guest" | "user" | "admin"
 export interface User {
   id: string
   username: string
+  phone?: string
   avatar: string
   role: Role
   location: string
@@ -101,6 +102,7 @@ export interface BackendUser {
 }
 
 export interface BackendMyProfile extends BackendUser {
+  phone: string
   last_login_time: number
   last_login_ip: string
 }
@@ -113,7 +115,9 @@ export interface BackendPublicProfile {
 
 export interface BackendArticleDetail {
   id: number
+  author_id: number
   title: string
+  summary: string
   content: string
   tags: string[]
   status: number
@@ -124,8 +128,8 @@ export interface BackendArticleDetail {
   updated_time: number
   is_liked: boolean
   like_count: number
-  view_count?: number
-  comment_count?: number
+  view_count: number
+  comment_count: number
   images?: { id: number; url: string }[]
 }
 
@@ -135,6 +139,10 @@ export interface BackendArticleListItem {
   summary: string
   author_id: number
   updated_time: number
+  view_count: number
+  like_count: number
+  comment_count: number
+  tags: string[]
 }
 
 export interface BackendArticleListResponse {
@@ -256,6 +264,7 @@ export function mapBackendMyProfileToFrontend(user: BackendMyProfile): User {
   return {
     id: String(user.id),
     username: user.nickname,
+    phone: user.phone,
     avatar: formatAvatarUrl(user.avatar),
     role: user.role,
     location: user.last_login_ip,
@@ -281,9 +290,9 @@ export function mapBackendArticleDetailToFrontend(article: BackendArticleDetail)
     id: String(article.id),
     title: article.title,
     content: article.content,
-    summary: article.content.length > 50 ? article.content.slice(0, 50) + "..." : article.content,
+    summary: article.summary,
     author: {
-      id: "",
+      id: String(article.author_id),
       username: article.author_nick,
       avatar: formatAvatarUrl(article.author_avatar),
       role: "user",

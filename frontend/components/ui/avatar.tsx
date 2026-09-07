@@ -1,3 +1,4 @@
+import { SITE_IMAGES } from "@/lib/site-images"
 import { cn } from "@/lib/utils"
 
 interface AvatarProps {
@@ -19,7 +20,7 @@ export function Avatar({ src, alt, size = 40, className }: AvatarProps) {
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src || "/placeholder.svg"} alt={alt} width={size} height={size} className="h-full w-full object-cover" />
+        <img src={src || SITE_IMAGES.placeholders.generic} alt={alt} width={size} height={size} className="h-full w-full object-cover" />
       ) : (
         <span>{fallback}</span>
       )}

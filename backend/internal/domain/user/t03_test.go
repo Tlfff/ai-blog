@@ -25,8 +25,8 @@ func TestServicePasswordChangeConsumesCredentialAndConvergesSessions(t *testing.
 	if err := svc.ChangePassword(context.Background(), ChangePasswordCommand{UserID: 7, CurrentToken: "current", ChangeToken: credential, NewPassword: "new-password"}); err != nil {
 		t.Fatalf("ChangePassword() error = %v", err)
 	}
-	if repo.password != hasher.hash || sessions.deletedToken != "current" || sessions.deletedUserID != 7 {
-		t.Fatalf("password/session state = %q/%q/%d", repo.password, sessions.deletedToken, sessions.deletedUserID)
+	if repo.password != hasher.hash || sessions.deletedUserID != 7 || !sessions.allDeleted {
+		t.Fatalf("password/session state = %q/%d/%t", repo.password, sessions.deletedUserID, sessions.allDeleted)
 	}
 	if err := svc.ChangePassword(context.Background(), ChangePasswordCommand{UserID: 7, CurrentToken: "current", ChangeToken: credential, NewPassword: "new-password"}); !errors.Is(err, ErrPasswordChangeTokenInvalid) {
 		t.Fatalf("reused credential error = %v", err)
@@ -85,7 +85,10 @@ func TestServiceAvatarUploadRequiresOwnedKeyWithoutObjectExistenceCheck(t *testi
 	repo := &t03Repository{user: &entity.User{ID: 7, Status: StatusNormal, Avatar: "old"}}
 	storage := &t03Storage{}
 	svc := NewServiceWithSecurity(repo, repo, &t03Hasher{}, &t03Sessions{}, &t03PasswordTokens{}, storage, AllowedImageExtensions{"png": {}})
-	result, err := svc.GetAvatarUploadURL(context.Background(), 7, "PNG")
+	if _, err := svc.GetAvatarUploadURL(context.Background(), 7, "PNG", maxAvatarUploadSize+1); !errors.Is(err, ErrAvatarTooLarge) {
+		t.Fatalf("oversized avatar error = %v", err)
+	}
+	result, err := svc.GetAvatarUploadURL(context.Background(), 7, "PNG", maxAvatarUploadSize)
 	if err != nil || result.ObjectKey == "" || storage.presignKey != result.ObjectKey || storage.expires != 10*time.Minute {
 		t.Fatalf("GetAvatarUploadURL() = %#v, %v", result, err)
 	}
@@ -264,8 +267,9 @@ func (t *t03PasswordTokens) RestorePasswordChangeToken(_ context.Context, _ stri
 
 // t03Sessions 记录改密后的其他设备会话收敛。
 type t03Sessions struct {
-	deletedToken  string // deletedToken 是收敛时保留的当前 Token。
+	deletedToken  string // deletedToken 是兼容方法收到的当前 Token。
 	deletedUserID uint64 // deletedUserID 是执行会话收敛的用户标识。
+	allDeleted    bool   // allDeleted 表示全部会话已原子删除。
 }
 
 // FindByToken 模拟访问 Token 不存在。
@@ -281,8 +285,9 @@ func (*t03Sessions) Create(context.Context, string, Session, int64) error {
 }
 
 // Delete 模拟删除当前登录会话。
-func (*t03Sessions) Delete(context.Context, string, uint64) error {
-	// 1. T03 测试不涉及当前会话退出
+func (s *t03Sessions) Delete(_ context.Context, token string, userID uint64) error {
+	// 1. 记录普通退出删除的当前会话
+	s.deletedToken, s.deletedUserID = token, userID
 	return nil
 }
 
@@ -290,6 +295,13 @@ func (*t03Sessions) Delete(context.Context, string, uint64) error {
 func (s *t03Sessions) DeleteOtherSessions(_ context.Context, token string, userID uint64) error {
 	// 1. 记录收敛时保留的当前会话
 	s.deletedToken, s.deletedUserID = token, userID
+	return nil
+}
+
+// DeleteAllSessions 记录用户全部登录会话失效。
+func (s *t03Sessions) DeleteAllSessions(_ context.Context, userID uint64) error {
+	// 1. 改密成功后必须原子删除全部登录会话
+	s.deletedUserID, s.allDeleted = userID, true
 	return nil
 }
 

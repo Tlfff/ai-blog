@@ -63,6 +63,7 @@ interface WysiwygMarkdownEditorProps {
   disabled?: boolean
   imagePreviews: Map<string, WysiwygImagePreview>
   onChange: (markdown: string) => void
+  onTextChange?: (text: string) => void
   onPrepareImage: (file: File) => PreparedEditorImage | null
   onRemoveImage: (source: string) => void
   onRetryImage: (source: string) => void
@@ -213,6 +214,7 @@ export const WysiwygMarkdownEditor = forwardRef<
     disabled = false,
     imagePreviews,
     onChange,
+    onTextChange,
     onPrepareImage,
     onRemoveImage,
     onRetryImage,
@@ -222,6 +224,7 @@ export const WysiwygMarkdownEditor = forwardRef<
   const previewsRef = useRef(imagePreviews)
   const callbacksRef = useRef<ImageCallbacks>({ onRemoveImage, onRetryImage })
   const onChangeRef = useRef(onChange)
+  const onTextChangeRef = useRef(onTextChange)
   const onPrepareImageRef = useRef(onPrepareImage)
   const lastEmittedMarkdownRef = useRef(value)
   const initializedRef = useRef(false)
@@ -232,6 +235,7 @@ export const WysiwygMarkdownEditor = forwardRef<
   previewsRef.current = imagePreviews
   callbacksRef.current = { onRemoveImage, onRetryImage }
   onChangeRef.current = onChange
+  onTextChangeRef.current = onTextChange
   onPrepareImageRef.current = onPrepareImage
 
   const managedImage = useMemo(
@@ -250,7 +254,8 @@ export const WysiwygMarkdownEditor = forwardRef<
       managedImage,
       Placeholder.configure({
         placeholder: "输入 / 打开命令，或用 Markdown 快捷语法开始写作…",
-        includeChildren: true,
+        includeChildren: false,
+        showOnlyCurrent: true,
       }),
       Markdown.configure({ indentation: { style: "space", size: 2 } }),
     ],
@@ -286,6 +291,7 @@ export const WysiwygMarkdownEditor = forwardRef<
       const markdown = currentEditor.getMarkdown()
       lastEmittedMarkdownRef.current = markdown
       onChangeRef.current(markdown)
+      onTextChangeRef.current?.(currentEditor.getText())
       updateSlashMenu(currentEditor)
     },
     onSelectionUpdate({ editor: currentEditor }) {
@@ -320,6 +326,7 @@ export const WysiwygMarkdownEditor = forwardRef<
     }
     lastEmittedMarkdownRef.current = value
     initializedRef.current = true
+    onTextChangeRef.current?.(editor.getText())
   }, [editor, value])
 
   useEffect(() => {

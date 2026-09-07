@@ -1,5 +1,6 @@
 "use client"
 
+import { SITE_IMAGES } from "@/lib/site-images"
 import { useEffect, useRef, useState } from "react"
 import Image from "next/image"
 import Link from "next/link"
@@ -45,6 +46,10 @@ export default function ProfilePage() {
   useEffect(() => {
     if (!isLoggedIn) router.replace("/login")
   }, [isLoggedIn, router])
+
+  useEffect(() => {
+    if (isLoggedIn) void refreshProfile()
+  }, [isLoggedIn, refreshProfile])
 
   useEffect(() => {
     if (!user) return
@@ -120,7 +125,7 @@ export default function ProfilePage() {
       <div className="personal-center-page min-h-screen overflow-hidden bg-[var(--personal-background)] text-[var(--personal-ink)]">
         <section className="relative isolate min-h-[330px] overflow-hidden text-white sm:min-h-[390px]">
           <Image
-            src="/kv/bq-1.png"
+            src={SITE_IMAGES.pages.primarySky}
             alt="蓝天与云朵下的校园屋顶"
             fill
             priority
@@ -253,7 +258,7 @@ export default function ProfilePage() {
               <div className="mt-4 grid gap-4 xl:grid-cols-2">
                 <section id="account-security" className="scroll-mt-24 rounded-2xl border border-[var(--personal-border)] bg-[var(--personal-card)] p-5 shadow-[0_10px_30px_var(--personal-shadow-soft)] sm:p-6">
                   <SectionTitle icon={<ShieldCheck className="size-5" />} tone="teal" title="账号与安全" description="保护登录凭证与联系方式" />
-                  <SettingRow icon={<Phone className="size-4" />} label="手机号" value="已绑定" href="/profile/account#phone" />
+                  <SettingRow icon={<Phone className="size-4" />} label="手机号" value={user.phone || "未绑定"} href="/profile/account#phone" />
                   <SettingRow icon={<KeyRound className="size-4" />} label="登录密码" value="已设置" href="/profile/account#password" />
                 </section>
 

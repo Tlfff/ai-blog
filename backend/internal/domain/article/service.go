@@ -26,6 +26,7 @@ const (
 	StatusPublished  int8 = 3  // StatusPublished 表示文章已发表。
 
 	uploadURLTTL       = 10 * time.Minute // uploadURLTTL 是正文图片预签名地址有效期。
+	maxImageUploadSize = 10 * 1024 * 1024 // maxImageUploadSize 是正文图片允许的最大字节数。
 	submissionGuardTTL = 2 * time.Second  // submissionGuardTTL 是创建文章防重复窗口。
 )
 
@@ -93,7 +94,7 @@ type UploadResult struct {
 // UseCase 定义文章上下文向应用层暴露的业务能力。
 type UseCase interface {
 	// UploadImage 创建未绑定图片记录并返回 MinIO 直传凭证。
-	UploadImage(context.Context, uint64, string) (*UploadResult, error)
+	UploadImage(context.Context, uint64, string, uint64) (*UploadResult, error)
 	// Create 创建文章并原子绑定正文引用图片。
 	Create(context.Context, CreateCommand) error
 	// Detail 查询后台可编辑文章详情。
@@ -151,14 +152,19 @@ func NewService(repository Repository, storage Storage, likes LikeReader, guard 
 }
 
 // UploadImage 校验扩展名并创建正文图片直传凭证。
-func (s *Service) UploadImage(ctx context.Context, _ uint64, extension string) (*UploadResult, error) {
-	// 1. 规范化扩展名并按配置白名单拒绝非图片文件
+func (s *Service) UploadImage(ctx context.Context, _ uint64, extension string, fileSize uint64) (*UploadResult, error) {
+	// 1. 在创建存储记录前拒绝超过 10MB 的正文图片
+	if fileSize > maxImageUploadSize {
+		return nil, ErrImageTooLarge
+	}
+
+	// 2. 规范化扩展名并按配置白名单拒绝非图片文件
 	extension = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(extension)), ".")
 	if _, allowed := s.allowed[extension]; !allowed {
 		return nil, ErrInvalidImageExtension
 	}
 
-	// 2. 创建按年月组织且不会随预签名地址变化的对象键
+	// 3. 创建按年月组织且不会随预签名地址变化的对象键
 	now := s.now()
 	objectKey := fmt.Sprintf("article/%s/%s.%s", now.Format("200601"), uuid.NewString(), extension)
 	image := &entity.Image{ObjectKey: objectKey}
@@ -166,10 +172,10 @@ func (s *Service) UploadImage(ctx context.Context, _ uint64, extension string) (
 		return nil, fmt.Errorf("创建未绑定正文图片: %w", err)
 	}
 
-	// 3. 使用固定十分钟有效期生成 MinIO PUT 预签名地址
+	// 4. 使用固定十分钟有效期生成 MinIO PUT 预签名地址
 	uploadURL, err := s.storage.PresignPut(ctx, objectKey, uploadURLTTL)
 	if err != nil {
-		// 3.1 预签名失败时删除刚创建的未绑定记录，避免产生孤立图片
+		// 4.1 预签名失败时删除刚创建的未绑定记录，避免产生孤立图片
 		if deleteErr := s.repository.DeletePendingImage(ctx, image.ID); deleteErr != nil {
 			return nil, fmt.Errorf("生成正文图片预签名地址: %w；清理图片记录: %v", err, deleteErr)
 		}

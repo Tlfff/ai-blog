@@ -82,7 +82,12 @@ func NewArticleViewSubscriber(config *conf.Config) (*ArticleViewSubscriber, erro
 		}
 		return confluent.NewConsumer(&values)
 	}
-	subscriber, err := leokafka.NewSubscriber(cfg.GetTopic(), factory, leokafka.AutoCommit(false))
+	subscriber, err := leokafka.NewSubscriber(
+		cfg.GetTopic(),
+		factory,
+		leokafka.AutoCommit(false),
+		leokafka.PollTimeout(100*time.Millisecond),
+	)
 	if err != nil {
 		return nil, err
 	}
