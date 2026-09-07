@@ -97,6 +97,8 @@ class IndexSettingsTest(unittest.TestCase):
             settings["searchableAttributes"],
         )
         self.assertEqual(["status"], settings["filterableAttributes"])
+        self.assertEqual({"enabled": False}, settings["typoTolerance"])
+        self.assertEqual("disabled", settings["prefixSearch"])
         self.assertEqual(["title", "tags", "content_plain"], settings["localizedAttributes"][0]["attributePatterns"])
         self.assertEqual(["zho"], settings["localizedAttributes"][0]["locales"])
 

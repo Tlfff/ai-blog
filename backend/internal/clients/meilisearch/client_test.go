@@ -50,7 +50,7 @@ func TestClientAppendsPublishedFilterAndFormatsResults(t *testing.T) {
 		if err := json.NewDecoder(request.Body).Decode(&payload); err != nil {
 			t.Fatal(err)
 		}
-		if payload.Query != "原" || payload.Filter != "status = 3" || payload.Offset != 10 || payload.Limit != 10 {
+		if payload.Query != "原" || payload.Filter != "status = 3" || payload.Offset != 10 || payload.Limit != 10 || payload.MatchingStrategy != "all" {
 			t.Fatalf("payload=%#v", payload)
 		}
 		if len(payload.AttributesToRetrieve) != 5 || payload.AttributesToRetrieve[4] != "status" || len(payload.AttributesToHighlight) != 2 || payload.AttributesToHighlight[0] != "title" || payload.AttributesToHighlight[1] != "content_plain" || len(payload.AttributesToCrop) != 1 || payload.AttributesToCrop[0] != "content_plain:50" || payload.HighlightPreTag != "<em>" || payload.HighlightPostTag != "</em>" {
