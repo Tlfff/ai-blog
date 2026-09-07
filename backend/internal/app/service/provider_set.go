@@ -23,6 +23,8 @@ var ServiceGrpcProviderAppSet = wire.NewSet(
 	NewGrpcBlogServer,
 	NewGrpcBookServer,
 	NewOpenUserGRPCServer,
+	NewOpenArticleGRPCServer,
+	NewOpenCommentGRPCServer,
 )
 
 // ProvideTrustedProxyCIDRs 提供受信代理网段，限制转发头只能由可信代理声明。

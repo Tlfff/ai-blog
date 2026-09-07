@@ -18,7 +18,12 @@ import (
 
 // Injectors from wire.go:
 
-func NewBlogJob() (*job.BlogJob, func(), error) {
+// NewBlogJob 组装由 Leo 生命周期管理的后台任务应用。
+func NewBlogJob() (*jobApplication, func(), error) {
+	config, err := conf.NewConfig()
+	if err != nil {
+		return nil, nil, err
+	}
 	mysqlClient, cleanup, err := clients.NewMysqlClient()
 	if err != nil {
 		return nil, nil, err
@@ -37,7 +42,8 @@ func NewBlogJob() (*job.BlogJob, func(), error) {
 	hdRepo := repo.NewHdRepo(mysqlClient, mysqlLogClient, redisClient)
 	helloworldService := book.NewHelloworld(hdRepo)
 	blogJob := job.NewJob(helloworldService)
-	return blogJob, func() {
+	jobJobApplication := newJobApplication(config, blogJob)
+	return jobJobApplication, func() {
 		cleanup3()
 		cleanup2()
 		cleanup()
@@ -46,4 +52,4 @@ func NewBlogJob() (*job.BlogJob, func(), error) {
 
 // wire.go:
 
-var ProviderSet = wire.NewSet(conf.ProviderSet, job.ProviderJobSet, clients.ProviderClientsSet, domain.DomainProviderAppSet)
+var ProviderSet = wire.NewSet(conf.ProviderSet, job.ProviderJobSet, clients.ProviderClientsSet, domain.DomainProviderAppSet, newJobApplication)

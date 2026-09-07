@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package blogopen.v1;
+
+import "validate/validate.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/blogopen/v1;blogopenv1";
+
+// CommentService 提供经过统一 gRPC 认证的评论统计查询接口。
+service CommentService {
+  // GetCommentStats 查询评论点赞数和当前热度值。
+  rpc GetCommentStats(GetCommentStatsRequest) returns (GetCommentStatsReply);
+}
+
+// GetCommentStatsRequest 是评论统计查询请求。
+message GetCommentStatsRequest {
+  uint64 comment_id = 1 [(validate.rules).uint64 = {gt: 0}];
+}
+
+// GetCommentStatsReply 是评论点赞与热度统计。
+message GetCommentStatsReply {
+  uint64 comment_id = 1;
+  int64 hot_value = 2;
+  int64 like_count = 3;
+}

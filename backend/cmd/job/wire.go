@@ -13,15 +13,15 @@ import (
 
 var ProviderSet = wire.NewSet(
 	conf.ProviderSet,
-	//
 	job.ProviderJobSet,
-	// 基础层
 	clients.ProviderClientsSet,
-	// 领域层
 	domain.DomainProviderAppSet,
+	newJobApplication,
 )
 
-func NewBlogJob() (*job.BlogJob, func(), error) {
+// NewBlogJob 组装由 Leo 生命周期管理的后台任务应用。
+func NewBlogJob() (*jobApplication, func(), error) {
+	// 1. 由 Wire 生成实际依赖组装实现
 	panic(wire.Build(
 		ProviderSet,
 	))
