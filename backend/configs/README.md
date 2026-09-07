@@ -138,3 +138,7 @@ server:
 ## 评论点赞事件与投影重建
 
 评论点赞事件复用 `like_event` Topic 和同一消费组，由消费者按 `article.*`、`comment.*` 事件类型路由到各自上下文；当前不会发布评论点赞通知。评论点赞 Redis 集合和 `comments.like_count` 会由 MySQL 点赞事实周期重建。
+
+## Meilisearch 与 Meilisync 配置
+
+HTTP 搜索通过 `data.meilisearch.endpoint` 和 `data.meilisearch.api_key` 连接固定的 `articles` 索引。独立 Meilisync 进程读取 `configs/meilisync.yml`，使用 MySQL ROW Binlog 同步 `blog.articles`，并在 Redis 保存同步进度。索引设置和增量同步步骤见 `meilisync_plugin/README.md`；全量刷新与恢复由后续工单 #15 实现。

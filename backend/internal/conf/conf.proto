@@ -109,6 +109,13 @@ message Data {
   KylinStorage kylin_storage = 4;
   Kafka kafka = 5;
   ObjectStorage object_storage = 6;
+  Meilisearch meilisearch = 7;
+}
+
+// Meilisearch 定义搜索服务连接配置。
+message Meilisearch {
+  string endpoint = 1;
+  string api_key = 2;
 }
 
 // ObjectStorage 定义正文图片使用的 MinIO 配置。

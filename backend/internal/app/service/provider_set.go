@@ -15,6 +15,7 @@ var ServiceProviderAppSet = wire.NewSet(
 	NewArticleServer,
 	NewCommentServer,
 	NewLikeServer,
+	NewSearchServer,
 	ProvideTrustedProxyCIDRs,
 )
 

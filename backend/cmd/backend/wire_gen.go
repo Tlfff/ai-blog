@@ -12,6 +12,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/eventstream"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/ipregion"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/meilisearch"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/clients/objectstorage"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
@@ -22,6 +23,7 @@ import (
 	repo5 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
 	repo4 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/search"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/middleware"
@@ -121,7 +123,10 @@ func wireApp() (*httpApplication, func(), error) {
 	availabilityQuery := comment.NewAvailabilityQuery(repoRepository)
 	likeService := like.NewService(repository2, publicationQuery, availabilityQuery, cache)
 	likeServiceHTTPServerController := service.NewLikeServer(likeService)
-	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, likeServiceHTTPServerController, sessionRepository)
+	client := meilisearch.NewConfiguredClient(config)
+	searchService := search.NewService(client)
+	searchServiceHTTPServerController := service.NewSearchServer(searchService)
+	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, likeServiceHTTPServerController, searchServiceHTTPServerController, sessionRepository)
 	articleDeletionReconciler := job.NewArticleDeletionReconciler(articleService)
 	userSessionCleanupJob := job.NewUserSessionCleanupJob(userService)
 	articleHotRankJob := job.NewArticleHotRankJob(viewService)

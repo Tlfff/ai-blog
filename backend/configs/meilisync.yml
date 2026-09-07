@@ -1,0 +1,33 @@
+# Meilisync 独立进程配置。MySQL source 默认处理 INSERT、UPDATE、DELETE ROW 事件。
+# 生产部署应通过配置管理覆盖连接地址与凭据。
+debug: false
+progress:
+  type: redis
+  dsn: redis://127.0.0.1:6379/0
+  key: blog:meilisync:articles:binlog-position
+source:
+  type: mysql
+  server_id: 2140014
+  host: 127.0.0.1
+  port: 3306
+  user: root
+  password: ""
+  database: blog
+meilisearch:
+  api_url: http://127.0.0.1:7700
+  api_key: ""
+  insert_size: 500
+  insert_interval: 1
+sync:
+  - table: articles
+    index: articles
+    full: false
+    fields:
+      id:
+      title:
+      content:
+      tags:
+      status:
+      updated_time:
+    plugins:
+      - meilisync_plugin.articles.ArticlePlugin
