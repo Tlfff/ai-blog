@@ -9,6 +9,8 @@ import (
 	commentrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
 	like "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
 	likerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
+	notification "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
+	notificationrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/search"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	userrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
@@ -27,6 +29,7 @@ var DomainProviderAppSet = wire.NewSet(
 	wire.Bind(new(article.UseCase), new(*article.Service)),
 	wire.Bind(new(article.DeletionRecovery), new(*article.Service)),
 	CommentProviderSet,
+	NotificationProviderSet,
 	search.NewService,
 	wire.Bind(new(search.UseCase), new(*search.Service)),
 )
@@ -70,6 +73,20 @@ var CommentProviderSet = wire.NewSet(
 	wire.Bind(new(comment.UseCase), new(*comment.Service)),
 )
 
+// NotificationProviderSet 提供通知 MongoDB 仓储、上下文快照适配器和领域服务。
+var NotificationProviderSet = wire.NewSet(
+	notificationrepo.NewRepository,
+	wire.Bind(new(notification.Repository), new(*notificationrepo.Repository)),
+	article.NewNotificationQuery,
+	notificationrepo.NewArticleReader,
+	wire.Bind(new(notification.ArticleReader), new(*notificationrepo.ArticleReaderAdapter)),
+	notificationrepo.NewUserReader,
+	wire.Bind(new(notification.UserReader), new(*notificationrepo.UserReaderAdapter)),
+	notification.NewService,
+	wire.Bind(new(notification.UseCase), new(*notification.Service)),
+	wire.Bind(new(notification.Processor), new(*notification.Service)),
+)
+
 // ArticleRepositoryProviderSet 提供文章 MySQL 仓储及事务能力。
 var ArticleRepositoryProviderSet = wire.NewSet(
 	articlerepo.ProvideTransactionClient,
@@ -77,6 +94,7 @@ var ArticleRepositoryProviderSet = wire.NewSet(
 	wire.Bind(new(article.ReadingRepository), new(*articlerepo.Repository)),
 	wire.Bind(new(article.CommentCountRepository), new(*articlerepo.Repository)),
 	wire.Bind(new(article.LikeCountRepository), new(*articlerepo.Repository)),
+	wire.Bind(new(article.NotificationRepository), new(*articlerepo.Repository)),
 )
 
 // ArticleCommentCountProviderSet 提供文章评论数投影能力。
@@ -96,6 +114,18 @@ var CommentLikeCountProviderSet = wire.NewSet(
 	comment.NewLikeCountProjector,
 	wire.Bind(new(comment.LikeCountProcessor), new(*comment.LikeCountProjector)),
 	wire.Bind(new(comment.LikeCountRebuilder), new(*comment.LikeCountProjector)),
+)
+
+// ArticleOpenQueryProviderSet 提供开放 gRPC 文章列表查询能力。
+var ArticleOpenQueryProviderSet = wire.NewSet(
+	article.NewOpenQueryService,
+	wire.Bind(new(article.OpenQueryUseCase), new(*article.OpenQueryService)),
+)
+
+// CommentQueryProviderSet 提供开放 gRPC 评论统计查询能力。
+var CommentQueryProviderSet = wire.NewSet(
+	comment.NewQueryService,
+	wire.Bind(new(comment.QueryUseCase), new(*comment.QueryService)),
 )
 
 // ArticleReadingProviderSet 提供公开阅读、浏览消费和热榜领域能力。
@@ -138,6 +168,7 @@ var UserProviderSet = wire.NewSet(
 	wire.Bind(new(user.SessionManager), new(*userrepo.SessionRepository)),
 	wire.Bind(new(user.SessionRepository), new(*userrepo.SessionRepository)),
 	wire.Bind(new(user.UseCase), new(*user.Service)),
+	wire.Bind(new(user.QueryUseCase), new(*user.Service)),
 	user.NewPBKDF2PasswordHasher,
 	user.NewServiceWithSecurity,
 	wire.Bind(new(user.PasswordChangeTokenStore), new(*userrepo.SessionRepository)),

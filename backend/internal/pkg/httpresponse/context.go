@@ -6,6 +6,7 @@ import "github.com/gin-gonic/gin"
 const (
 	successMessageKey = "http_response_success_message"
 	nullDataKey       = "http_response_null_data"
+	dataOverrideKey   = "http_response_data_override"
 )
 
 // SetSuccess 设置当前请求成功时返回的业务消息。
@@ -32,4 +33,18 @@ func SuccessMetadata(ctx *gin.Context) (string, bool) {
 	}
 	shouldNull, ok := nullData.(bool)
 	return message, ok && shouldNull
+}
+
+// SetDataOverride 设置统一响应使用的原始 JSON data。
+func SetDataOverride(ctx *gin.Context, data []byte) {
+	// 1. 复制数据避免调用方后续修改底层字节
+	ctx.Set(dataOverrideKey, append([]byte(nil), data...))
+}
+
+// DataOverride 读取统一响应的原始 JSON data。
+func DataOverride(ctx *gin.Context) ([]byte, bool) {
+	// 1. 仅接受非空字节切片覆盖生成代码响应
+	value, exists := ctx.Get(dataOverrideKey)
+	data, ok := value.([]byte)
+	return data, exists && ok && len(data) > 0
 }

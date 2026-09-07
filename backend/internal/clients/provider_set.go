@@ -17,6 +17,8 @@ var ProviderClientsSet = wire.NewSet(
 	NewLogMysqlClient,
 	// redis
 	NewRedisClient,
+	// mongodb
+	NewMongoClient,
 	ipregion.NewConfiguredResolver,
 	objectstorage.NewStorage,
 	objectstorage.ProvideAllowedImageExtensions,

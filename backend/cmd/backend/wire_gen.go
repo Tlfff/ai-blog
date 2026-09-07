@@ -23,6 +23,8 @@ import (
 	repo5 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
 	repo4 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
+	repo6 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/search"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user"
 	repo2 "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/user/repo"
@@ -123,8 +125,31 @@ func wireApp() (*httpApplication, func(), error) {
 	availabilityQuery := comment.NewAvailabilityQuery(repoRepository)
 	likeService := like.NewService(repository2, publicationQuery, availabilityQuery, cache)
 	likeServiceHTTPServerController := service.NewLikeServer(likeService)
+	mongoClient, cleanup5, err := clients.NewMongoClient(config)
+	if err != nil {
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	repository3, err := repo6.NewRepository(mongoClient)
+	if err != nil {
+		cleanup5()
+		cleanup4()
+		cleanup3()
+		cleanup2()
+		cleanup()
+		return nil, nil, err
+	}
+	notificationQuery := article.NewNotificationQuery(repository)
+	repoArticleReaderAdapter := repo6.NewArticleReader(notificationQuery)
+	repoUserReaderAdapter := repo6.NewUserReader(userService)
+	notificationService := notification.NewService(repository3, repoArticleReaderAdapter, repoUserReaderAdapter)
+	notificationServiceHTTPServerController := service.NewNotificationServer(notificationService)
 	client, err := meilisearch.NewConfiguredClient(config)
 	if err != nil {
+		cleanup5()
 		cleanup4()
 		cleanup3()
 		cleanup2()
@@ -133,7 +158,7 @@ func wireApp() (*httpApplication, func(), error) {
 	}
 	searchService := search.NewService(client)
 	searchServiceHTTPServerController := service.NewSearchServer(searchService)
-	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, likeServiceHTTPServerController, searchServiceHTTPServerController, sessionRepository)
+	registerServer := server.NewHTTPServer(greeterHTTPServerController, bookHTTPServerController, userServiceHTTPServerController, articleServiceHTTPServerController, commentServiceHTTPServerController, likeServiceHTTPServerController, notificationServiceHTTPServerController, searchServiceHTTPServerController, sessionRepository)
 	articleDeletionReconciler := job.NewArticleDeletionReconciler(articleService)
 	userSessionCleanupJob := job.NewUserSessionCleanupJob(userService)
 	articleHotRankJob := job.NewArticleHotRankJob(viewService)
@@ -142,6 +167,7 @@ func wireApp() (*httpApplication, func(), error) {
 	commentLikeRebuildJob := job.NewCommentLikeRebuildJob(likeService, likeCountProjector)
 	serverHttpApplication := newApp(config, registerServer, articleDeletionReconciler, userSessionCleanupJob, articleHotRankJob, articleLikeCacheRebuildJob, commentLikeRebuildJob, articleViewPublisher)
 	return serverHttpApplication, func() {
+		cleanup5()
 		cleanup4()
 		cleanup3()
 		cleanup2()
@@ -186,7 +212,15 @@ func wireGrpcApp() (*grpcApplication, func(), error) {
 		return nil, nil, err
 	}
 	userServiceServer := service.NewOpenUserGRPCServer(userService, resolver)
-	grpcServer := server.NewGrpcServer(greeterServer, bookServer, userServiceServer)
+	repoTransactionClient := repo3.ProvideTransactionClient(mysqlClient)
+	repository := repo3.NewRepository(mysqlClient, repoTransactionClient)
+	openQueryService := article.NewOpenQueryService(repository)
+	articleServiceServer := service.NewOpenArticleGRPCServer(openQueryService)
+	transactionClient2 := repo5.ProvideTransactionClient(mysqlClient)
+	repoRepository := repo5.NewRepository(mysqlClient, transactionClient2)
+	queryService := comment.NewQueryService(repoRepository)
+	commentServiceServer := service.NewOpenCommentGRPCServer(queryService)
+	grpcServer := server.NewGrpcServer(greeterServer, bookServer, userServiceServer, articleServiceServer, commentServiceServer)
 	grpcAuthSettings, err := middleware.ProvideGRPCAuthSettings(config)
 	if err != nil {
 		cleanup4()

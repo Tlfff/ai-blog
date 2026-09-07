@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package blogopen.v1;
+
+import "validate/validate.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/blogopen/v1;blogopenv1";
+
+// ArticleService 提供经过统一 gRPC 认证的已发表文章查询接口。
+service ArticleService {
+  // GetAvailableList 使用 Offset 分页查询已发表文章。
+  rpc GetAvailableList(GetAvailableListRequest) returns (GetAvailableListReply);
+}
+
+// GetAvailableListRequest 是开放文章列表分页请求。
+message GetAvailableListRequest {
+  uint64 page = 1 [(validate.rules).uint64 = {gt: 0}];
+  uint64 page_size = 2 [(validate.rules).uint64 = {gte: 1, lte: 100}];
+  bool is_desc = 3;
+}
+
+// GetAvailableListReply 是已发表文章列表及分页元数据。
+message GetAvailableListReply {
+  repeated AvailableArticle items = 1;
+  uint64 total = 2;
+  uint64 page = 3;
+  uint64 page_size = 4;
+}
+
+// AvailableArticle 是开放 RPC 可见的文章字段。
+message AvailableArticle {
+  uint64 id = 1;
+  string title = 2;
+  repeated string tags = 3;
+  int64 created_time = 4;
+  int64 updated_time = 5;
+}

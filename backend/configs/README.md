@@ -139,6 +139,25 @@ server:
 
 评论点赞事件复用 `like_event` Topic 和同一消费组，由消费者按 `article.*`、`comment.*` 事件类型路由到各自上下文；当前不会发布评论点赞通知。评论点赞 Redis 集合和 `comments.like_count` 会由 MySQL 点赞事实周期重建。
 
+## 通知 MongoDB 与文章点赞消费组
+
+通知上下文使用独立 MongoDB 数据库；文章点赞通知订阅与点赞计数订阅复用同一 Topic，但必须使用独立消费组：
+
+```yaml
+data:
+  mongo:
+    uri: "mongodb://notification-user:replace-with-password@mongo.example.test:27017"
+    database: "blog_notification"
+    connect_timeout: "5s"
+  kafka:
+    consumer:
+      article_like_notification:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "article-like-event"
+        group_id: "article-like-notification"
+        message_buffer_size: 16
+```
+
 ## Meilisearch 与 Meilisync 配置
 
 HTTP 搜索通过 `data.meilisearch.endpoint` 和 `data.meilisearch.api_key` 连接固定的 `articles` 索引。独立 Meilisync 进程读取 `configs/meilisync.yml`，使用 MySQL ROW Binlog 同步 `blog.articles`，并在 Redis 保存同步进度。索引设置和增量同步步骤见 `meilisync_plugin/README.md`；全量刷新与恢复由后续工单 #15 实现。

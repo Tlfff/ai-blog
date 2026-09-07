@@ -109,7 +109,8 @@ message Data {
   KylinStorage kylin_storage = 4;
   Kafka kafka = 5;
   ObjectStorage object_storage = 6;
-  Meilisearch meilisearch = 7;
+  Mongo mongo = 7;
+  Meilisearch meilisearch = 8;
 }
 
 // Meilisearch 定义搜索服务连接配置。
@@ -136,6 +137,13 @@ message MySQL {
   int32 max_open = 4;
   int32 max_lifetime = 5;
   bool is_debug = 6;
+}
+
+// Mongo 定义通知文档存储配置。
+message Mongo {
+  string uri = 1;
+  string database = 2;
+  string connect_timeout = 3;
 }
 
 message Redis {
@@ -168,6 +176,7 @@ message KafkaConsumer{
   Config article_view = 2;
   Config comment_event = 3;
   Config like_event = 4;
+  Config article_like_notification = 5;
 
 
   message Config {
