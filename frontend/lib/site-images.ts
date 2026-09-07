@@ -17,15 +17,15 @@ export const IMAGE_DIRECTORIES = {
 
 export const SITE_IMAGES = {
   articles: {
-    detailFallbackCover: imagePath("articles/defaults/bocchi-lace.jpg"),
+    detailFallbackCover: imagePath("articles/defaults/bq-7.png"),
     mockCovers: {
-      go: imagePath("articles/covers/sq-1.jpg"),
-      react: imagePath("articles/covers/sq-2.jpg"),
-      typescript: imagePath("articles/covers/sq-3.jpg"),
+      go: imagePath("articles/covers/bq-8.png"),
+      react: imagePath("articles/covers/bq-9.png"),
+      typescript: imagePath("articles/covers/wzzs-1.jpg"),
       database: imagePath("articles/covers/yln-1.jpg"),
-      frontend: imagePath("articles/covers/sq-1.jpg"),
-      distributedSystems: imagePath("articles/covers/sq-2.jpg"),
-      career: imagePath("articles/covers/sq-3.jpg"),
+      frontend: imagePath("articles/covers/bq-8.png"),
+      distributedSystems: imagePath("articles/covers/bq-9.png"),
+      career: imagePath("articles/covers/wzzs-1.jpg"),
     },
   },
   avatars: {

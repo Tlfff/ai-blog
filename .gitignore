@@ -5,6 +5,7 @@ output/
 
 # Repository-local Git worktrees are managed separately
 .worktrees/
+.local-worktree-backups/
 
 # Local IP databases and Sonar runner may contain downloaded data or credentials
 backend/internal/platform/ip/resource/*.xdb
