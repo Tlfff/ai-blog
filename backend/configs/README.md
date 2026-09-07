@@ -138,3 +138,22 @@ server:
 ## 评论点赞事件与投影重建
 
 评论点赞事件复用 `like_event` Topic 和同一消费组，由消费者按 `article.*`、`comment.*` 事件类型路由到各自上下文；当前不会发布评论点赞通知。评论点赞 Redis 集合和 `comments.like_count` 会由 MySQL 点赞事实周期重建。
+
+## 通知 MongoDB 与文章点赞消费组
+
+通知上下文使用独立 MongoDB 数据库；文章点赞通知订阅与点赞计数订阅复用同一 Topic，但必须使用独立消费组：
+
+```yaml
+data:
+  mongo:
+    uri: "mongodb://notification-user:replace-with-password@mongo.example.test:27017"
+    database: "blog_notification"
+    connect_timeout: "5s"
+  kafka:
+    consumer:
+      article_like_notification:
+        bootstrap_servers: "kafka.example.test:9092"
+        topic: "article-like-event"
+        group_id: "article-like-notification"
+        message_buffer_size: 16
+```

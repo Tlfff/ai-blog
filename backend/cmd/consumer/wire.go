@@ -14,6 +14,7 @@ import (
 	commentrepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment/repo"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like"
 	likerepo "codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/like/repo"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
 	"github.com/google/wire"
 )
 
@@ -21,6 +22,7 @@ var ProviderSet = wire.NewSet(
 	conf.ProviderSet,
 	clients.NewMysqlClient,
 	clients.NewRedisClient,
+	clients.NewMongoClient,
 	eventstream.NewArticleViewPublisher,
 	eventstream.NewArticleViewDeadLetterPublisher,
 	eventstream.NewArticleViewSubscriber,
@@ -30,17 +32,21 @@ var ProviderSet = wire.NewSet(
 	eventstream.NewLikeEventPublisher,
 	eventstream.NewLikeEventDeadLetterPublisher,
 	eventstream.NewLikeEventSubscriber,
+	eventstream.NewArticleLikeNotificationSubscriber,
 	wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)),
 	wire.Bind(new(article.ViewDeadLetterPublisher), new(*eventstream.ArticleViewDeadLetterPublisher)),
 	wire.Bind(new(comment.EventPublisher), new(*eventstream.CommentEventPublisher)),
 	wire.Bind(new(article.CommentCountDeadLetterPublisher), new(*eventstream.CommentEventDeadLetterPublisher)),
 	wire.Bind(new(like.EventPublisher), new(*eventstream.LikeEventPublisher)),
 	wire.Bind(new(article.LikeCountDeadLetterPublisher), new(*eventstream.LikeEventDeadLetterPublisher)),
+	wire.Bind(new(notification.DeadLetterPublisher), new(*eventstream.LikeEventDeadLetterPublisher)),
 	domain.ArticleRepositoryProviderSet,
 	domain.ArticleReadingProviderSet,
 	domain.ArticleCommentCountProviderSet,
 	domain.ArticleLikeCountProviderSet,
 	domain.CommentLikeCountProviderSet,
+	domain.UserQueryProviderSet,
+	domain.NotificationProviderSet,
 	commentrepo.ProvideTransactionClient,
 	commentrepo.NewRepository,
 	wire.Bind(new(comment.OutboxRepository), new(*commentrepo.Repository)),
@@ -55,6 +61,7 @@ var ProviderSet = wire.NewSet(
 	newArticleViewConsumer,
 	newCommentCountConsumer,
 	newLikeCountConsumer,
+	newNotificationConsumer,
 	newBlogStreamer,
 )
 

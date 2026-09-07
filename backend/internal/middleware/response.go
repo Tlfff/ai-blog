@@ -76,6 +76,9 @@ func UnifiedResponseMiddleware() gin.HandlerFunc {
 			response.Message = message
 			if !nullData {
 				response.Data = generated.Data
+				if override, ok := httpresponse.DataOverride(ctx); ok {
+					response.Data = override
+				}
 			}
 		}
 		payload, err := json.Marshal(response)

@@ -9,6 +9,7 @@ import (
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/conf"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/notification"
 	"codeup.aliyun.com/qimao/leo/leo"
 	"codeup.aliyun.com/qimao/leo/leo/log"
 	"codeup.aliyun.com/qimao/leo/leo/stream"
@@ -77,6 +78,7 @@ func newBlogStreamer(
 	viewHandler *consumer.ArticleViewConsumer,
 	commentHandler *consumer.CommentCountConsumer,
 	likeHandler *consumer.LikeCountConsumer,
+	notificationHandler *consumer.NotificationConsumer,
 	viewEvents *eventstream.ArticleViewPublisher,
 	deadLetter *eventstream.ArticleViewDeadLetterPublisher,
 	commentEvents *eventstream.CommentEventPublisher,
@@ -100,7 +102,7 @@ func newBlogStreamer(
 	}
 	streamer := stream.NewStreamer(
 		stream.MessageBufferSize(int(messageBufferSize)),
-		stream.Handlers(viewHandler, commentHandler, likeHandler),
+		stream.Handlers(viewHandler, commentHandler, likeHandler, notificationHandler),
 		stream.ErrorHandler(func(err error) {
 			log.Error("error: ", err)
 		}),
@@ -124,6 +126,12 @@ func newCommentCountConsumer(processor article.CommentCountProcessor, subscriber
 func newLikeCountConsumer(articleProcessor article.LikeCountProcessor, commentProcessor comment.LikeCountProcessor, subscriber *eventstream.LikeEventSubscriber, deadLetter article.LikeCountDeadLetterPublisher) *consumer.LikeCountConsumer {
 	// 1. 将同一点赞事件订阅器路由到文章和评论投影器
 	return consumer.NewLikeCountConsumer(subscriber, articleProcessor, commentProcessor, deadLetter)
+}
+
+// newNotificationConsumer 组装文章点赞通知消费者。
+func newNotificationConsumer(processor notification.Processor, subscriber *eventstream.ArticleLikeNotificationSubscriber, deadLetter notification.DeadLetterPublisher) *consumer.NotificationConsumer {
+	// 1. 使用独立消费组接收完整文章点赞事件流
+	return consumer.NewNotificationConsumer(subscriber, processor, deadLetter)
 }
 
 // init 注册博客消息消费者子命令。

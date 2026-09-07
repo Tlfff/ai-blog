@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package notification.v1;
+
+import "google/api/annotations.proto";
+
+option go_package = "codeup.aliyun.com/qimao/blog/ai-blog/backend/api/notification;notification";
+
+// NotificationService 提供当前用户的通知查询与已读操作。
+service NotificationService {
+  rpc ListNotifications(ListNotificationsRequest) returns (NotificationListReply) {
+    option (google.api.http) = { get: "/auth/ntf/list" };
+  }
+  rpc GetUnreadCount(EmptyRequest) returns (UnreadCountReply) {
+    option (google.api.http) = { get: "/auth/ntf/unread-count" };
+  }
+  rpc MarkAllRead(EmptyRequest) returns (EmptyReply) {
+    option (google.api.http) = { post: "/auth/ntf/clear-unread" body: "*" };
+  }
+}
+
+message ListNotificationsRequest { uint64 page = 1; uint64 page_size = 2; }
+message EmptyRequest {}
+message EmptyReply {}
+message UnreadCountReply { int64 count = 1; }
+message NotificationItem {
+  string id = 1;
+  int32 type = 2;
+  bool is_read = 3;
+  int64 created_time = 4;
+  uint64 sender_id = 5;
+  string sender_nickname = 6;
+  string sender_avatar = 7;
+  string action_text = 8;
+  uint64 article_id = 9;
+  string title = 10;
+}
+message NotificationListReply {
+  repeated NotificationItem list = 1;
+  uint64 page = 2;
+  uint64 page_size = 3;
+}
