@@ -21,6 +21,8 @@ const _ = grpc.SupportPackageIsVersion7
 const (
 	LikeService_LikeArticle_FullMethodName       = "/like.v1.LikeService/LikeArticle"
 	LikeService_CancelArticleLike_FullMethodName = "/like.v1.LikeService/CancelArticleLike"
+	LikeService_LikeComment_FullMethodName       = "/like.v1.LikeService/LikeComment"
+	LikeService_CancelCommentLike_FullMethodName = "/like.v1.LikeService/CancelCommentLike"
 )
 
 // LikeServiceClient is the client API for LikeService service.
@@ -29,6 +31,8 @@ const (
 type LikeServiceClient interface {
 	LikeArticle(ctx context.Context, in *ArticleLikeRequest, opts ...grpc.CallOption) (*EmptyReply, error)
 	CancelArticleLike(ctx context.Context, in *ArticleLikeRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	LikeComment(ctx context.Context, in *CommentLikeRequest, opts ...grpc.CallOption) (*EmptyReply, error)
+	CancelCommentLike(ctx context.Context, in *CommentLikeRequest, opts ...grpc.CallOption) (*EmptyReply, error)
 }
 
 type likeServiceClient struct {
@@ -57,12 +61,32 @@ func (c *likeServiceClient) CancelArticleLike(ctx context.Context, in *ArticleLi
 	return out, nil
 }
 
+func (c *likeServiceClient) LikeComment(ctx context.Context, in *CommentLikeRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
+	out := new(EmptyReply)
+	err := c.cc.Invoke(ctx, LikeService_LikeComment_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *likeServiceClient) CancelCommentLike(ctx context.Context, in *CommentLikeRequest, opts ...grpc.CallOption) (*EmptyReply, error) {
+	out := new(EmptyReply)
+	err := c.cc.Invoke(ctx, LikeService_CancelCommentLike_FullMethodName, in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LikeServiceServer is the server API for LikeService service.
 // All implementations must embed UnimplementedLikeServiceServer
 // for forward compatibility
 type LikeServiceServer interface {
 	LikeArticle(context.Context, *ArticleLikeRequest) (*EmptyReply, error)
 	CancelArticleLike(context.Context, *ArticleLikeRequest) (*EmptyReply, error)
+	LikeComment(context.Context, *CommentLikeRequest) (*EmptyReply, error)
+	CancelCommentLike(context.Context, *CommentLikeRequest) (*EmptyReply, error)
 	mustEmbedUnimplementedLikeServiceServer()
 }
 
@@ -75,6 +99,12 @@ func (UnimplementedLikeServiceServer) LikeArticle(context.Context, *ArticleLikeR
 }
 func (UnimplementedLikeServiceServer) CancelArticleLike(context.Context, *ArticleLikeRequest) (*EmptyReply, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CancelArticleLike not implemented")
+}
+func (UnimplementedLikeServiceServer) LikeComment(context.Context, *CommentLikeRequest) (*EmptyReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method LikeComment not implemented")
+}
+func (UnimplementedLikeServiceServer) CancelCommentLike(context.Context, *CommentLikeRequest) (*EmptyReply, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method CancelCommentLike not implemented")
 }
 func (UnimplementedLikeServiceServer) mustEmbedUnimplementedLikeServiceServer() {}
 
@@ -125,6 +155,42 @@ func _LikeService_CancelArticleLike_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _LikeService_LikeComment_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommentLikeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LikeServiceServer).LikeComment(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LikeService_LikeComment_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LikeServiceServer).LikeComment(ctx, req.(*CommentLikeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _LikeService_CancelCommentLike_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CommentLikeRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LikeServiceServer).CancelCommentLike(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: LikeService_CancelCommentLike_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LikeServiceServer).CancelCommentLike(ctx, req.(*CommentLikeRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // LikeService_ServiceDesc is the grpc.ServiceDesc for LikeService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -139,6 +205,14 @@ var LikeService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "CancelArticleLike",
 			Handler:    _LikeService_CancelArticleLike_Handler,
+		},
+		{
+			MethodName: "LikeComment",
+			Handler:    _LikeService_LikeComment_Handler,
+		},
+		{
+			MethodName: "CancelCommentLike",
+			Handler:    _LikeService_CancelCommentLike_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

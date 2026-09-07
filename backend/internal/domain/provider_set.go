@@ -36,13 +36,17 @@ var LikeProviderSet = wire.NewSet(
 	likerepo.NewQueryRepository,
 	wire.Bind(new(like.Repository), new(*likerepo.Repository)),
 	wire.Bind(new(like.OutboxRepository), new(*likerepo.Repository)),
+	wire.Bind(new(like.CommentOutboxRepository), new(*likerepo.Repository)),
 	wire.Bind(new(like.Cache), new(*likerepo.Cache)),
 	wire.Bind(new(article.LikeReader), new(*likerepo.QueryRepository)),
 	article.NewPublicationQuery,
 	wire.Bind(new(like.ArticleReader), new(*article.PublicationQuery)),
+	comment.NewAvailabilityQuery,
+	wire.Bind(new(like.CommentReader), new(*comment.AvailabilityQuery)),
 	like.NewService,
 	wire.Bind(new(like.UseCase), new(*like.Service)),
 	wire.Bind(new(like.CacheRebuilder), new(*like.Service)),
+	wire.Bind(new(like.CommentCacheRebuilder), new(*like.Service)),
 )
 
 // CommentProviderSet 提供评论上下文的仓储、查询适配器和领域服务。
@@ -51,6 +55,8 @@ var CommentProviderSet = wire.NewSet(
 	commentrepo.ProvideTransactionClient,
 	commentrepo.NewRepository,
 	wire.Bind(new(comment.Repository), new(*commentrepo.Repository)),
+	wire.Bind(new(comment.AvailabilityRepository), new(*commentrepo.Repository)),
+	wire.Bind(new(comment.LikeCountRepository), new(*commentrepo.Repository)),
 	wire.Bind(new(comment.OutboxRepository), new(*commentrepo.Repository)),
 	commentrepo.NewArticleReader,
 	wire.Bind(new(comment.ArticleReader), new(*commentrepo.ArticleReaderAdapter)),
@@ -80,6 +86,13 @@ var ArticleCommentCountProviderSet = wire.NewSet(
 var ArticleLikeCountProviderSet = wire.NewSet(
 	article.NewLikeCountProjector,
 	wire.Bind(new(article.LikeCountProcessor), new(*article.LikeCountProjector)),
+)
+
+// CommentLikeCountProviderSet 提供评论点赞数投影与重建能力。
+var CommentLikeCountProviderSet = wire.NewSet(
+	comment.NewLikeCountProjector,
+	wire.Bind(new(comment.LikeCountProcessor), new(*comment.LikeCountProjector)),
+	wire.Bind(new(comment.LikeCountRebuilder), new(*comment.LikeCountProjector)),
 )
 
 // ArticleReadingProviderSet 提供公开阅读、浏览消费和热榜领域能力。

@@ -134,3 +134,7 @@ server:
 ```
 
 `x-timestamp` 不能来自未来，且与服务端当前 Unix 秒之差必须严格小于 `hmac_time_window_seconds`；Nonce 长度为 16～128 字节，并在同一 Access Key 下只能成功使用一次。认证失败响应和日志不得包含 JWT、密钥、签名或 Nonce。
+
+## 评论点赞事件与投影重建
+
+评论点赞事件复用 `like_event` Topic 和同一消费组，由消费者按 `article.*`、`comment.*` 事件类型路由到各自上下文；当前不会发布评论点赞通知。评论点赞 Redis 集合和 `comments.like_count` 会由 MySQL 点赞事实周期重建。

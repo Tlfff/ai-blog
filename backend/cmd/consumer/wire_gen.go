@@ -76,6 +76,9 @@ func newBlogStreamerApp() (*consumerApplication, func(), error) {
 	}
 	commentCountConsumer := newCommentCountConsumer(commentCountProjector, commentEventSubscriber, commentEventDeadLetterPublisher)
 	likeCountProjector := article.NewLikeCountProjector(repository)
+	repoTransactionClient := repo2.ProvideTransactionClient(mysqlClient)
+	repoRepository := repo2.NewRepository(mysqlClient, repoTransactionClient)
+	commentLikeCountProjector := comment.NewLikeCountProjector(repoRepository)
 	likeEventSubscriber, err := eventstream.NewLikeEventSubscriber(config)
 	if err != nil {
 		cleanup2()
@@ -88,15 +91,13 @@ func newBlogStreamerApp() (*consumerApplication, func(), error) {
 		cleanup()
 		return nil, nil, err
 	}
-	likeCountConsumer := newLikeCountConsumer(likeCountProjector, likeEventSubscriber, likeEventDeadLetterPublisher)
+	likeCountConsumer := newLikeCountConsumer(likeCountProjector, commentLikeCountProjector, likeEventSubscriber, likeEventDeadLetterPublisher)
 	commentEventPublisher, err := eventstream.NewCommentEventPublisher(config)
 	if err != nil {
 		cleanup2()
 		cleanup()
 		return nil, nil, err
 	}
-	repoTransactionClient := repo2.ProvideTransactionClient(mysqlClient)
-	repoRepository := repo2.NewRepository(mysqlClient, repoTransactionClient)
 	commentOutboxRelay := job.NewCommentOutboxRelay(repoRepository, commentEventPublisher)
 	likeEventPublisher, err := eventstream.NewLikeEventPublisher(config)
 	if err != nil {
@@ -107,7 +108,8 @@ func newBlogStreamerApp() (*consumerApplication, func(), error) {
 	transactionClient2 := repo3.ProvideTransactionClient(mysqlClient)
 	repository2 := repo3.NewRepository(mysqlClient, transactionClient2)
 	likeOutboxRelay := job.NewLikeOutboxRelay(repository2, likeEventPublisher)
-	consumerConsumerApplication := newBlogStreamer(data, articleViewConsumer, commentCountConsumer, likeCountConsumer, articleViewPublisher, articleViewDeadLetterPublisher, commentEventPublisher, commentEventDeadLetterPublisher, commentOutboxRelay, likeEventPublisher, likeEventDeadLetterPublisher, likeOutboxRelay)
+	commentLikeOutboxRelay := job.NewCommentLikeOutboxRelay(repository2, likeEventPublisher)
+	consumerConsumerApplication := newBlogStreamer(data, articleViewConsumer, commentCountConsumer, likeCountConsumer, articleViewPublisher, articleViewDeadLetterPublisher, commentEventPublisher, commentEventDeadLetterPublisher, commentOutboxRelay, likeEventPublisher, likeEventDeadLetterPublisher, likeOutboxRelay, commentLikeOutboxRelay)
 	return consumerConsumerApplication, func() {
 		cleanup2()
 		cleanup()
@@ -116,7 +118,7 @@ func newBlogStreamerApp() (*consumerApplication, func(), error) {
 
 // wire.go:
 
-var ProviderSet = wire.NewSet(conf.ProviderSet, clients.NewMysqlClient, clients.NewRedisClient, eventstream.NewArticleViewPublisher, eventstream.NewArticleViewDeadLetterPublisher, eventstream.NewArticleViewSubscriber, eventstream.NewCommentEventPublisher, eventstream.NewCommentEventDeadLetterPublisher, eventstream.NewCommentEventSubscriber, eventstream.NewLikeEventPublisher, eventstream.NewLikeEventDeadLetterPublisher, eventstream.NewLikeEventSubscriber, wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)), wire.Bind(new(article.ViewDeadLetterPublisher), new(*eventstream.ArticleViewDeadLetterPublisher)), wire.Bind(new(comment.EventPublisher), new(*eventstream.CommentEventPublisher)), wire.Bind(new(article.CommentCountDeadLetterPublisher), new(*eventstream.CommentEventDeadLetterPublisher)), wire.Bind(new(like.EventPublisher), new(*eventstream.LikeEventPublisher)), wire.Bind(new(article.LikeCountDeadLetterPublisher), new(*eventstream.LikeEventDeadLetterPublisher)), domain.ArticleRepositoryProviderSet, domain.ArticleReadingProviderSet, domain.ArticleCommentCountProviderSet, domain.ArticleLikeCountProviderSet, repo2.ProvideTransactionClient, repo2.NewRepository, wire.Bind(new(comment.OutboxRepository), new(*repo2.Repository)), repo3.ProvideTransactionClient, repo3.NewRepository, wire.Bind(new(like.OutboxRepository), new(*repo3.Repository)), job.NewCommentOutboxRelay, job.NewLikeOutboxRelay, newArticleViewConsumer,
+var ProviderSet = wire.NewSet(conf.ProviderSet, clients.NewMysqlClient, clients.NewRedisClient, eventstream.NewArticleViewPublisher, eventstream.NewArticleViewDeadLetterPublisher, eventstream.NewArticleViewSubscriber, eventstream.NewCommentEventPublisher, eventstream.NewCommentEventDeadLetterPublisher, eventstream.NewCommentEventSubscriber, eventstream.NewLikeEventPublisher, eventstream.NewLikeEventDeadLetterPublisher, eventstream.NewLikeEventSubscriber, wire.Bind(new(article.ViewEventPublisher), new(*eventstream.ArticleViewPublisher)), wire.Bind(new(article.ViewDeadLetterPublisher), new(*eventstream.ArticleViewDeadLetterPublisher)), wire.Bind(new(comment.EventPublisher), new(*eventstream.CommentEventPublisher)), wire.Bind(new(article.CommentCountDeadLetterPublisher), new(*eventstream.CommentEventDeadLetterPublisher)), wire.Bind(new(like.EventPublisher), new(*eventstream.LikeEventPublisher)), wire.Bind(new(article.LikeCountDeadLetterPublisher), new(*eventstream.LikeEventDeadLetterPublisher)), domain.ArticleRepositoryProviderSet, domain.ArticleReadingProviderSet, domain.ArticleCommentCountProviderSet, domain.ArticleLikeCountProviderSet, domain.CommentLikeCountProviderSet, repo2.ProvideTransactionClient, repo2.NewRepository, wire.Bind(new(comment.OutboxRepository), new(*repo2.Repository)), wire.Bind(new(comment.LikeCountRepository), new(*repo2.Repository)), repo3.ProvideTransactionClient, repo3.NewRepository, wire.Bind(new(like.OutboxRepository), new(*repo3.Repository)), wire.Bind(new(like.CommentOutboxRepository), new(*repo3.Repository)), job.NewCommentOutboxRelay, job.NewLikeOutboxRelay, job.NewCommentLikeOutboxRelay, newArticleViewConsumer,
 	newCommentCountConsumer,
 	newLikeCountConsumer,
 	newBlogStreamer,

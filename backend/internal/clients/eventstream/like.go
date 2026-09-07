@@ -14,26 +14,26 @@ import (
 	confluent "github.com/confluentinc/confluent-kafka-go/v2/kafka"
 )
 
-// LikeEventPublisher 同步发布文章点赞 Outbox 事件。
+// LikeEventPublisher 同步发布点赞 Outbox 事件。
 type LikeEventPublisher struct {
 	publisher stream.Publisher // publisher 是 Leo Kafka 发布器。
 	mutex     sync.RWMutex     // mutex 协调发布与关闭。
 	closed    bool             // closed 表示发布器已关闭。
 }
 
-// LikeEventSubscriber 包装文章点赞事件 Kafka 订阅器。
+// LikeEventSubscriber 包装点赞事件 Kafka 订阅器。
 type LikeEventSubscriber struct {
 	stream.Subscriber // Subscriber 提供 Leo Stream 订阅能力。
 }
 
-// LikeEventDeadLetterPublisher 发布文章点赞计数消费死信。
+// LikeEventDeadLetterPublisher 发布点赞计数消费死信。
 type LikeEventDeadLetterPublisher struct {
 	publisher stream.Publisher // publisher 是 Leo Kafka 死信发布器。
 	mutex     sync.RWMutex     // mutex 协调发布与关闭。
 	closed    bool             // closed 表示发布器已关闭。
 }
 
-// NewLikeEventPublisher 创建文章点赞事件 Kafka 发布器。
+// NewLikeEventPublisher 创建点赞事件 Kafka 发布器。
 func NewLikeEventPublisher(config *conf.Config) (*LikeEventPublisher, error) {
 	// 1. 从版本化配置字段创建同步发布器
 	publisher, err := newIntegrationPublisher(config.GetData().GetKafka().GetProducer().GetLikeEvent(), "点赞事件")
@@ -43,7 +43,7 @@ func NewLikeEventPublisher(config *conf.Config) (*LikeEventPublisher, error) {
 	return &LikeEventPublisher{publisher: publisher}, nil
 }
 
-// NewLikeEventSubscriber 创建文章点赞计数 Kafka 订阅器。
+// NewLikeEventSubscriber 创建点赞计数 Kafka 订阅器。
 func NewLikeEventSubscriber(config *conf.Config) (*LikeEventSubscriber, error) {
 	// 1. 从版本化配置字段创建手动提交订阅器
 	cfg := config.GetData().GetKafka().GetConsumer().GetLikeEvent()
@@ -74,7 +74,7 @@ func NewLikeEventDeadLetterPublisher(config *conf.Config) (*LikeEventDeadLetterP
 	return &LikeEventDeadLetterPublisher{publisher: publisher}, nil
 }
 
-// Publish 同步等待 Kafka 接受文章点赞事件。
+// Publish 同步等待 Kafka 接受点赞事件。
 func (p *LikeEventPublisher) Publish(ctx context.Context, event like.IntegrationEvent) error {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
@@ -90,7 +90,7 @@ func (p *LikeEventPublisher) Publish(ctx context.Context, event like.Integration
 	return err
 }
 
-// Run 等待退出并关闭文章点赞事件 Kafka 发布器。
+// Run 等待退出并关闭点赞事件 Kafka 发布器。
 func (p *LikeEventPublisher) Run(ctx context.Context) error {
 	// 1. 等待 Leo 生命周期结束后阻止新发布并关闭连接
 	<-ctx.Done()

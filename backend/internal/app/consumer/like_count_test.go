@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/article"
+	"codeup.aliyun.com/qimao/blog/ai-blog/backend/internal/domain/comment"
 	"codeup.aliyun.com/qimao/leo/leo/stream"
 )
 
@@ -30,6 +31,18 @@ func (f *fakeLikeCountProcessor) ApplyLikeCountEvent(context.Context, article.Li
 	return nil
 }
 
+type fakeCommentLikeCountProcessor struct {
+	calls int
+	event comment.LikeCountEvent
+}
+
+// ApplyLikeCountEvent 记录评论事件路由结果。
+func (f *fakeCommentLikeCountProcessor) ApplyLikeCountEvent(_ context.Context, event comment.LikeCountEvent) error {
+	f.calls++
+	f.event = event
+	return nil
+}
+
 // fakeLikeCountDeadLetter 记录点赞死信负载。
 type fakeLikeCountDeadLetter struct {
 	calls int // calls 是死信发布次数。
@@ -47,7 +60,7 @@ func TestLikeCountConsumerRetriesTransientFailure(t *testing.T) {
 	// 1. 前两次失败，第三次成功时不进入死信
 	processor := &fakeLikeCountProcessor{failures: 2}
 	deadLetter := &fakeLikeCountDeadLetter{}
-	consumer := NewLikeCountConsumer(fakeSubscriber{}, processor, deadLetter)
+	consumer := NewLikeCountConsumer(fakeSubscriber{}, processor, &fakeCommentLikeCountProcessor{}, deadLetter)
 	payload := []byte(`{"event_id":"event-1","event_type":"article.liked","version":1,"aggregate_id":9,"occurred_at":"` + time.Now().Format(time.RFC3339Nano) + `","like_id":9,"article_id":4,"user_id":7}`)
 	if err := consumer.Handle(context.Background(), &stream.Message{Payload: payload}); err != nil {
 		t.Fatal(err)
@@ -62,12 +75,26 @@ func TestLikeCountConsumerPublishesDeadLetterAfterRetries(t *testing.T) {
 	// 1. 持续失败的合法消息最终发布一次死信
 	processor := &fakeLikeCountProcessor{alwaysError: errors.New("database unavailable")}
 	deadLetter := &fakeLikeCountDeadLetter{}
-	consumer := NewLikeCountConsumer(fakeSubscriber{}, processor, deadLetter)
+	consumer := NewLikeCountConsumer(fakeSubscriber{}, processor, &fakeCommentLikeCountProcessor{}, deadLetter)
 	payload := []byte(`{"event_id":"event-2","event_type":"article.unliked","version":2,"aggregate_id":9,"occurred_at":"` + time.Now().Format(time.RFC3339Nano) + `","like_id":9,"article_id":4,"user_id":7}`)
 	if err := consumer.Handle(context.Background(), &stream.Message{Payload: payload}); err != nil {
 		t.Fatal(err)
 	}
 	if processor.calls != likeCountConsumeAttempts || deadLetter.calls != 1 {
 		t.Fatalf("processor calls=%d dead letters=%d", processor.calls, deadLetter.calls)
+	}
+}
+
+// TestLikeCountConsumerRoutesCommentEvents 验证评论事件只进入评论上下文且不触发通知链路。
+func TestLikeCountConsumerRoutesCommentEvents(t *testing.T) {
+	articleProcessor := &fakeLikeCountProcessor{}
+	commentProcessor := &fakeCommentLikeCountProcessor{}
+	consumer := NewLikeCountConsumer(fakeSubscriber{}, articleProcessor, commentProcessor, &fakeLikeCountDeadLetter{})
+	payload := []byte(`{"event_id":"c1","event_type":"comment.liked","version":1,"aggregate_id":9,"occurred_at":"` + time.Now().Format(time.RFC3339Nano) + `","like_id":9,"comment_id":4,"user_id":7}`)
+	if err := consumer.Handle(context.Background(), &stream.Message{Payload: payload}); err != nil {
+		t.Fatal(err)
+	}
+	if articleProcessor.calls != 0 || commentProcessor.calls != 1 || commentProcessor.event.CommentID != 4 {
+		t.Fatalf("article=%d comment=%#v", articleProcessor.calls, commentProcessor)
 	}
 }

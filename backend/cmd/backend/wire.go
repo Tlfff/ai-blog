@@ -26,6 +26,7 @@ func wireApp() (application *httpApplication, cleanup func(), err error) {
 		// 领域层
 		domain.DomainProviderAppSet,
 		domain.ArticleReadingProviderSet,
+		domain.CommentLikeCountProviderSet,
 		domain.UserProviderSet,
 		// 应用层
 		service.ServiceProviderAppSet,
